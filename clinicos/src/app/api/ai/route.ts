@@ -110,6 +110,28 @@ const FUNCTIONS = [
       },
     },
   },
+  {
+    name: "get_consultations",
+    description: "Obtenir les rapports de consultation et l'historique médical d'un patient",
+    parameters: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "ID du patient pour filtrer ses consultations" },
+        limit: { type: "number" },
+      },
+    },
+  },
+  {
+    name: "get_prescriptions",
+    description: "Obtenir les ordonnances d'un patient ou toutes les ordonnances",
+    parameters: {
+      type: "object",
+      properties: {
+        patientId: { type: "string", description: "ID du patient" },
+        limit: { type: "number" },
+      },
+    },
+  },
 ];
 
 // ─── Tool executor ─────────────────────────────────────────────────────────────
@@ -234,6 +256,26 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
         return JSON.stringify({ success: true, entry: data });
       }
 
+      case "get_consultations": {
+        let q = supabase.from("consultations")
+          .select("id, diagnosis, treatment, notes, next_visit, created_at, patients(full_name), profiles(name)")
+          .order("created_at", { ascending: false })
+          .limit(args.limit ?? 20);
+        if (args.patientId) q = q.eq("patient_id", args.patientId);
+        const { data } = await q;
+        return JSON.stringify(data ?? []);
+      }
+
+      case "get_prescriptions": {
+        let q = supabase.from("prescriptions")
+          .select("id, diagnosis, medications, notes, created_at, patients(full_name), profiles(name)")
+          .order("created_at", { ascending: false })
+          .limit(args.limit ?? 20);
+        if (args.patientId) q = q.eq("patient_id", args.patientId);
+        const { data } = await q;
+        return JSON.stringify(data ?? []);
+      }
+
       default:
         return JSON.stringify({ error: `Outil inconnu: ${name}` });
     }
@@ -247,14 +289,28 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
 const SYSTEM_PROMPT = `Tu es l'assistant IA intégré de ClinicOS, une plateforme de gestion de cabinet médical.
 Tu as un accès COMPLET et EN TEMPS RÉEL à toutes les données du cabinet via tes fonctions.
 
+ACCÈS DONNÉES (utilise TOUJOURS les fonctions, ne jamais inventer) :
+- get_stats : statistiques globales
+- get_patients / search_patients : dossiers patients avec allergies et historique
+- get_appointments : rendez-vous
+- get_waiting_room : salle d'attente en temps réel
+- get_invoices : factures et paiements
+- get_team : équipe médicale
+- get_activity : historique des actions
+- get_consultations : rapports de consultation, diagnostics, traitements
+- get_prescriptions : ordonnances et médicaments prescrits
+
+ACTIONS (exécute quand demandé) :
+- create_appointment : créer un rendez-vous (cherche d'abord l'ID patient avec search_patients)
+- update_appointment_status : modifier le statut d'un RDV
+- add_to_waiting_room : ajouter un patient à la file
+
 RÈGLES :
-1. Avant de répondre sur les données (patients, RDV, factures, équipe, salle d'attente), utilise TOUJOURS tes fonctions pour obtenir des données fraîches.
-2. Pour toute action demandée (créer un RDV, ajouter à la salle d'attente, etc.), utilise la fonction correspondante et confirme avec les détails.
-3. Ne jamais inventer des données — utilise toujours les fonctions.
-4. Si tu as besoin d'un ID patient, utilise search_patients d'abord.
-5. Réponds TOUJOURS en français, de manière claire et concise.
-6. Utilise le **gras** pour les informations importantes, les listes à puces pour l'organisation.
-7. Pour les actions réussies, confirme clairement ce qui a été fait.
+1. Utilise TOUJOURS les fonctions pour obtenir des données avant de répondre.
+2. Pour toute action, confirme ce qui a été fait avec les détails.
+3. Si tu as besoin d'un ID patient pour une action, utilise search_patients d'abord.
+4. Réponds TOUJOURS en français, de manière claire et professionnelle.
+5. Utilise **gras** pour les infos importantes, listes à puces pour l'organisation.
 
 Date d'aujourd'hui : ${new Date().toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`;
 

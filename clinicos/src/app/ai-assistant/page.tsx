@@ -241,7 +241,7 @@ export default function AIAssistantPage() {
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (data.mode) setApiMode(data.mode === "claude" ? "openai" : data.mode === "demo" ? "demo" : "demo");
+        if (data.mode) setApiMode(data.mode === "openai" || data.mode === "claude" ? "openai" : "demo");
 
         const aiMsg: Message = {
           id: `a-${Date.now()}`,
