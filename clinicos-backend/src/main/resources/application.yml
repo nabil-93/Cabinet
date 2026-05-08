@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/clinicos_db
+    username: clinicos_user
+    password: clinicos_pass
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+
+jwt:
+  secret: clinicos-super-secret-jwt-key-2025-production
+  expiration: 86400000  # 24h
+
+cors:
+  allowed-origins: http://localhost:3000

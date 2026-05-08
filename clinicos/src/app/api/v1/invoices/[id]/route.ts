@@ -1,0 +1,60 @@
+import { NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { ok, err } from "@/lib/supabase/helpers";
+import { normalize } from "../route";
+import { logActivity } from "@/lib/supabase/log-activity";
+
+function computeStatus(paid: number, total: number, explicit?: string): string {
+  if (explicit && ["paid", "unpaid", "partial", "refunded"].includes(explicit)) return explicit;
+  if (total > 0 && paid >= total) return "paid";
+  if (paid > 0 && paid < total) return "partial";
+  return "unpaid";
+}
+
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("*, patients(full_name, phone)")
+    .eq("id", id)
+    .single();
+  if (error) return err(error.message, 404);
+  return ok(normalize(data));
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const body = await req.json().catch(() => ({}));
+  const supabase = await createClient();
+
+  const { data: current } = await supabase
+    .from("invoices")
+    .select("total, paid")
+    .eq("id", id)
+    .single();
+
+  if (!current) return err("Facture introuvable", 404);
+
+  const newTotal = body.total !== undefined ? Number(body.total) : current.total;
+  const newPaid = body.paid !== undefined ? Number(body.paid) : current.paid;
+
+  const update: Record<string, any> = {};
+  if (body.total !== undefined) update.total = newTotal;
+  if (body.paid !== undefined) update.paid = newPaid;
+  if (body.notes !== undefined) update.notes = body.notes;
+  if (body.items !== undefined) update.items = body.items;
+  if (body.dueDate !== undefined) update.due_date = body.dueDate;
+  update.status = computeStatus(newPaid, newTotal, body.status);
+
+  const { data, error } = await supabase
+    .from("invoices")
+    .update(update)
+    .eq("id", id)
+    .select("*, patients(full_name, phone)")
+    .single();
+
+  if (error) return err(error.message);
+  await logActivity({ supabase, action: "update_invoice", entityType: "invoice", entityId: id, entityLabel: (data as any).invoice_number });
+  return ok(normalize(data));
+}

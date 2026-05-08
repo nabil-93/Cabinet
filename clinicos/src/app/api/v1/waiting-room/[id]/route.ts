@@ -1,0 +1,116 @@
+import { createClient } from "@/lib/supabase/server";
+import { ok, err } from "@/lib/supabase/helpers";
+import { NextRequest } from "next/server";
+import { logActivity } from "@/lib/supabase/log-activity";
+import { normalize } from "../route";
+
+const ALLOWED_STATUSES = ["waiting", "in_progress", "done"];
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const body = await req.json().catch(() => ({}));
+  const { status, doctorId, doctorName } = body;
+
+  if (!status || !ALLOWED_STATUSES.includes(status)) return err("Statut invalide", 400);
+
+  const supabase = await createClient();
+
+  // Fetch current entry for validation
+  const { data: current } = await supabase
+    .from("waiting_room")
+    .select("status, patients(full_name)")
+    .eq("id", id)
+    .single();
+
+  if (!current) return err("Entrée introuvable", 404);
+
+  // Race condition guard: only move from expected previous state
+  const validTransition: Record<string, string> = {
+    in_progress: "waiting",
+    done:        "in_progress",
+  };
+  if (validTransition[status] && current.status !== validTransition[status]) {
+    return err(`Transition invalide: ${current.status} → ${status}`, 409);
+  }
+
+  // ── Verify doctor is still online at request time ──
+  if (status === "in_progress" && doctorId) {
+    const threshold = new Date(Date.now() - 90_000).toISOString();
+    const { data: doc } = await supabase
+      .from("profiles")
+      .select("is_online, last_seen_at")
+      .eq("id", doctorId)
+      .single();
+
+    const isOnline = doc?.is_online && doc?.last_seen_at && doc.last_seen_at >= threshold;
+    if (!isOnline) {
+      return err("Ce médecin n'est plus en ligne — veuillez en choisir un autre", 409);
+    }
+  }
+
+  const update: Record<string, any> = { status };
+  if (status === "in_progress" && doctorId) {
+    update.assigned_doctor_id   = doctorId;
+    update.assigned_doctor_name = doctorName ?? null;
+  }
+
+  const { data, error } = await supabase
+    .from("waiting_room")
+    .update(update)
+    .eq("id", id)
+    .select("*, patients(full_name), appointments(time)")
+    .single();
+
+  if (error) return err(error.message);
+
+  const patientName = (current.patients as any)?.full_name || "";
+
+  if (status === "in_progress") {
+    await logActivity({ supabase, action: "call_patient", entityType: "patient", entityLabel: patientName });
+    // Update doctor availability to BUSY
+    if (doctorId) {
+      await supabase.from("profiles").update({ is_available: false }).eq("id", doctorId);
+    }
+  }
+
+  if (status === "done") {
+    await logActivity({ supabase, action: "finish_consultation", entityType: "patient", entityLabel: patientName });
+    // Mark linked appointment as completed
+    if (data.appointment_id) {
+      await supabase.from("appointments")
+        .update({ status: "completed" })
+        .eq("id", data.appointment_id);
+    }
+    // Free up the doctor
+    if (data.assigned_doctor_id) {
+      await supabase.from("profiles")
+        .update({ is_available: true })
+        .eq("id", data.assigned_doctor_id);
+    }
+  }
+
+  return ok(normalize(data));
+}
+
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: entry } = await supabase
+    .from("waiting_room")
+    .select("patients(full_name), assigned_doctor_id")
+    .eq("id", id).single();
+
+  const { error } = await supabase.from("waiting_room").delete().eq("id", id);
+  if (error) return err(error.message);
+
+  const patientName = (entry as any)?.patients?.full_name || "";
+  await logActivity({ supabase, action: "remove_from_waiting_room", entityType: "patient", entityLabel: patientName });
+
+  // If patient was in consultation, free the doctor
+  const doctorId = (entry as any)?.assigned_doctor_id;
+  if (doctorId) {
+    await supabase.from("profiles").update({ is_available: true }).eq("id", doctorId);
+  }
+
+  return ok({ success: true });
+}

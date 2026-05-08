@@ -1,0 +1,38 @@
+# Dependencies
+**/node_modules
+**/.pnp
+.pnp.*
+
+# Next.js
+**/.next/
+**/out/
+
+# Production
+**/build
+**/dist
+
+# Misc
+.DS_Store
+*.pem
+**/*.log
+**/*.tsbuildinfo
+
+# Env files
+.env*
+!.env.example
+
+# Vercel
+.vercel
+
+# Java/Maven (Backend)
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+**/.mvn/wrapper/maven-wrapper.properties
+**/mvnw
+**/mvnw.cmd
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo

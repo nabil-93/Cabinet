@@ -1,0 +1,40 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: clinicos_db
+    environment:
+      POSTGRES_DB: clinicos_db
+      POSTGRES_USER: clinicos_user
+      POSTGRES_PASSWORD: clinicos_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - clinicos_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clinicos_user -d clinicos_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    container_name: clinicos_backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/clinicos_db
+      SPRING_DATASOURCE_USERNAME: clinicos_user
+      SPRING_DATASOURCE_PASSWORD: clinicos_pass
+      JWT_SECRET: ${JWT_SECRET:-clinicos-super-secret-jwt-key-change-in-production}
+      JWT_EXPIRATION: 86400000
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads:/app/uploads
+
+volumes:
+  clinicos_data:
+  uploads:
