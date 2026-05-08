@@ -99,34 +99,35 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params;
     const supabase = await createClient();
+    const admin    = createAdminClient();
 
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .update({ is_active: false })
-      .eq("id", id)
-      .select("name")
-      .single();
+    // Prevent self-deletion
+    const { data: { user: actor } } = await supabase.auth.getUser();
+    if (!actor) return err("Non authentifié", 401);
+    if (actor.id === id) return err("Vous ne pouvez pas supprimer votre propre compte", 403);
 
-    if (error) return err(error.message);
+    const { data: profile } = await supabase
+      .from("profiles").select("name, role").eq("id", id).single();
 
-    const { data: actor } = await supabase.auth.getUser();
-    if (actor.user) {
-      const { data: actorProfile } = await supabase
-        .from("profiles")
-        .select("name, role")
-        .eq("id", actor.user.id)
-        .single();
+    // Delete from Supabase Auth (cascades to profiles if FK set, else manual)
+    const { error: authErr } = await admin.auth.admin.deleteUser(id);
+    if (authErr) return err(authErr.message);
 
-      await supabase.from("activity_logs").insert({
-        user_id: actor.user.id,
-        user_name: actorProfile?.name ?? "",
-        user_role: actorProfile?.role ?? "",
-        action: "deactivate_user",
-        entity_type: "user",
-        entity_id: id,
-        entity_label: profile?.name ?? "",
-      });
-    }
+    // Delete profile if not already cascaded
+    await supabase.from("profiles").delete().eq("id", id);
+
+    const { data: actorProfile } = await supabase
+      .from("profiles").select("name, role").eq("id", actor.id).single();
+
+    await supabase.from("activity_logs").insert({
+      user_id: actor.id,
+      user_name: actorProfile?.name ?? "",
+      user_role: actorProfile?.role ?? "",
+      action: "delete_user",
+      entity_type: "user",
+      entity_id: id,
+      entity_label: profile?.name ?? "",
+    });
 
     return ok({ success: true });
   } catch (e: any) {

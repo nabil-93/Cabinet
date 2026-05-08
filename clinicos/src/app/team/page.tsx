@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserCog, Plus, Users, Stethoscope, X, Mail, Phone, Clock, Edit, ChevronRight, ToggleLeft, ToggleRight, Shield } from "lucide-react";
+import { UserCog, Plus, Users, Stethoscope, X, Mail, Phone, Clock, Edit, ChevronRight, ToggleLeft, ToggleRight, Shield, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -59,6 +59,7 @@ export default function TeamPage() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
   const [form, setForm] = useState<MemberForm>(EMPTY_FORM);
 
   const { data: members = [], isLoading } = useQuery<TeamMember[]>({
@@ -130,6 +131,16 @@ export default function TeamPage() {
       await createMutation.mutateAsync(form);
     }
   };
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/${id}`),
+    onSuccess: (_, id) => {
+      qc.setQueryData<TeamMember[]>(["team"], old => (old ?? []).filter(m => m.id !== id));
+      toast.success("Membre supprimé");
+      setDeletingMember(null);
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.error || "Erreur lors de la suppression"),
+  });
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
@@ -244,6 +255,11 @@ export default function TeamPage() {
                         title="Modifier">
                         <Edit className="w-3.5 h-3.5" />
                       </button>
+                      <button onClick={() => setDeletingMember(member)}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950 transition-all"
+                        title="Supprimer">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                       <Link href={`/team/${member.id}`}>
                         <div className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all" title="Voir activité">
                           <ChevronRight className="w-3.5 h-3.5" />
@@ -268,6 +284,40 @@ export default function TeamPage() {
           )}
         </div>
       </div>
+
+      {deletingMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeletingMember(null)} />
+          <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-xl p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-foreground">Supprimer le membre</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {deletingMember.role === "doctor" || deletingMember.role === "admin" ? `Dr. ${deletingMember.name}` : deletingMember.name} sera définitivement supprimé.
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-red-500 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2">
+              Cette action est irréversible. Le compte sera supprimé de l&apos;application.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeletingMember(null)}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-all">
+                Annuler
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(deletingMember.id)}
+                disabled={deleteMutation.isPending}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all disabled:opacity-50">
+                {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
