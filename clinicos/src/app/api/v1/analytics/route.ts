@@ -34,7 +34,7 @@ export async function GET() {
       supabase.from("patients").select("gender, date_of_birth, created_at, status"),
       supabase.from("appointments").select("time, status, type").gte("date", d30),
       supabase.from("appointments").select("date, status"),
-      supabase.from("invoices").select("paid, amount").gte("created_at", `${monthStart}T00:00:00`),
+      supabase.from("invoices").select("paid, total").gte("created_at", `${monthStart}T00:00:00`),
     ]);
 
     // ── Gender distribution ──────────────────────────────────────────────────

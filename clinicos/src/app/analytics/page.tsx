@@ -1,21 +1,23 @@
 "use client";
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { TrendingUp, Users, Calendar, CreditCard, CheckCircle } from "lucide-react";
+import { TrendingUp, Users, Calendar, CreditCard, CheckCircle, BarChart2, AreaChart as AreaIcon, LineChart as LineIcon } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/services/api";
 import { cn } from "@/lib/utils";
 import { ChartSkeleton } from "@/components/ui/skeleton";
 
-const AreaChart       = dynamic(() => import("recharts").then(m => ({ default: m.AreaChart })),       { ssr: false });
-const Area            = dynamic(() => import("recharts").then(m => ({ default: m.Area })),            { ssr: false });
-const BarChart        = dynamic(() => import("recharts").then(m => ({ default: m.BarChart })),        { ssr: false });
-const Bar             = dynamic(() => import("recharts").then(m => ({ default: m.Bar })),             { ssr: false });
-const XAxis           = dynamic(() => import("recharts").then(m => ({ default: m.XAxis })),           { ssr: false });
-const YAxis           = dynamic(() => import("recharts").then(m => ({ default: m.YAxis })),           { ssr: false });
-const CartesianGrid   = dynamic(() => import("recharts").then(m => ({ default: m.CartesianGrid })),   { ssr: false });
-const Tooltip         = dynamic(() => import("recharts").then(m => ({ default: m.Tooltip })),         { ssr: false });
+const AreaChart    = dynamic(() => import("recharts").then(m => ({ default: m.AreaChart })),    { ssr: false });
+const Area         = dynamic(() => import("recharts").then(m => ({ default: m.Area })),         { ssr: false });
+const BarChart     = dynamic(() => import("recharts").then(m => ({ default: m.BarChart })),     { ssr: false });
+const Bar          = dynamic(() => import("recharts").then(m => ({ default: m.Bar })),          { ssr: false });
+const LineChart    = dynamic(() => import("recharts").then(m => ({ default: m.LineChart })),    { ssr: false });
+const Line         = dynamic(() => import("recharts").then(m => ({ default: m.Line })),         { ssr: false });
+const XAxis        = dynamic(() => import("recharts").then(m => ({ default: m.XAxis })),        { ssr: false });
+const YAxis        = dynamic(() => import("recharts").then(m => ({ default: m.YAxis })),        { ssr: false });
+const CartesianGrid = dynamic(() => import("recharts").then(m => ({ default: m.CartesianGrid })), { ssr: false });
+const Tooltip      = dynamic(() => import("recharts").then(m => ({ default: m.Tooltip })),      { ssr: false });
 const ResponsiveContainer = dynamic(() => import("recharts").then(m => ({ default: m.ResponsiveContainer })), { ssr: false });
 
 const GenderPieChart = dynamic(() => import("@/components/charts/GenderPieChart"), { ssr: false });
@@ -71,7 +73,8 @@ function NoData({ label }: { label: string }) {
 }
 
 export default function AnalyticsPage() {
-  const [period, setPeriod] = useState<"1d" | "1w" | "1m" | "6m">("1d");
+  const [period,    setPeriod]    = useState<"1d" | "1w" | "1m" | "6m">("1d");
+  const [chartType, setChartType] = useState<"bar" | "area" | "line">("bar");
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
     queryKey: ["analytics-chart", period],
@@ -158,10 +161,23 @@ export default function AnalyticsPage() {
           ) : (
             <>
               <div className="bg-card border border-border rounded-xl p-5 lg:col-span-2">
-                <div className="mb-4">
+                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-foreground">Évolution des revenus & rendez-vous</h3>
+                  <div className="flex items-center gap-0.5 bg-muted/40 rounded-lg p-0.5">
+                    {([
+                      { type: "bar",  Icon: BarChart2, title: "Colonnes" },
+                      { type: "area", Icon: AreaIcon,  title: "Aires" },
+                      { type: "line", Icon: LineIcon,  title: "Lignes" },
+                    ] as const).map(({ type, Icon, title }) => (
+                      <button key={type} onClick={() => setChartType(type)} title={title}
+                        className={cn("w-7 h-7 flex items-center justify-center rounded-md transition-all",
+                          chartType === type ? "bg-card shadow-sm text-primary" : "text-muted-foreground hover:text-foreground")}>
+                        <Icon className="w-3.5 h-3.5" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1 mb-4">
+                <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1 mb-3">
                   {(["1d", "1w", "1m", "6m"] as const).map(p => (
                     <button key={p} onClick={() => setPeriod(p)} className={cn(
                       "flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all",
@@ -171,26 +187,57 @@ export default function AnalyticsPage() {
                     </button>
                   ))}
                 </div>
-                <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={chartData || []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6272f5" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#6272f5" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="gradAppts" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#43e97b" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#43e97b" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="rdv" stroke="#43e97b" strokeWidth={2} fill="url(#gradAppts)" name="RDV" />
-                    <Area type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} fill="url(#gradRevenue)" name="Revenus (MAD)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#43e97b]" /><span className="text-xs text-muted-foreground">RDV</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#6272f5]" /><span className="text-xs text-muted-foreground">Revenus (MAD)</span></div>
+                </div>
+                {chartType === "bar" ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={chartData || []} margin={{ top: 5, right: 35, left: -20, bottom: 0 }} barGap={3} barCategoryGap="35%">
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                      <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
+                      <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+                      <Bar yAxisId="rev" dataKey="revenue" fill="#6272f5" name="Revenus (MAD)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                      <Bar yAxisId="rdv" dataKey="rdv"     fill="#43e97b" name="RDV"           radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : chartType === "area" ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <AreaChart data={chartData || []} margin={{ top: 5, right: 35, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6272f5" stopOpacity={0.35} />
+                          <stop offset="95%" stopColor="#6272f5" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="gradAppts" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#43e97b" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#43e97b" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
+                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                      <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
+                      <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Area yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} fill="url(#gradRevenue)" name="Revenus (MAD)" dot={false} />
+                      <Area yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   fill="url(#gradAppts)"   name="RDV"           dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <LineChart data={chartData || []} margin={{ top: 5, right: 35, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
+                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                      <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
+                      <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Line yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} name="Revenus (MAD)" dot={{ r: 3, fill: "#6272f5" }} activeDot={{ r: 5 }} />
+                      <Line yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   name="RDV"           dot={{ r: 3, fill: "#43e97b" }} activeDot={{ r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </div>
 
               <div className="bg-card border border-border rounded-xl p-5">
