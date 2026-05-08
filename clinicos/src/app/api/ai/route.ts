@@ -97,7 +97,13 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("AI route error:", error);
     return NextResponse.json(
-      { message: "⚠️ Une erreur est survenue. Veuillez réessayer dans quelques instafunction generateSmartResponse(query: string, context?: any): string {
+      { message: "⚠️ Une erreur est survenue. Veuillez réessayer dans quelques instants." },
+      { status: 500 }
+    );
+  }
+}
+
+function generateSmartResponse(query: string, context?: any): string {
   const stats = context?.stats;
   const todayStr = new Date().toLocaleDateString("fr-FR", {
     weekday: "long",
@@ -138,5 +144,4 @@ export async function POST(req: NextRequest) {
 
   // Fallback
   return `Je comprends votre demande concernant **"${query}"**.\n\n${stats ? `**Données système disponibles :**\n• ${stats.totalPatients} patients au total\n• ${stats.todayAppointments} RDV aujourd'hui\n• Accès aux allergies et historiques activé` : ""} \n\nPour vous aider au mieux (ex: "Quelles sont les allergies de M. X ?"), pourriez-vous préciser votre question ?`;
-}ous préciser :\n• De quel patient ou cas s'agit-il ?\n• Quelle action souhaitez-vous effectuer ?\n• Sur quelle période portez-vous votre demande ?\n\n💡 Vous pouvez aussi utiliser les **actions rapides** ci-dessous pour les tâches courantes, ou m'écrire en langage naturel — je ferai de mon mieux pour comprendre et vous aider !`;
 }
