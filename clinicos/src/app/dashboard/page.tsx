@@ -173,18 +173,19 @@ export default function DashboardPage() {
             </div>
           ) : chartType === "bar" ? (
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} barGap={2} barCategoryGap="30%">
+              <BarChart data={chartData} margin={{ top: 5, right: 35, left: -20, bottom: 0 }} barGap={3} barCategoryGap="35%">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
-                <Bar dataKey="rdv" fill="#43e97b" name="RDV" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                <Bar dataKey="revenue" fill="#6272f5" name="Revenus (MAD)" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Bar yAxisId="rev" dataKey="revenue" fill="#6272f5" name="Revenus (MAD)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar yAxisId="rdv" dataKey="rdv"     fill="#43e97b" name="RDV"           radius={[4, 4, 0, 0]} maxBarSize={28} />
               </BarChart>
             </ResponsiveContainer>
           ) : chartType === "area" ? (
             <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 5, right: 35, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#6272f5" stopOpacity={0.3} />
@@ -197,21 +198,23 @@ export default function DashboardPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
                 <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="rdv" stroke="#43e97b" strokeWidth={2} fill="url(#gA)" name="RDV" dot={false} />
-                <Area type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} fill="url(#gR)" name="Revenus (MAD)" dot={false} />
+                <Area yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} fill="url(#gR)" name="Revenus (MAD)" dot={false} />
+                <Area yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   fill="url(#gA)" name="RDV"           dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <LineChart data={chartData} margin={{ top: 5, right: 35, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
+                <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
                 <Tooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="rdv" stroke="#43e97b" strokeWidth={2} name="RDV" dot={{ r: 3, fill: "#43e97b" }} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} name="Revenus (MAD)" dot={{ r: 3, fill: "#6272f5" }} activeDot={{ r: 5 }} />
+                <Line yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} name="Revenus (MAD)" dot={{ r: 3, fill: "#6272f5" }} activeDot={{ r: 5 }} />
+                <Line yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   name="RDV"           dot={{ r: 3, fill: "#43e97b" }} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
           )}
