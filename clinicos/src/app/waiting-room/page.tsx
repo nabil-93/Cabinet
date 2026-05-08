@@ -64,16 +64,7 @@ interface CreateForm {
   visitType: string;
 }
 
-const VISIT_TYPES = [
-  "Consultation",
-  "Consultation de suivi",
-  "Consultation spécialisée",
-  "Urgence",
-  "Vaccination",
-  "Bilan de santé",
-  "Analyses",
-  "Certificat médical",
-];
+const VISIT_TYPES = ["Consultation", "Suivi", "Bilan", "Urgence", "Vaccination", "Contrôle", "Autre"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

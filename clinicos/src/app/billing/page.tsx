@@ -167,20 +167,13 @@ function usePatientSearch(q: string) {
 }
 
 const DESCRIPTION_OPTIONS = [
-  "Consultation médicale",
-  "Consultation de suivi",
-  "Consultation spécialisée",
-  "Bilan de santé",
-  "Urgence médicale",
+  "Consultation",
+  "Suivi",
+  "Bilan",
+  "Urgence",
   "Vaccination",
-  "Radiologie / Imagerie",
-  "Analyses biologiques",
-  "Acte chirurgical mineur",
-  "Soins infirmiers",
-  "Kinésithérapie",
-  "Prescription médicale",
-  "Certificat médical",
-  "Téléconsultation",
+  "Contrôle",
+  "Autre",
 ];
 
 function ItemsTable({
@@ -210,21 +203,18 @@ function ItemsTable({
 
   return (
     <div className="space-y-2">
-      <datalist id="desc-options">
-        {DESCRIPTION_OPTIONS.map(o => <option key={o} value={o} />)}
-      </datalist>
       <div className="grid grid-cols-[1fr_60px_80px_80px_32px] gap-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-1">
         <span>Description</span><span className="text-center">Qté</span><span className="text-right">P.U.</span><span className="text-right">Total</span><span />
       </div>
       {items.map((item, idx) => (
         <div key={idx} className="grid grid-cols-[1fr_60px_80px_80px_32px] gap-1 items-center">
-          <input
-            value={item.description}
+          <select
+            value={DESCRIPTION_OPTIONS.includes(item.description) ? item.description : "Autre"}
             onChange={e => update(idx, "description", e.target.value)}
-            placeholder="Description"
-            list="desc-options"
             className="px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
+          >
+            {DESCRIPTION_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
           <input
             type="number" min="1"
             value={item.quantity}
