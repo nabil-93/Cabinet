@@ -1,9 +1,0 @@
-{
-  "name": "cabinet-monorepo",
-  "private": true,
-  "scripts": {
-    "dev": "npm run dev --prefix clinicos",
-    "build": "npm run build --prefix clinicos",
-    "start": "npm run start --prefix clinicos"
-  }
-}
