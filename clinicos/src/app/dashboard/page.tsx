@@ -1,15 +1,18 @@
 "use client";
 
-import { Users, Calendar, CreditCard, Clock, TrendingUp, ArrowUpRight, ChevronRight, Plus } from "lucide-react";
+import { Users, Calendar, CreditCard, Clock, TrendingUp, ArrowUpRight, ChevronRight, Plus, BarChart2, AreaChart as AreaIcon, LineChart as LineIcon } from "lucide-react";
 import dynamic from "next/dynamic";
-const AreaChart = dynamic(() => import("recharts").then(m => ({ default: m.AreaChart })), { ssr: false });
-const Area = dynamic(() => import("recharts").then(m => ({ default: m.Area })), { ssr: false });
-const BarChart = dynamic(() => import("recharts").then(m => ({ default: m.BarChart })), { ssr: false });
-const Bar = dynamic(() => import("recharts").then(m => ({ default: m.Bar })), { ssr: false });
-const XAxis = dynamic(() => import("recharts").then(m => ({ default: m.XAxis })), { ssr: false });
-const YAxis = dynamic(() => import("recharts").then(m => ({ default: m.YAxis })), { ssr: false });
+const AreaChart    = dynamic(() => import("recharts").then(m => ({ default: m.AreaChart })),    { ssr: false });
+const Area         = dynamic(() => import("recharts").then(m => ({ default: m.Area })),         { ssr: false });
+const BarChart     = dynamic(() => import("recharts").then(m => ({ default: m.BarChart })),     { ssr: false });
+const Bar          = dynamic(() => import("recharts").then(m => ({ default: m.Bar })),          { ssr: false });
+const LineChart    = dynamic(() => import("recharts").then(m => ({ default: m.LineChart })),    { ssr: false });
+const Line         = dynamic(() => import("recharts").then(m => ({ default: m.Line })),         { ssr: false });
+const XAxis        = dynamic(() => import("recharts").then(m => ({ default: m.XAxis })),        { ssr: false });
+const YAxis        = dynamic(() => import("recharts").then(m => ({ default: m.YAxis })),        { ssr: false });
 const CartesianGrid = dynamic(() => import("recharts").then(m => ({ default: m.CartesianGrid })), { ssr: false });
-const Tooltip = dynamic(() => import("recharts").then(m => ({ default: m.Tooltip })), { ssr: false });
+const Tooltip      = dynamic(() => import("recharts").then(m => ({ default: m.Tooltip })),      { ssr: false });
+const Legend       = dynamic(() => import("recharts").then(m => ({ default: m.Legend })),       { ssr: false });
 const ResponsiveContainer = dynamic(() => import("recharts").then(m => ({ default: m.ResponsiveContainer })), { ssr: false });
 import { useState } from "react";
 import { format } from "date-fns";
@@ -56,6 +59,7 @@ export default function DashboardPage() {
   const { theme } = useStore();
   const { user } = useAuth();
   const [chartPeriod, setChartPeriod] = useState<"1d" | "1w" | "1m" | "6m">("1d");
+  const [chartType,   setChartType]   = useState<"bar" | "area" | "line">("bar");
 
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: chartData, isLoading: chartLoading } = useQuery({
@@ -121,9 +125,25 @@ export default function DashboardPage() {
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground text-sm">Revenus & Rendez-vous</h3>
-            <Link href="/analytics" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
-              Analytique <ArrowUpRight className="w-3.5 h-3.5" />
-            </Link>
+            <div className="flex items-center gap-2">
+              {/* Chart type switcher */}
+              <div className="flex items-center gap-0.5 bg-muted/40 rounded-lg p-0.5">
+                {([
+                  { type: "bar",  Icon: BarChart2,  title: "Colonnes" },
+                  { type: "area", Icon: AreaIcon,   title: "Aires" },
+                  { type: "line", Icon: LineIcon,   title: "Lignes" },
+                ] as const).map(({ type, Icon, title }) => (
+                  <button key={type} onClick={() => setChartType(type)} title={title}
+                    className={cn("w-7 h-7 flex items-center justify-center rounded-md transition-all",
+                      chartType === type ? "bg-card shadow-sm text-primary" : "text-muted-foreground hover:text-foreground")}>
+                    <Icon className="w-3.5 h-3.5" />
+                  </button>
+                ))}
+              </div>
+              <Link href="/analytics" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
+                Analytique <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
           <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1 mb-4">
             {(["1d", "1w", "1m", "6m"] as const).map(p => (
@@ -135,6 +155,13 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-4 mb-3">
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#43e97b]" /><span className="text-xs text-muted-foreground">RDV</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#6272f5]" /><span className="text-xs text-muted-foreground">Revenus (MAD)</span></div>
+          </div>
+
           {chartLoading ? (
             <div className="h-[200px] animate-pulse bg-muted/30 rounded-xl" />
           ) : !hasChartData ? (
@@ -144,7 +171,18 @@ export default function DashboardPage() {
                 <p className="text-xs text-muted-foreground/60">Aucune donnée disponible</p>
               </div>
             </div>
-          ) : (
+          ) : chartType === "bar" ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} barGap={2} barCategoryGap="30%">
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+                <Bar dataKey="rdv" fill="#43e97b" name="RDV" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Bar dataKey="revenue" fill="#6272f5" name="Revenus (MAD)" radius={[4, 4, 0, 0]} maxBarSize={32} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : chartType === "area" ? (
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <defs>
@@ -164,6 +202,17 @@ export default function DashboardPage() {
                 <Area type="monotone" dataKey="rdv" stroke="#43e97b" strokeWidth={2} fill="url(#gA)" name="RDV" dot={false} />
                 <Area type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} fill="url(#gR)" name="Revenus (MAD)" dot={false} />
               </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Line type="monotone" dataKey="rdv" stroke="#43e97b" strokeWidth={2} name="RDV" dot={{ r: 3, fill: "#43e97b" }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} name="Revenus (MAD)" dot={{ r: 3, fill: "#6272f5" }} activeDot={{ r: 5 }} />
+              </LineChart>
             </ResponsiveContainer>
           )}
         </div>
