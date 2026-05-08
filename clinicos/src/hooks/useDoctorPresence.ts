@@ -3,7 +3,7 @@
  * Doctor presence — heartbeat + polling + broadcast via shared singleton channel.
  * Does NOT create any Supabase channel (that lives in RealtimeProvider).
  */
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { isMedicalStaff } from "@/lib/roles";
@@ -51,9 +51,9 @@ export function useDoctorPresence() {
     if (me !== undefined) setMyAvailability(me.isAvailable);
   }, [onlineDoctors, user]);
 
-  // ── Heartbeat (doctors only) ──────────────────────────────────────────────
+  // ── Heartbeat (ALL authenticated staff, not just doctors) ──────────────────
   useEffect(() => {
-    if (!user || !isDoctor) return;
+    if (!user) return;
 
     const beat = async () => {
       try {
@@ -84,7 +84,7 @@ export function useDoctorPresence() {
       document.removeEventListener("visibilitychange", handleVisibility);
       markOffline();
     };
-  }, [user, isDoctor, qc, sendBroadcast]);
+  }, [user, qc, sendBroadcast]);
 
   // ── Toggle own availability ───────────────────────────────────────────────
   const broadcastAvailability = useCallback((isAvail: boolean) => {
@@ -101,9 +101,29 @@ export function useDoctorPresence() {
     api.patch("/doctor/status", { isAvailable: isAvail }).catch(() => {});
   }, [user, qc, sendBroadcast]);
 
+  // Merge current user into the list in case API hasn't registered them yet
+  const allOnline = useMemo(() => {
+    if (!user) return onlineDoctors;
+    const alreadyIn = onlineDoctors.some(d => d.userId === user.id);
+    if (alreadyIn) return onlineDoctors;
+    const meEntry: OnlineDoctor = {
+      userId: user.id,
+      name: user.name || "Moi",
+      role: user.role || "",
+      displayRole: user.role === "assistant" ? "Secrétaire"
+        : user.role === "admin" ? "Médecin Admin"
+        : user.role === "doctor" ? "Médecin"
+        : user.role || "Staff",
+      specialty: null,
+      isAvailable: true,
+      lastSeenAt: new Date().toISOString(),
+    };
+    return [meEntry, ...onlineDoctors];
+  }, [onlineDoctors, user]);
+
   return {
-    onlineDoctors,
-    availableDoctors: onlineDoctors.filter(d => d.isAvailable),
+    onlineDoctors: allOnline,
+    availableDoctors: allOnline.filter(d => d.isAvailable),
     myAvailability,
     broadcastAvailability,
     isDoctor,
