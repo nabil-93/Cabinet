@@ -409,8 +409,16 @@ export default function WaitingRoomPage() {
   // ── Mutations ──────────────────────────────────────────────────────────────
 
   const updateStatus = useMutation({
-    mutationFn: ({ id, status, doctorId, doctorName }: { id: string; status: WRStatus; doctorId?: string; doctorName?: string }) =>
-      api.patch(`/waiting-room/${id}`, { status, doctorId, doctorName }),
+    mutationFn: async ({ id, status, doctorId, doctorName, appointmentId }: {
+      id: string; status: WRStatus; doctorId?: string; doctorName?: string; appointmentId?: string | null;
+    }) => {
+      const wrRes = await api.patch(`/waiting-room/${id}`, { status, doctorId, doctorName });
+      // Sync appointment status when consultation is done
+      if (status === "done" && appointmentId) {
+        try { await api.patch(`/appointments/${appointmentId}`, { status: "completed" }); } catch {}
+      }
+      return wrRes;
+    },
     onMutate: async ({ id, status, doctorId, doctorName }) => {
       await qc.cancelQueries({ queryKey: WR_KEY });
       const prev = qc.getQueryData<WREntry[]>(WR_KEY);
@@ -425,12 +433,13 @@ export default function WaitingRoomPage() {
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(WR_KEY, ctx.prev); toast.error("Erreur"); },
     onSuccess: (_, { id, status, doctorId, doctorName }) => {
       qc.invalidateQueries({ queryKey: WR_KEY });
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      qc.invalidateQueries({ queryKey: APPT_KEY });
       if (status === "in_progress") {
         sendBroadcast("wr:patient-called", { id, status, doctorId, doctorName });
         toast.success("Patient appelé en consultation");
       } else if (status === "done") {
         sendBroadcast("wr:consultation-done", { id, status });
-        qc.invalidateQueries({ queryKey: ["appointments"] });
         toast.success("Consultation terminée");
       } else {
         sendBroadcast("wr:updated", { id, status });
@@ -541,7 +550,7 @@ export default function WaitingRoomPage() {
   }, [assigningEntry, updateStatus, user, broadcastAvailability]);
 
   const finishConsultation = useCallback((entry: WREntry) => {
-    updateStatus.mutate({ id: entry.id, status: "done" });
+    updateStatus.mutate({ id: entry.id, status: "done", appointmentId: entry.appointmentId });
     if (entry.assignedDoctorId) {
       if (user?.id === entry.assignedDoctorId) {
         broadcastAvailability(true);
@@ -552,7 +561,13 @@ export default function WaitingRoomPage() {
 
   const finishAndCallNext = useCallback(async (entry: WREntry) => {
     await api.patch(`/waiting-room/${entry.id}`, { status: "done" });
+    // Also sync the appointment status
+    if (entry.appointmentId) {
+      try { await api.patch(`/appointments/${entry.appointmentId}`, { status: "completed" }); } catch {}
+    }
     qc.setQueryData<WREntry[]>(WR_KEY, old => old?.map(e => e.id === entry.id ? { ...e, status: "done" } : e) ?? old);
+    qc.invalidateQueries({ queryKey: ["appointments"] });
+    qc.invalidateQueries({ queryKey: APPT_KEY });
     sendBroadcast("wr:consultation-done", { id: entry.id, status: "done" });
     if (user?.id === entry.assignedDoctorId) {
       broadcastAvailability(true);
