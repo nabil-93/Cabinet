@@ -61,7 +61,19 @@ interface CreateForm {
   dateOfBirth: string;
   gender: "male" | "female";
   priority: WRPriority;
+  visitType: string;
 }
+
+const VISIT_TYPES = [
+  "Consultation",
+  "Consultation de suivi",
+  "Consultation spécialisée",
+  "Urgence",
+  "Vaccination",
+  "Bilan de santé",
+  "Analyses",
+  "Certificat médical",
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -155,7 +167,7 @@ function PriorityPicker({ value, onChange }: { value: WRPriority; onChange: (v: 
 function CreatePatientForm({ initial, onSubmit }: { initial: Partial<CreateForm>; onSubmit: (f: CreateForm) => void }) {
   const [f, setF] = useState<CreateForm>({
     fullName: initial.fullName || "", phone: "", dateOfBirth: "",
-    gender: "male", priority: initial.priority || "normal",
+    gender: "male", priority: initial.priority || "normal", visitType: "Consultation",
   });
   const set = (k: keyof CreateForm) => (v: string) => setF(p => ({ ...p, [k]: v }));
 
@@ -186,6 +198,13 @@ function CreatePatientForm({ initial, onSubmit }: { initial: Partial<CreateForm>
           </Field>
         </div>
       </div>
+      <div>
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Motif de visite</label>
+        <select value={f.visitType} onChange={e => setF(p => ({ ...p, visitType: e.target.value }))}
+          className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground">
+          {VISIT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
       <PriorityPicker value={f.priority} onChange={v => setF(p => ({ ...p, priority: v }))} />
       <div className="rounded-xl bg-primary/5 border border-primary/20 px-4 py-3 text-xs text-muted-foreground flex items-start gap-2">
         <Calendar className="w-3.5 h-3.5 mt-0.5 text-primary flex-shrink-0" />
@@ -207,13 +226,14 @@ function AddModal({
   onCreateAndAdd,
 }: {
   onClose: () => void;
-  onAddExisting: (p: PatientOption, priority: WRPriority) => void;
+  onAddExisting: (p: PatientOption, priority: WRPriority, visitType: string) => void;
   onCreateAndAdd: (f: CreateForm) => void;
 }) {
-  const [mode, setMode]         = useState<"search" | "create">("search");
-  const [search, setSearch]     = useState("");
-  const [priority, setPriority] = useState<WRPriority>("normal");
-  const [selected, setSelected] = useState<PatientOption | null>(null);
+  const [mode, setMode]           = useState<"search" | "create">("search");
+  const [search, setSearch]       = useState("");
+  const [priority, setPriority]   = useState<WRPriority>("normal");
+  const [visitType, setVisitType] = useState("Consultation");
+  const [selected, setSelected]   = useState<PatientOption | null>(null);
 
   const { data: patients = [], isFetching } = useQuery<PatientOption[]>({
     queryKey: ["patients-search-wr", search],
@@ -298,10 +318,17 @@ function AddModal({
               </button>
             )}
 
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Motif de visite</label>
+              <select value={visitType} onChange={e => setVisitType(e.target.value)}
+                className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground">
+                {VISIT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
             <PriorityPicker value={priority} onChange={setPriority} />
 
             <button type="button" disabled={!selected}
-              onClick={() => selected && onAddExisting(selected, priority)}
+              onClick={() => selected && onAddExisting(selected, priority, visitType)}
               className="w-full py-2.5 rounded-xl gradient-primary text-white font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-all">
               Ajouter à la file d&apos;attente
             </button>
@@ -468,7 +495,7 @@ export default function WaitingRoomPage() {
   });
 
   const addEntry = useMutation({
-    mutationFn: (body: { patientId: string; priority: WRPriority; appointmentId?: string }) =>
+    mutationFn: (body: { patientId: string; priority: WRPriority; appointmentId?: string; visitType?: string }) =>
       api.post("/waiting-room", body),
     onSuccess: (res) => {
       qc.setQueryData<WREntry[]>(WR_KEY, old => [...(old ?? []), res.data]);
@@ -491,10 +518,10 @@ export default function WaitingRoomPage() {
       const apptRes = await api.post("/appointments", {
         patientId: patient.id, date: TODAY,
         time: format(new Date(), "HH:mm"),
-        type: "Consultation", status: "confirmed",
+        type: f.visitType, status: "confirmed",
       });
       const wrRes = await api.post("/waiting-room", {
-        patientId: patient.id, appointmentId: apptRes.data.id, priority: f.priority,
+        patientId: patient.id, appointmentId: apptRes.data.id, priority: f.priority, visitType: f.visitType,
       });
       return wrRes.data as WREntry;
     },
@@ -683,16 +710,6 @@ export default function WaitingRoomPage() {
                       <SkipForward className="w-3.5 h-3.5" /> Terminer &amp; Suivant
                     </button>
                   )}
-                  <button
-                    onClick={async () => {
-                      await updateStatus.mutateAsync({ id: e.id, status: "done" });
-                      broadcastAvailability(false);
-                      api.patch("/doctor/status", { isAvailable: false });
-                    }}
-                    disabled={updateStatus.isPending}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border hover:bg-red-50 dark:hover:bg-red-950/40 text-muted-foreground hover:text-red-600 text-xs font-semibold transition-colors disabled:opacity-50 flex-shrink-0">
-                    <Lock className="w-3.5 h-3.5" /> Terminer &amp; Occupé
-                  </button>
                 </div>
               )}
 
@@ -949,7 +966,7 @@ export default function WaitingRoomPage() {
       {addOpen && (
         <AddModal
           onClose={() => setAddOpen(false)}
-          onAddExisting={(p, priority) => addEntry.mutate({ patientId: p.id, priority })}
+          onAddExisting={(p, priority, visitType) => addEntry.mutate({ patientId: p.id, priority, visitType })}
           onCreateAndAdd={(f) => createAndAdd.mutate(f)}
         />
       )}

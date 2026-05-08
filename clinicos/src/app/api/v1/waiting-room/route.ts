@@ -35,7 +35,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { patientId, priority = "normal", appointmentId } = body;
+  const { patientId, priority = "normal", appointmentId, visitType = "Consultation" } = body;
 
   if (!patientId) return err("patientId requis", 400);
 
@@ -52,11 +52,34 @@ export async function POST(req: NextRequest) {
 
   if (existing) return err("Ce patient est déjà dans la salle d'attente", 409);
 
+  // If no appointment linked, create one automatically with the visit type
+  let finalAppointmentId = appointmentId ?? null;
+  if (!finalAppointmentId) {
+    const now = new Date();
+    const { data: appt } = await supabase
+      .from("appointments")
+      .insert({
+        patient_id: patientId,
+        date: today,
+        time: now.toTimeString().slice(0, 5),
+        type: visitType,
+        status: "confirmed",
+      })
+      .select("id")
+      .single();
+    if (appt) finalAppointmentId = appt.id;
+  } else {
+    // Update existing appointment type if provided
+    await supabase.from("appointments")
+      .update({ type: visitType })
+      .eq("id", finalAppointmentId);
+  }
+
   const { data, error } = await supabase
     .from("waiting_room")
     .insert({
       patient_id: patientId,
-      appointment_id: appointmentId ?? null,
+      appointment_id: finalAppointmentId,
       priority,
       status: "waiting",
       arrived_at: new Date().toISOString(),
@@ -68,13 +91,6 @@ export async function POST(req: NextRequest) {
 
   const patientName = data.patients?.full_name || "Inconnu";
   await logActivity({ supabase, action: "add_to_waiting_room", entityType: "patient", entityLabel: patientName });
-
-  if (data.appointment_id) {
-    await supabase.from("appointments")
-      .update({ status: "confirmed" })
-      .eq("id", data.appointment_id)
-      .eq("status", "pending");
-  }
 
   return ok(normalize(data));
 }
