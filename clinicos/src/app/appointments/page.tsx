@@ -67,6 +67,7 @@ function getPeriodLabel(period: PeriodFilter, ref: Date): string {
 export default function AppointmentsPage() {
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [typeFilter,   setTypeFilter]   = useState<string>("all");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
   const [refDate,      setRefDate]      = useState(new Date()); // date de navigation
   const [showAddModal, setShowAddModal] = useState(false);
@@ -99,6 +100,8 @@ export default function AppointmentsPage() {
     return apiApts.filter(a => {
       // Filtre texte
       const matchSearch = !search || a.patientName?.toLowerCase().includes(search.toLowerCase()) || a.type?.toLowerCase().includes(search.toLowerCase());
+      // Filtre type
+      const matchType = typeFilter === "all" || a.type === typeFilter;
       // Filtre statut
       const matchStatus = statusFilter === "all" || a.status === statusFilter;
       // Filtre période
@@ -117,7 +120,7 @@ export default function AppointmentsPage() {
           matchPeriod = isWithinInterval(aptDate, { start, end });
         }
       }
-      return matchSearch && matchStatus && matchPeriod;
+      return matchSearch && matchType && matchStatus && matchPeriod;
     }).sort((a, b) => {
       const da = new Date(`${a.date}T${a.time}`);
       const db = new Date(`${b.date}T${b.time}`);
@@ -127,7 +130,7 @@ export default function AppointmentsPage() {
       if (!aUp && bUp) return 1;
       return aUp ? da.getTime() - db.getTime() : db.getTime() - da.getTime();
     });
-  }, [apiApts, search, statusFilter, periodFilter, refDate]);
+  }, [apiApts, search, typeFilter, statusFilter, periodFilter, refDate]);
 
   const counts = {
     all:       apiApts.length,
@@ -216,13 +219,24 @@ export default function AppointmentsPage() {
             ))}
           </div>
 
-          {/* Search + Add */}
-          <div className="flex gap-2 flex-1 sm:justify-end">
+          {/* Search + Type filter + Add */}
+          <div className="flex gap-2 flex-1 sm:justify-end flex-wrap">
             <div className="relative flex-1 sm:max-w-52">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..."
                 className="w-full pl-9 pr-3 py-2 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
             </div>
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-border bg-card text-sm text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+              <option value="all">Tous les types</option>
+              {CONSULTATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            {(typeFilter !== "all" || statusFilter !== "all" || search) && (
+              <button onClick={() => { setTypeFilter("all"); setStatusFilter("all"); setSearch(""); }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-all">
+                <X className="w-3.5 h-3.5" /> Réinitialiser
+              </button>
+            )}
             <button onClick={() => setShowAddModal(true)}
               className="flex items-center gap-2 px-3.5 py-2 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm whitespace-nowrap">
               <Plus className="w-4 h-4" /> Nouveau RDV
