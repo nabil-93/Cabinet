@@ -14,23 +14,39 @@ Tu aides les médecins et le personnel médical à:
 
 Réponds toujours en français, de manière professionnelle, concise et précise.
 Utilise des émojis pour rendre les réponses plus lisibles.
+Structure tes réponses avec des sauts de ligne et des puces (•) pour la lisibilité.
 Ne donne jamais de diagnostic médical définitif — tu es un assistant, pas un médecin.
-Pour les questions hors de ton domaine, oriente vers un professionnel de santé.`;
+Pour les questions hors de ton domaine, oriente vers un professionnel de santé.
+Quand tu utilises du texte en gras, utilise **texte** pour le formater.`;
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, context } = await req.json();
+    const body = await req.json();
+    const { messages, context } = body as { messages: Message[]; context?: any };
+
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json(
+        { message: "Messages invalides." },
+        { status: 400 }
+      );
+    }
 
     const apiKey = process.env.OPENAI_API_KEY;
 
     // If no OpenAI key, use smart mock responses
-    if (!apiKey) {
+    if (!apiKey || apiKey.trim() === "" || apiKey === "sk-...") {
       const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || "";
       const response = generateSmartResponse(lastMessage, context);
-      return NextResponse.json({ message: response });
+      return NextResponse.json({ message: response, mode: "demo" });
     }
 
     // Real OpenAI call
+    const openaiMessages: Message[] = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...(context ? [{ role: "system" as const, content: `Contexte actuel de l'utilisateur: ${JSON.stringify(context)}` }] : []),
+      ...messages,
+    ];
+
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -39,61 +55,98 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          ...(context ? [{ role: "system", content: `Contexte actuel: ${JSON.stringify(context)}` }] : []),
-          ...messages,
-        ],
-        max_tokens: 800,
+        messages: openaiMessages,
+        max_tokens: 1000,
         temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
+      const errBody = await response.text();
+      console.error(`OpenAI API error ${response.status}:`, errBody);
+
+      // Handle specific errors
+      if (response.status === 401) {
+        return NextResponse.json({
+          message: "⚠️ Clé API OpenAI invalide. Veuillez vérifier votre configuration.\n\nEn attendant, je fonctionne en mode démo.",
+          mode: "demo",
+        });
+      }
+      if (response.status === 429) {
+        return NextResponse.json({
+          message: "⏳ Limite de requêtes atteinte. Veuillez patienter quelques secondes et réessayer.",
+          mode: "error",
+        });
+      }
+
       throw new Error(`OpenAI API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const message = data.choices[0]?.message?.content || "Je ne peux pas répondre pour le moment.";
-    return NextResponse.json({ message });
+    const message = data.choices?.[0]?.message?.content;
+
+    if (!message) {
+      throw new Error("No content in OpenAI response");
+    }
+
+    return NextResponse.json({ message, mode: "openai" });
   } catch (error) {
     console.error("AI route error:", error);
-    return NextResponse.json({ message: "Une erreur est survenue. Réessayez." }, { status: 500 });
+    return NextResponse.json(
+      { message: "⚠️ Une erreur est survenue. Veuillez réessayer dans quelques instants." },
+      { status: 500 }
+    );
   }
 }
 
 function generateSmartResponse(query: string, context?: any): string {
-  const stats = context?.stats;
-  const todayStr = new Date().toLocaleDateString("fr-MA");
+  const todayStr = new Date().toLocaleDateString("fr-FR", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
-  if (query.includes("bonjour") || query.includes("salut") || query.includes("hello")) {
-    return `Bonjour ! 👋 Je suis votre assistant médical ClinicOS.\n\nAujourd'hui (${todayStr}), voici votre résumé rapide:\n${stats ? `• 📅 **${stats.todayAppointments}** rendez-vous planifiés\n• 👥 **${stats.totalPatients}** patients au total\n• 💰 **${stats.monthlyRevenue?.toLocaleString("fr-MA")} MAD** de revenus ce mois` : "• Connectez-vous pour voir vos statistiques"}\n\nComment puis-je vous aider ?`;
+  // Greeting
+  if (query.includes("bonjour") || query.includes("salut") || query.includes("hello") || query.includes("bonsoir")) {
+    return `Bonjour ! 👋 Je suis votre assistant médical ClinicOS.\n\n📅 Nous sommes le **${todayStr}**.\n\nJe peux vous aider avec :\n• La gestion de vos rendez-vous\n• Les dossiers patients\n• Les ordonnances et prescriptions\n• La facturation et les revenus\n• Les statistiques de votre cabinet\n\nComment puis-je vous aider aujourd'hui ?`;
   }
 
-  if (query.includes("rendez-vous") || query.includes("rdv") || query.includes("appointment")) {
-    return `📅 **Gestion des rendez-vous**\n\n${stats ? `Aujourd'hui vous avez **${stats.todayAppointments}** rendez-vous planifiés et **${stats.completedToday}** déjà complétés.\n\n**Salle d'attente:** ${stats.waitingRoom} patient(s) en attente` : "Consultez l'onglet Rendez-vous pour voir votre planning"}\n\n💡 *Conseil: Confirmez vos rendez-vous à l'avance pour réduire les absences.*`;
+  // Appointments
+  if (query.includes("rendez-vous") || query.includes("rdv") || query.includes("appointment") || query.includes("planning")) {
+    return `📅 **Gestion des rendez-vous**\n\nVoici ce que je peux faire pour vous :\n• Consulter votre planning du jour\n• Vérifier les créneaux disponibles\n• Confirmer ou annuler des rendez-vous\n• Envoyer des rappels aux patients\n\n💡 *Conseil : Confirmez vos rendez-vous 24h à l'avance pour réduire les absences.*\n\nRendez-vous dans l'onglet **Rendez-vous** pour voir votre planning complet.`;
   }
 
-  if (query.includes("patient")) {
-    return `👥 **Gestion des patients**\n\n${stats ? `Votre cabinet compte **${stats.totalPatients}** patients enregistrés.` : ""}\n\nJe peux vous aider à:\n• 🔍 Rechercher un patient\n• 📋 Résumer un dossier médical\n• ⚠️ Identifier les allergies et contre-indications\n• 📊 Analyser l'historique médical\n\nQuel patient souhaitez-vous consulter ?`;
+  // Patients
+  if (query.includes("patient") || query.includes("résumé patients") || query.includes("dossier")) {
+    return `👥 **Gestion des patients**\n\nJe peux vous aider à :\n• 🔍 Rechercher un patient par nom\n• 📋 Consulter un dossier médical\n• ⚠️ Vérifier les allergies et contre-indications\n• 📊 Analyser l'historique des consultations\n• 📝 Ajouter des notes médicales\n\nPour accéder aux dossiers, utilisez l'onglet **Patients** dans la navigation.\n\nQuel patient souhaitez-vous consulter ?`;
   }
 
-  if (query.includes("facture") || query.includes("paiement") || query.includes("revenu")) {
-    return `💰 **Facturation & Revenus**\n\n${stats ? `Ce mois: **${stats.monthlyRevenue?.toLocaleString("fr-MA")} MAD** de revenus\nFactures en attente: **${stats.pendingInvoices}**` : ""}\n\n📊 **Conseils:**\n• Envoyez des rappels automatiques pour les factures impayées\n• Générez des rapports mensuels pour le suivi comptable\n• Exportez en PDF pour vos archives\n\nVoulez-vous que je génère un rapport financier ?`;
+  // Billing
+  if (query.includes("facture") || query.includes("factures impayées") || query.includes("paiement") || query.includes("revenu") || query.includes("billing")) {
+    return `💰 **Facturation & Revenus**\n\nJe peux vous aider avec :\n• 📊 Suivi des factures impayées\n• 💳 Enregistrement des paiements\n• 📄 Génération de reçus PDF\n• 📈 Rapports financiers mensuels\n• 🔔 Rappels automatiques aux patients\n\n💡 *Conseil : Exportez vos rapports mensuels pour faciliter la comptabilité.*\n\nConsultez l'onglet **Facturation** pour le détail complet.`;
   }
 
-  if (query.includes("ordonnance") || query.includes("prescription") || query.includes("médicament")) {
-    return `💊 **Module Ordonnances**\n\nJe peux vous aider à:\n• 📝 Créer une nouvelle ordonnance\n• 🔍 Vérifier les interactions médicamenteuses\n• 📤 Exporter en PDF avec signature digitale\n• 📋 Résumer les traitements en cours d'un patient\n\n⚠️ *Rappel: Vérifiez toujours les allergies du patient avant de prescrire.*\n\nPour quel patient souhaitez-vous créer une ordonnance ?`;
+  // Prescriptions
+  if (query.includes("ordonnance") || query.includes("prescription") || query.includes("médicament") || query.includes("aide ordonnance")) {
+    return `💊 **Module Ordonnances**\n\nJe peux vous aider à :\n• 📝 Créer une nouvelle ordonnance\n• 🔍 Vérifier les interactions médicamenteuses\n• 📤 Exporter en PDF avec signature\n• 📋 Consulter les traitements en cours\n• ♻️ Renouveler une ordonnance existante\n\n⚠️ *Rappel important : Vérifiez toujours les allergies du patient avant de prescrire.*\n\nPour quel patient souhaitez-vous créer une ordonnance ?`;
   }
 
-  if (query.includes("statistique") || query.includes("analytique") || query.includes("rapport")) {
-    return `📊 **Analytique du cabinet**\n\n${stats ? `**Résumé actuel:**\n• Patients: ${stats.totalPatients}\n• RDV aujourd'hui: ${stats.todayAppointments}\n• Revenus du mois: ${stats.monthlyRevenue?.toLocaleString("fr-MA")} MAD\n• Salle d'attente: ${stats.waitingRoom} patients` : ""}\n\n📈 **Indicateurs disponibles:**\n• Taux d'occupation: ~87%\n• Satisfaction patient: 4.8/5\n• Nouveaux patients/mois: 20\n\nVoulez-vous un rapport détaillé ?`;
+  // Statistics
+  if (query.includes("statistique") || query.includes("analytique") || query.includes("rapport") || query.includes("statistiques du mois")) {
+    return `📊 **Analytique du cabinet**\n\nIndicateurs disponibles :\n• 📈 Taux d'occupation par semaine\n• 👥 Évolution du nombre de patients\n• 💰 Revenus mensuels et annuels\n• 🕐 Durées moyennes des consultations\n• ⭐ Satisfaction et fidélisation patients\n\nConsultez l'onglet **Analytique** pour voir tous vos tableaux de bord en temps réel.\n\nVoulez-vous un rapport spécifique sur une période donnée ?`;
   }
 
-  if (query.includes("aide") || query.includes("help") || query.includes("que peux") || query.includes("comment")) {
-    return `🤖 **Mes capacités:**\n\n**Gestion quotidienne:**\n• 📅 Planning et rendez-vous\n• 👥 Dossiers patients\n• 💊 Ordonnances et prescriptions\n• 💰 Facturation et paiements\n\n**Analyse et rapports:**\n• 📊 Statistiques du cabinet\n• 📈 Tendances et performance\n• 🔍 Recherche intelligente\n\n**Assistance médicale:**\n• 📋 Résumés de dossiers\n• ⚠️ Alertes allergies\n• 💡 Rappels et notifications\n\nQue voulez-vous faire ?`;
+  // Waiting room
+  if (query.includes("attente") || query.includes("salle d'attente") || query.includes("patients urgents") || query.includes("urgent")) {
+    return `🚨 **Salle d'attente & Urgences**\n\nJe peux vous aider à :\n• 👁️ Voir les patients en attente en temps réel\n• ⚡ Prioriser les cas urgents\n• 📋 Consulter les motifs de consultation\n• 🔔 Notifier le médecin disponible\n\n💡 *Conseil : La salle d'attente se met à jour en temps réel.*\n\nConsultez l'onglet **Salle d'attente** pour la liste actuelle.`;
   }
 
-  // Generic intelligent response
-  return `Je comprends votre demande concernant "${query}".\n\n${stats ? `**Contexte actuel de votre cabinet:**\n• ${stats.totalPatients} patients · ${stats.todayAppointments} RDV aujourd'hui\n• ${stats.monthlyRevenue?.toLocaleString("fr-MA")} MAD revenus ce mois\n\n` : ""}Pour vous aider au mieux, pourriez-vous préciser:\n• De quel patient s'agit-il ?\n• Quel type d'action souhaitez-vous effectuer ?\n\n💡 *Utilisez les actions rapides ci-dessous pour les tâches courantes.*`;
+  // Help / capabilities
+  if (query.includes("aide") || query.includes("help") || query.includes("que peux") || query.includes("comment") || query.includes("capacité")) {
+    return `🤖 **Mes capacités**\n\n**Gestion quotidienne :**\n• 📅 Planning et rendez-vous\n• 👥 Dossiers patients\n• 💊 Ordonnances et prescriptions\n• 💰 Facturation et paiements\n• 🚨 Salle d'attente\n\n**Analyse et rapports :**\n• 📊 Statistiques du cabinet\n• 📈 Tendances et performance\n• 📄 Génération de rapports PDF\n\n**Assistance médicale :**\n• 📋 Résumés de dossiers\n• ⚠️ Alertes allergies et interactions\n• 💡 Rappels et notifications intelligentes\n\nPosez-moi n'importe quelle question — je suis là pour vous aider !`;
+  }
+
+  // Generic fallback — still helpful
+  return `Je comprends votre question sur **"${query}"**.\n\nPour mieux vous aider, pourriez-vous préciser :\n• De quel patient ou cas s'agit-il ?\n• Quelle action souhaitez-vous effectuer ?\n• Sur quelle période portez-vous votre demande ?\n\n💡 Vous pouvez aussi utiliser les **actions rapides** ci-dessous pour les tâches courantes, ou m'écrire en langage naturel — je ferai de mon mieux pour comprendre et vous aider !`;
 }
