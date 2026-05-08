@@ -64,10 +64,16 @@ const FUNCTIONS = [
   },
   {
     name: "get_activity",
-    description: "Obtenir l'historique des activités récentes",
+    description: "Obtenir l'historique complet des activités du cabinet avec filtres. Permet de savoir qui a fait quoi, quand, sur quel patient ou entité.",
     parameters: {
       type: "object",
-      properties: { limit: { type: "number" } },
+      properties: {
+        limit: { type: "number", description: "Nombre d'activités (défaut: 30)" },
+        userId: { type: "string", description: "Filtrer par membre de l'équipe (ID)" },
+        action: { type: "string", description: "Filtrer par type d'action (ex: create_patient, login, create_appointment, pay_invoice, etc.)" },
+        entityLabel: { type: "string", description: "Rechercher dans le label de l'entité (nom du patient, numéro de facture, etc.)" },
+        since: { type: "string", description: "Depuis cette date YYYY-MM-DD" },
+      },
     },
   },
   {
@@ -262,10 +268,15 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       }
 
       case "get_activity": {
-        const { data } = await supabase.from("activity_logs")
-          .select("*")
+        let q = supabase.from("activity_logs")
+          .select("id, user_name, user_role, action, entity_type, entity_label, details, created_at")
           .order("created_at", { ascending: false })
-          .limit(args.limit ?? 20);
+          .limit(args.limit ?? 30);
+        if (args.userId)      q = q.eq("user_id", args.userId);
+        if (args.action)      q = q.eq("action", args.action);
+        if (args.entityLabel) q = q.ilike("entity_label", `%${args.entityLabel}%`);
+        if (args.since)       q = q.gte("created_at", `${args.since}T00:00:00`);
+        const { data } = await q;
         return JSON.stringify(data ?? []);
       }
 
