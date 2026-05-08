@@ -3,7 +3,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bot, Send, Mic, MicOff, User, Sparkles, Copy, RefreshCw,
-  Trash2, AlertCircle, Plus, MessageSquare, ChevronLeft, Menu
+  Trash2, AlertCircle, Plus, MessageSquare, ChevronLeft, Menu,
+  Paperclip, ImageIcon, FileAudio, X, Loader2,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/lib/auth-context";
@@ -18,6 +19,8 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string;    // base64 data URL for display
+  audioFile?: string;   // filename for display
   timestamp: Date;
   mode?: "openai" | "demo" | "error";
 }
@@ -50,7 +53,12 @@ function loadConversations(): Conversation[] {
 
 function saveConversations(convs: Conversation[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(convs));
+    // Strip base64 imageUrl before persisting to avoid storage quota errors
+    const stripped = convs.map((c) => ({
+      ...c,
+      messages: c.messages.map((m) => ({ ...m, imageUrl: undefined })),
+    }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
   } catch {}
 }
 
@@ -148,9 +156,17 @@ export default function AIAssistantPage() {
   const [listening, setListening] = useState(false);
   const [apiMode, setApiMode] = useState<"openai" | "demo" | "unknown">("unknown");
 
+  // Attachment state
+  const [attachedImage, setAttachedImage] = useState<{ base64: string; preview: string; name: string } | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [attachPopoverOpen, setAttachPopoverOpen] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -183,6 +199,17 @@ export default function AIAssistantPage() {
     }
   }, [input]);
 
+  // Close popover on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setAttachPopoverOpen(false);
+      }
+    }
+    if (attachPopoverOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [attachPopoverOpen]);
+
   const activeConv = conversations.find((c) => c.id === activeId);
 
   const updateConv = useCallback((id: string, updater: (c: Conversation) => Conversation) => {
@@ -194,6 +221,7 @@ export default function AIAssistantPage() {
     setConversations((prev) => [conv, ...prev]);
     setActiveId(conv.id);
     setInput("");
+    setAttachedImage(null);
   };
 
   const deleteConversation = (id: string) => {
@@ -212,13 +240,63 @@ export default function AIAssistantPage() {
     toast.info("Conversation supprimée");
   };
 
+  // ─── Image file handler ───────────────────────────────────────────────────
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      // dataUrl is "data:image/jpeg;base64,<base64>"
+      const base64 = dataUrl.split(",")[1];
+      setAttachedImage({ base64, preview: dataUrl, name: file.name });
+    };
+    reader.readAsDataURL(file);
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+  };
+
+  // ─── Audio file handler ───────────────────────────────────────────────────
+  const handleAudioSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    setIsTranscribing(true);
+    try {
+      const fd = new FormData();
+      fd.append("audio", file);
+      const res = await fetch("/api/ai/transcribe", { method: "POST", body: fd });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.transcript) {
+        setInput((prev) => (prev ? prev + " " + data.transcript : data.transcript));
+        toast.success("Transcription terminée");
+      } else {
+        toast.error("Aucun texte transcrit");
+      }
+    } catch {
+      toast.error("Erreur lors de la transcription audio");
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
   const sendMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || loading || !activeId) return;
 
-      const userMsg: Message = { id: `u-${Date.now()}`, role: "user", content: trimmed, timestamp: new Date() };
+      const imageSnapshot = attachedImage;
+      const userMsg: Message = {
+        id: `u-${Date.now()}`,
+        role: "user",
+        content: trimmed,
+        imageUrl: imageSnapshot ? imageSnapshot.preview : undefined,
+        timestamp: new Date(),
+      };
       setInput("");
+      setAttachedImage(null);
       setLoading(true);
 
       // Add user msg + update title if first user message
@@ -236,7 +314,10 @@ export default function AIAssistantPage() {
         const res = await fetch("/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: history }),
+          body: JSON.stringify({
+            messages: history,
+            ...(imageSnapshot ? { imageBase64: imageSnapshot.base64 } : {}),
+          }),
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -265,7 +346,7 @@ export default function AIAssistantPage() {
         setLoading(false);
       }
     },
-    [loading, activeId, conversations, user, stats, patients, appointments, updateConv]
+    [loading, activeId, conversations, user, stats, patients, appointments, updateConv, attachedImage]
   );
 
   const toggleListening = useCallback(() => {
@@ -288,6 +369,22 @@ export default function AIAssistantPage() {
   return (
     <div className="flex flex-col h-full">
       <Header title="Assistant IA" subtitle="Alimenté par intelligence artificielle" />
+
+      {/* Hidden file inputs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImageSelect}
+      />
+      <input
+        ref={audioInputRef}
+        type="file"
+        accept="audio/*,.mp3,.wav,.m4a,.ogg"
+        className="hidden"
+        onChange={handleAudioSelect}
+      />
 
       <div className="flex-1 overflow-hidden flex">
         {/* ── Conversations sidebar ── */}
@@ -408,6 +505,17 @@ export default function AIAssistantPage() {
                         : "bg-card border border-border shadow-sm rounded-tl-sm"
                       : "gradient-primary text-white rounded-tr-sm"
                   )}>
+                    {/* Image preview inside bubble */}
+                    {msg.imageUrl && (
+                      <div className="mb-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={msg.imageUrl}
+                          alt="Image jointe"
+                          className="rounded-lg max-h-[120px] max-w-[200px] object-cover"
+                        />
+                      </div>
+                    )}
                     <div className="space-y-0.5">{renderContent(msg.content)}</div>
                   </div>
                   <div className={cn("flex items-center gap-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity", msg.role === "user" && "flex-row-reverse")}>
@@ -460,9 +568,36 @@ export default function AIAssistantPage() {
             </div>
           </div>
 
-          {/* Input */}
+          {/* Input area */}
           <div className="px-4 md:px-6 pb-6">
+            {/* Image preview chip */}
+            <AnimatePresence>
+              {attachedImage && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginBottom: 8 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  className="flex items-center gap-2 px-3 py-2 bg-muted/60 border border-border rounded-xl overflow-hidden"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={attachedImage.preview}
+                    alt="Aperçu"
+                    className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                  />
+                  <span className="text-xs text-muted-foreground truncate flex-1">{attachedImage.name}</span>
+                  <button
+                    onClick={() => setAttachedImage(null)}
+                    className="p-1 rounded-lg hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-all flex-shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="bg-card border border-border rounded-xl p-3 flex items-end gap-2.5 shadow-sm">
+              {/* Microphone (browser speech API) */}
               <button
                 onClick={toggleListening}
                 className={cn(
@@ -472,18 +607,74 @@ export default function AIAssistantPage() {
               >
                 {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>
+
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-                placeholder={listening ? "Écoute en cours..." : "Posez une question... (Entrée pour envoyer)"}
+                placeholder={
+                  listening ? "Écoute en cours..." :
+                  isTranscribing ? "Transcription en cours..." :
+                  "Posez une question... (Entrée pour envoyer)"
+                }
                 rows={1}
-                disabled={loading}
+                disabled={loading || isTranscribing}
                 style={{ resize: "none", overflowY: "hidden" }}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none min-h-[36px] max-h-[120px] disabled:opacity-60"
               />
+
               <div className="flex gap-1.5 flex-shrink-0">
+                {/* Attachment popover */}
+                <div className="relative" ref={popoverRef}>
+                  <button
+                    onClick={() => setAttachPopoverOpen((v) => !v)}
+                    disabled={isTranscribing}
+                    className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center transition-all",
+                      attachPopoverOpen
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      "disabled:opacity-40"
+                    )}
+                    title="Joindre un fichier"
+                  >
+                    {isTranscribing
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Paperclip className="w-4 h-4" />
+                    }
+                  </button>
+
+                  <AnimatePresence>
+                    {attachPopoverOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 4 }}
+                        transition={{ duration: 0.12 }}
+                        className="absolute bottom-11 right-0 w-44 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-20"
+                      >
+                        <button
+                          onClick={() => { setAttachPopoverOpen(false); fileInputRef.current?.click(); }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                        >
+                          <ImageIcon className="w-4 h-4 text-primary flex-shrink-0" />
+                          Image
+                        </button>
+                        <div className="h-px bg-border/50" />
+                        <button
+                          onClick={() => { setAttachPopoverOpen(false); audioInputRef.current?.click(); }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                        >
+                          <FileAudio className="w-4 h-4 text-primary flex-shrink-0" />
+                          Audio (Whisper)
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* New conversation */}
                 <button
                   onClick={newConversation}
                   className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
@@ -491,9 +682,11 @@ export default function AIAssistantPage() {
                 >
                   <Plus className="w-4 h-4" />
                 </button>
+
+                {/* Send */}
                 <button
                   onClick={() => sendMessage(input)}
-                  disabled={!input.trim() || loading}
+                  disabled={(!input.trim() && !attachedImage) || loading}
                   className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center text-white hover:opacity-90 active:scale-95 transition-all disabled:opacity-40"
                 >
                   {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

@@ -54,7 +54,8 @@
       "mcp__claude_ai_Supabase__list_tables",
       "Bash(mkdir -p \"C:\\\\Users\\\\nabil\\\\Desktop\\\\liste des Projet\\\\Cabinet\\\\clinicos\\\\src\\\\app\\\\api\\\\v1\\\\users\\\\[id]\")",
       "Bash(mkdir -p \"C:\\\\Users\\\\nabil\\\\Desktop\\\\liste des Projet\\\\Cabinet\\\\clinicos\\\\src\\\\app\\\\api\\\\v1\\\\users\\\\[id]\\\\activity\")",
-      "Bash(node -e \"require\\('jspdf'\\)\")"
+      "Bash(node -e \"require\\('jspdf'\\)\")",
+      "Bash(npx tsc *)"
     ]
   }
 }

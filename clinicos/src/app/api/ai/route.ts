@@ -427,7 +427,10 @@ Date d'aujourd'hui : ${new Date().toLocaleDateString("fr-FR", { weekday: "long",
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { messages } = body as { messages: { role: string; content: string }[] };
+    const { messages, imageBase64 } = body as {
+      messages: { role: string; content: string }[];
+      imageBase64?: string;
+    };
 
     if (!messages?.length) return NextResponse.json({ message: "Messages invalides." }, { status: 400 });
 
@@ -436,9 +439,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "⚠️ Clé API OpenAI non configurée.", mode: "error" });
     }
 
+    // Build OpenAI messages — attach image only to the last user message
+    const formattedMessages: any[] = messages.map((m, idx) => {
+      const isLastUserMsg = imageBase64 && idx === messages.length - 1 && m.role === "user";
+      if (isLastUserMsg) {
+        return {
+          role: "user",
+          content: [
+            { type: "text", text: m.content },
+            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+          ],
+        };
+      }
+      return { role: m.role, content: m.content };
+    });
+
     const openaiMessages: any[] = [
       { role: "system", content: SYSTEM_PROMPT },
-      ...messages,
+      ...formattedMessages,
     ];
 
     let finalText = "";
@@ -452,7 +470,7 @@ export async function POST(req: NextRequest) {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: imageBase64 ? "gpt-4o" : "gpt-4o-mini",
           messages: openaiMessages,
           functions: FUNCTIONS,
           function_call: "auto",
