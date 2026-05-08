@@ -402,9 +402,11 @@ function EditInvoiceModal({ invoice, onClose }: { invoice: Invoice; onClose: () 
   const [items, setItems] = useState<InvoiceItem[]>(
     Array.isArray(invoice.items) && invoice.items.length > 0 ? invoice.items : DEFAULT_ITEMS
   );
-  const [notes, setNotes]   = useState(invoice.notes || "");
+  const [notes, setNotes]     = useState(invoice.notes || "");
   const [dueDate, setDueDate] = useState(invoice.dueDate || "");
-  const [status, setStatus] = useState<string>(invoice.status || "unpaid");
+  const [invoiceDate, setInvoiceDate] = useState(invoice.date || "");
+  const [paidAt, setPaidAt]   = useState((invoice as any).paidAt || "");
+  const [status, setStatus]   = useState<string>(invoice.status || "unpaid");
   const [paidInput, setPaidInput] = useState(String(invoice.paid || 0));
 
   const total      = items.reduce((s, i) => s + i.total, 0);
@@ -432,7 +434,13 @@ function EditInvoiceModal({ invoice, onClose }: { invoice: Invoice; onClose: () 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const paid = status === "paid" ? total : status === "partial" ? paidNum : 0;
-    mutation.mutate({ items, total, paid, notes: notes || undefined, dueDate: dueDate || undefined, status });
+    mutation.mutate({
+      items, total, paid, status,
+      notes: notes || undefined,
+      dueDate: dueDate || undefined,
+      date: invoiceDate || undefined,
+      paidAt: paidAt || undefined,
+    } as any);
   }
 
   return (
@@ -456,6 +464,20 @@ function EditInvoiceModal({ invoice, onClose }: { invoice: Invoice; onClose: () 
             <div className="mt-3 text-right">
               <span className="text-xs text-muted-foreground">Total: </span>
               <span className="text-sm font-bold text-primary">{total.toLocaleString("fr-MA")} MAD</span>
+            </div>
+          </div>
+
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Date de facturation</label>
+              <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Date de paiement</label>
+              <input type="date" value={paidAt} onChange={e => setPaidAt(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
             </div>
           </div>
 
@@ -766,7 +788,8 @@ export default function BillingPage() {
                 <tr className="border-b border-border/50 bg-muted/30">
                   <th className="text-left">Numéro</th>
                   <th className="text-left">Patient</th>
-                  <th className="text-left hidden md:table-cell">Date</th>
+                  <th className="text-left hidden md:table-cell">Créé le</th>
+                  <th className="text-left hidden lg:table-cell">Payé le</th>
                   <th className="text-right">Total</th>
                   <th className="text-right hidden sm:table-cell">Payé</th>
                   <th className="text-right hidden sm:table-cell">Reste</th>
@@ -797,6 +820,11 @@ export default function BillingPage() {
                         <td className="hidden md:table-cell">
                           <span className="text-xs text-muted-foreground">
                             {inv.date ? format(new Date(inv.date), "d MMM yyyy", { locale: fr }) : "—"}
+                          </span>
+                        </td>
+                        <td className="hidden lg:table-cell">
+                          <span className={cn("text-xs font-medium", (inv as any).paidAt ? "text-emerald-600" : "text-muted-foreground/50")}>
+                            {(inv as any).paidAt ? format(new Date((inv as any).paidAt), "d MMM yyyy", { locale: fr }) : "—"}
                           </span>
                         </td>
                         <td className="text-right">

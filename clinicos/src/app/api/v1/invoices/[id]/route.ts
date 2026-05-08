@@ -54,8 +54,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.paid !== undefined) update.paid = newPaid;
   if (body.notes !== undefined) update.notes = body.notes;
   if (body.items !== undefined) update.items = body.items;
+  if (body.date !== undefined) update.date = body.date;
   if (body.dueDate !== undefined) update.due_date = body.dueDate;
+  if (body.paidAt !== undefined) update.paid_at = body.paidAt || null;
   update.status = computeStatus(newPaid, newTotal, body.status);
+  // Auto-set paid_at when status becomes paid
+  if (update.status === "paid" && !body.paidAt) update.paid_at = new Date().toISOString().split("T")[0];
+  if (update.status !== "paid" && body.paidAt === undefined) update.paid_at = null;
 
   const { data, error } = await supabase
     .from("invoices")

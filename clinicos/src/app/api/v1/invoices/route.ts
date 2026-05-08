@@ -12,6 +12,7 @@ export function normalize(inv: any) {
     patientPhone: inv.patients?.phone || "",
     date: inv.date,
     dueDate: inv.due_date,
+    paidAt: inv.paid_at ?? null,
     total: inv.total,
     paid: inv.paid,
     status: inv.status,

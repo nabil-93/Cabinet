@@ -24,9 +24,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (total > 0 && paid >= total) status = "paid";
   else if (paid > 0 && paid < total) status = "partial";
 
+  const paidAt = status === "paid" ? new Date().toISOString().split("T")[0] : null;
   const { data, error } = await supabase
     .from("invoices")
-    .update({ paid, status })
+    .update({ paid, status, ...(paidAt ? { paid_at: paidAt } : {}) })
     .eq("id", id)
     .select("*, patients(full_name, phone)")
     .single();
