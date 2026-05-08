@@ -48,8 +48,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (body.newPassword.length < 8) return err("Le mot de passe doit contenir au moins 8 caractères", 400);
       const { error: pwErr } = await admin.auth.admin.updateUserById(id, { password: body.newPassword });
       if (pwErr) return err(pwErr.message);
-      // Force password change on next login
       await supabase.from("profiles").update({ must_change_password: true }).eq("id", id);
+      const { data: { user: actor } } = await supabase.auth.getUser();
+      if (actor) {
+        const { data: ap } = await supabase.from("profiles").select("name, role").eq("id", actor.id).single();
+        const { data: target } = await supabase.from("profiles").select("name").eq("id", id).single();
+        await supabase.from("activity_logs").insert({
+          user_id: actor.id, user_name: ap?.name ?? "", user_role: ap?.role ?? "",
+          action: "reset_password", entity_type: "user", entity_id: id, entity_label: target?.name ?? "",
+        });
+      }
       return ok({ success: true });
     }
 
@@ -73,16 +81,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { data: actor } = await supabase.auth.getUser();
     if (actor.user) {
       const { data: actorProfile } = await supabase
-        .from("profiles")
-        .select("name, role")
-        .eq("id", actor.user.id)
-        .single();
-
+        .from("profiles").select("name, role").eq("id", actor.user.id).single();
+      // Use specific action for activate/deactivate
+      let action = "update_user";
+      if (body.isActive === true)  action = "activate_user";
+      if (body.isActive === false) action = "deactivate_user";
       await supabase.from("activity_logs").insert({
         user_id: actor.user.id,
         user_name: actorProfile?.name ?? "",
         user_role: actorProfile?.role ?? "",
-        action: "update_user",
+        action,
         entity_type: "user",
         entity_id: id,
         entity_label: profile.name,

@@ -60,6 +60,12 @@ const ACTION_MAP: Record<string, { label: string; color: string; icon: LucideIco
   update_prescription:       { label: "Ordonnance modifiée",        color: "text-amber-500",   icon: Edit },
   delete_prescription:       { label: "Ordonnance supprimée",       color: "text-red-500",     icon: Trash2 },
   create_user:               { label: "Compte créé",                color: "text-purple-500",  icon: UserCog },
+  update_user:               { label: "Compte modifié",             color: "text-amber-500",   icon: Edit },
+  delete_user:               { label: "Compte supprimé",            color: "text-red-500",     icon: Trash2 },
+  activate_user:             { label: "Compte activé",              color: "text-emerald-500", icon: UserCog },
+  deactivate_user:           { label: "Compte désactivé",           color: "text-gray-500",    icon: UserCog },
+  reset_password:            { label: "Mot de passe réinitialisé",  color: "text-amber-600",   icon: UserCog },
+  delete_invoice:            { label: "Facture supprimée",          color: "text-red-500",     icon: Trash2 },
 };
 
 function getActionMeta(action: string): { label: string; color: string; icon: LucideIcon } {
@@ -88,11 +94,15 @@ function roleBadge(role: string) {
 }
 
 const ACTION_TYPE_OPTIONS = [
-  { value: "all",    label: "Toutes les actions" },
-  { value: "login",  label: "Connexions" },
-  { value: "create", label: "Créations" },
-  { value: "update", label: "Modifications" },
-  { value: "delete", label: "Suppressions" },
+  { value: "all",        label: "Toutes les actions" },
+  { value: "login",      label: "Connexions" },
+  { value: "logout",     label: "Déconnexions" },
+  { value: "create",     label: "Créations" },
+  { value: "update",     label: "Modifications" },
+  { value: "delete",     label: "Suppressions" },
+  { value: "reset",      label: "Réinitialisations" },
+  { value: "activate",   label: "Activations" },
+  { value: "deactivate", label: "Désactivations" },
 ];
 
 export default function ActivityPage() {
@@ -116,10 +126,14 @@ export default function ActivityPage() {
     return logs.filter(log => {
       const matchUser = userFilter === "all" || log.user_id === userFilter;
       const matchAction = actionFilter === "all"
-        || (actionFilter === "login"  && log.action === "login")
-        || (actionFilter === "create" && log.action.startsWith("create_"))
-        || (actionFilter === "update" && log.action.startsWith("update_"))
-        || (actionFilter === "delete" && (log.action.startsWith("delete_") || log.action.startsWith("deactivate_")));
+        || (actionFilter === "login"      && log.action === "login")
+        || (actionFilter === "logout"     && log.action === "logout")
+        || (actionFilter === "create"     && log.action.startsWith("create_"))
+        || (actionFilter === "update"     && log.action.startsWith("update_"))
+        || (actionFilter === "delete"     && log.action.startsWith("delete_"))
+        || (actionFilter === "reset"      && log.action === "reset_password")
+        || (actionFilter === "activate"   && log.action === "activate_user")
+        || (actionFilter === "deactivate" && log.action === "deactivate_user");
       return matchUser && matchAction;
     });
   }, [logs, userFilter, actionFilter]);

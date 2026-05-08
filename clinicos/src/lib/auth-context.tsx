@@ -43,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    // Log déconnexion (best-effort, pas bloquant)
+    fetch("/api/v1/auth/logout", { method: "POST" }).catch(() => {});
     Cookies.remove("clinicos_token");
     Cookies.remove("clinicos_user");
     setUserState(null);
