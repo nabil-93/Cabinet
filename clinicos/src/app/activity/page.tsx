@@ -40,7 +40,7 @@ const AVATAR_COLORS = [
 
 const ACTION_MAP: Record<string, { label: string; color: string; icon: LucideIcon }> = {
   login:                     { label: "Connexion",                  color: "text-emerald-500", icon: LogIn },
-  logout:                    { label: "Déconnexion",                color: "text-gray-400",    icon: LogOut },
+  logout:                    { label: "Déconnexion",                color: "text-red-500",     icon: LogOut },
   create_patient:            { label: "Patient ajouté",             color: "text-blue-500",    icon: UserPlus },
   update_patient:            { label: "Patient modifié",            color: "text-amber-500",   icon: Edit },
   delete_patient:            { label: "Patient supprimé",           color: "text-red-500",     icon: Trash2 },
