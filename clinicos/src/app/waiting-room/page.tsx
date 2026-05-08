@@ -382,7 +382,11 @@ export default function WaitingRoomPage() {
 
   const waiting    = useMemo(() => entries.filter(e => e.status === "waiting"), [entries]);
   const inProgress = useMemo(() => entries.filter(e => e.status === "in_progress"), [entries]);
-  const done       = useMemo(() => entries.filter(e => e.status === "done"), [entries]);
+  const done       = useMemo(() =>
+    entries
+      .filter(e => e.status === "done")
+      .sort((a, b) => new Date(b.arrivedAt).getTime() - new Date(a.arrivedAt).getTime()),
+  [entries]);
 
   const enrichedAppts = useMemo(() => {
     return todayAppts
