@@ -4,20 +4,24 @@ interface Message { role: "user" | "assistant" | "system"; content: string; }
 
 // Medical context for the AI
 const SYSTEM_PROMPT = `Tu es un assistant médical intelligent pour ClinicOS, une plateforme de gestion de cabinet médical.
-Tu aides les médecins et le personnel médical à:
-- Consulter et analyser les informations sur les patients
-- Gérer les rendez-vous et le planning
-- Résumer les historiques médicaux
-- Générer des notes médicales
-- Analyser les statistiques du cabinet
-- Répondre aux questions médicales générales
+Tu aides les médecins et le personnel médical à gérer leur cabinet de manière optimale.
 
-Réponds toujours en français, de manière professionnelle, concise et précise.
-Utilise des émojis pour rendre les réponses plus lisibles.
-Structure tes réponses avec des sauts de ligne et des puces (•) pour la lisibilité.
-Ne donne jamais de diagnostic médical définitif — tu es un assistant, pas un médecin.
-Pour les questions hors de ton domaine, oriente vers un professionnel de santé.
-Quand tu utilises du texte en gras, utilise **texte** pour le formater.`;
+TU AS ACCÈS AUX DONNÉES SUIVANTES DANS "context" :
+1. "stats" : Statistiques globales (RDV aujourd'hui, revenus, patients en attente, etc.)
+2. "patients" : Liste des patients récents avec leurs ALLERGIES et HISTORIQUE MÉDICAL.
+3. "appointments" : Liste des rendez-vous prévus pour AUJOURD'HUI.
+
+CAPACITÉS SPÉCIFIQUES :
+- Si on te demande "Qui sont mes patients aujourd'hui ?", consulte context.appointments.
+- Si on te demande "Est-ce que [Nom] a des allergies ?", cherche dans context.patients.
+- Si on te demande "Génère un rapport", fais une analyse basée sur les stats et le planning du jour.
+- Vérifie TOUJOURS les allergies avant de répondre à une question sur un traitement.
+- Aide le médecin à identifier les patients qui ont besoin d'un suivi particulier.
+
+Réponds toujours en français, de manière professionnelle et concise.
+Utilise des émojis et du texte en gras (**texte**) pour la clarté.
+Structure tes réponses avec des listes à puces.
+Ne donne jamais de diagnostic médical définitif.`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -93,13 +97,8 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("AI route error:", error);
     return NextResponse.json(
-      { message: "⚠️ Une erreur est survenue. Veuillez réessayer dans quelques instants." },
-      { status: 500 }
-    );
-  }
-}
-
-function generateSmartResponse(query: string, context?: any): string {
+      { message: "⚠️ Une erreur est survenue. Veuillez réessayer dans quelques instafunction generateSmartResponse(query: string, context?: any): string {
+  const stats = context?.stats;
   const todayStr = new Date().toLocaleDateString("fr-FR", {
     weekday: "long",
     year: "numeric",
@@ -109,44 +108,35 @@ function generateSmartResponse(query: string, context?: any): string {
 
   // Greeting
   if (query.includes("bonjour") || query.includes("salut") || query.includes("hello") || query.includes("bonsoir")) {
-    return `Bonjour ! 👋 Je suis votre assistant médical ClinicOS.\n\n📅 Nous sommes le **${todayStr}**.\n\nJe peux vous aider avec :\n• La gestion de vos rendez-vous\n• Les dossiers patients\n• Les ordonnances et prescriptions\n• La facturation et les revenus\n• Les statistiques de votre cabinet\n\nComment puis-je vous aider aujourd'hui ?`;
+    return `Bonjour ! 👋 Je suis votre assistant médical ClinicOS.\n\n📅 Nous sommes le **${todayStr}**.\n\n${stats ? `**Résumé actuel :**\n• 📅 **${stats.todayAppointments}** RDV aujourd'hui\n• 👥 **${stats.totalPatients}** patients au total\n• 💰 **${stats.monthlyRevenue?.toLocaleString("fr-MA")} MAD** de revenus ce mois` : "Je peux vous aider à gérer vos rendez-vous, patients et facturation."}\n\nComment puis-je vous aider aujourd'hui ?`;
   }
 
   // Appointments
   if (query.includes("rendez-vous") || query.includes("rdv") || query.includes("appointment") || query.includes("planning")) {
-    return `📅 **Gestion des rendez-vous**\n\nVoici ce que je peux faire pour vous :\n• Consulter votre planning du jour\n• Vérifier les créneaux disponibles\n• Confirmer ou annuler des rendez-vous\n• Envoyer des rappels aux patients\n\n💡 *Conseil : Confirmez vos rendez-vous 24h à l'avance pour réduire les absences.*\n\nRendez-vous dans l'onglet **Rendez-vous** pour voir votre planning complet.`;
+    return `📅 **Gestion des rendez-vous**\n\n${stats ? `Aujourd'hui, vous avez **${stats.todayAppointments}** rendez-vous planifiés et **${stats.completedToday}** déjà complétés.` : "Consultez l'onglet Rendez-vous pour voir votre planning."}\n\nJe peux vous aider à :\n• Consulter votre planning du jour\n• Vérifier les créneaux disponibles\n• Envoyer des rappels aux patients\n\n💡 *Conseil : Confirmez vos rendez-vous 24h à l'avance pour réduire les absences.*`;
   }
 
   // Patients
   if (query.includes("patient") || query.includes("résumé patients") || query.includes("dossier")) {
-    return `👥 **Gestion des patients**\n\nJe peux vous aider à :\n• 🔍 Rechercher un patient par nom\n• 📋 Consulter un dossier médical\n• ⚠️ Vérifier les allergies et contre-indications\n• 📊 Analyser l'historique des consultations\n• 📝 Ajouter des notes médicales\n\nPour accéder aux dossiers, utilisez l'onglet **Patients** dans la navigation.\n\nQuel patient souhaitez-vous consulter ?`;
+    return `👥 **Gestion des patients**\n\n${stats ? `Votre cabinet compte actuellement **${stats.totalPatients}** patients enregistrés.` : ""}\n\nJe peux vous aider à :\n• 🔍 Rechercher un patient par nom\n• 📋 Consulter un dossier médical\n• ⚠️ Vérifier les allergies et contre-indications\n• 📊 Analyser l'historique des consultations\n\nQuel patient souhaitez-vous consulter ?`;
   }
 
   // Billing
   if (query.includes("facture") || query.includes("factures impayées") || query.includes("paiement") || query.includes("revenu") || query.includes("billing")) {
-    return `💰 **Facturation & Revenus**\n\nJe peux vous aider avec :\n• 📊 Suivi des factures impayées\n• 💳 Enregistrement des paiements\n• 📄 Génération de reçus PDF\n• 📈 Rapports financiers mensuels\n• 🔔 Rappels automatiques aux patients\n\n💡 *Conseil : Exportez vos rapports mensuels pour faciliter la comptabilité.*\n\nConsultez l'onglet **Facturation** pour le détail complet.`;
-  }
-
-  // Prescriptions
-  if (query.includes("ordonnance") || query.includes("prescription") || query.includes("médicament") || query.includes("aide ordonnance")) {
-    return `💊 **Module Ordonnances**\n\nJe peux vous aider à :\n• 📝 Créer une nouvelle ordonnance\n• 🔍 Vérifier les interactions médicamenteuses\n• 📤 Exporter en PDF avec signature\n• 📋 Consulter les traitements en cours\n• ♻️ Renouveler une ordonnance existante\n\n⚠️ *Rappel important : Vérifiez toujours les allergies du patient avant de prescrire.*\n\nPour quel patient souhaitez-vous créer une ordonnance ?`;
+    return `💰 **Facturation & Revenus**\n\n${stats ? `Ce mois-ci : **${stats.monthlyRevenue?.toLocaleString("fr-MA")} MAD** de revenus.\nIl y a **${stats.pendingInvoices}** factures en attente de paiement.` : ""}\n\nJe peux vous aider avec :\n• 📊 Suivi des factures impayées\n• 💳 Enregistrement des paiements\n• 📈 Rapports financiers mensuels\n\nConsultez l'onglet **Facturation** pour le détail complet.`;
   }
 
   // Statistics
   if (query.includes("statistique") || query.includes("analytique") || query.includes("rapport") || query.includes("statistiques du mois")) {
-    return `📊 **Analytique du cabinet**\n\nIndicateurs disponibles :\n• 📈 Taux d'occupation par semaine\n• 👥 Évolution du nombre de patients\n• 💰 Revenus mensuels et annuels\n• 🕐 Durées moyennes des consultations\n• ⭐ Satisfaction et fidélisation patients\n\nConsultez l'onglet **Analytique** pour voir tous vos tableaux de bord en temps réel.\n\nVoulez-vous un rapport spécifique sur une période donnée ?`;
+    return `📊 **Analytique du cabinet**\n\n${stats ? `**Résumé actuel :**\n• Patients : ${stats.totalPatients}\n• RDV aujourd'hui : ${stats.todayAppointments}\n• Revenus du mois : ${stats.monthlyRevenue?.toLocaleString("fr-MA")} MAD\n• Salle d'attente : ${stats.waitingRoom} patients` : "Consultez l'onglet Analytique pour voir vos tableaux de bord."}\n\nVoulez-vous un rapport spécifique sur une période donnée ?`;
   }
 
   // Waiting room
   if (query.includes("attente") || query.includes("salle d'attente") || query.includes("patients urgents") || query.includes("urgent")) {
-    return `🚨 **Salle d'attente & Urgences**\n\nJe peux vous aider à :\n• 👁️ Voir les patients en attente en temps réel\n• ⚡ Prioriser les cas urgents\n• 📋 Consulter les motifs de consultation\n• 🔔 Notifier le médecin disponible\n\n💡 *Conseil : La salle d'attente se met à jour en temps réel.*\n\nConsultez l'onglet **Salle d'attente** pour la liste actuelle.`;
+    return `🚨 **Salle d'attente & Urgences**\n\n${stats ? `Il y a actuellement **${stats.waitingRoom}** patient(s) en salle d'attente.` : ""}\n\nJe peux vous aider à :\n• 👁️ Voir les patients en attente en temps réel\n• ⚡ Prioriser les cas urgents\n• 📋 Consulter les motifs de consultation\n\nConsultez l'onglet **Salle d'attente** pour la liste actuelle.`;
   }
 
-  // Help / capabilities
-  if (query.includes("aide") || query.includes("help") || query.includes("que peux") || query.includes("comment") || query.includes("capacité")) {
-    return `🤖 **Mes capacités**\n\n**Gestion quotidienne :**\n• 📅 Planning et rendez-vous\n• 👥 Dossiers patients\n• 💊 Ordonnances et prescriptions\n• 💰 Facturation et paiements\n• 🚨 Salle d'attente\n\n**Analyse et rapports :**\n• 📊 Statistiques du cabinet\n• 📈 Tendances et performance\n• 📄 Génération de rapports PDF\n\n**Assistance médicale :**\n• 📋 Résumés de dossiers\n• ⚠️ Alertes allergies et interactions\n• 💡 Rappels et notifications intelligentes\n\nPosez-moi n'importe quelle question — je suis là pour vous aider !`;
-  }
-
-  // Generic fallback — still helpful
-  return `Je comprends votre question sur **"${query}"**.\n\nPour mieux vous aider, pourriez-vous préciser :\n• De quel patient ou cas s'agit-il ?\n• Quelle action souhaitez-vous effectuer ?\n• Sur quelle période portez-vous votre demande ?\n\n💡 Vous pouvez aussi utiliser les **actions rapides** ci-dessous pour les tâches courantes, ou m'écrire en langage naturel — je ferai de mon mieux pour comprendre et vous aider !`;
+  // Fallback
+  return `Je comprends votre demande concernant **"${query}"**.\n\n${stats ? `**Données système disponibles :**\n• ${stats.totalPatients} patients au total\n• ${stats.todayAppointments} RDV aujourd'hui\n• Accès aux allergies et historiques activé` : ""} \n\nPour vous aider au mieux (ex: "Quelles sont les allergies de M. X ?"), pourriez-vous préciser votre question ?`;
+}ous préciser :\n• De quel patient ou cas s'agit-il ?\n• Quelle action souhaitez-vous effectuer ?\n• Sur quelle période portez-vous votre demande ?\n\n💡 Vous pouvez aussi utiliser les **actions rapides** ci-dessous pour les tâches courantes, ou m'écrire en langage naturel — je ferai de mon mieux pour comprendre et vous aider !`;
 }

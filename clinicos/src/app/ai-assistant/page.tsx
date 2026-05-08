@@ -6,6 +6,9 @@ import {
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/lib/auth-context";
+import { useDashboardStats } from "@/hooks/useDashboard";
+import { usePatients } from "@/hooks/usePatients";
+import { useAppointments } from "@/hooks/useAppointments";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -102,6 +105,9 @@ function renderContent(content: string) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function AIAssistantPage() {
   const { user } = useAuth();
+  const { data: stats } = useDashboardStats();
+  const { data: patients } = usePatients(undefined, 50); // Get last 50 patients
+  const { data: appointments } = useAppointments();
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -158,6 +164,22 @@ export default function AIAssistantPage() {
             messages: history,
             context: {
               user: { name: user?.name, role: user?.role },
+              stats: stats,
+              // Send a compact version of patients to save tokens
+              patients: patients?.map(p => ({
+                name: p.fullName,
+                allergies: p.allergies,
+                history: p.medicalHistory,
+                status: p.status,
+                lastVisit: p.lastVisit
+              })),
+              // Today's appointments
+              appointments: appointments?.filter(a => a.date === new Date().toISOString().split('T')[0]).map(a => ({
+                patient: a.patientName,
+                time: a.time,
+                type: a.type,
+                status: a.status
+              })),
               timestamp: new Date().toISOString(),
             },
           }),
