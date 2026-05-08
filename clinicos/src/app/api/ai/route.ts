@@ -111,6 +111,48 @@ const FUNCTIONS = [
     },
   },
   {
+    name: "create_patient",
+    description: "Créer un nouveau patient dans le système",
+    parameters: {
+      type: "object",
+      required: ["fullName"],
+      properties: {
+        fullName: { type: "string", description: "Nom complet du patient" },
+        phone: { type: "string" },
+        dateOfBirth: { type: "string", description: "Date de naissance YYYY-MM-DD" },
+        gender: { type: "string", enum: ["male", "female"] },
+        allergies: { type: "string" },
+        medicalHistory: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "update_patient",
+    description: "Modifier les informations d'un patient existant",
+    parameters: {
+      type: "object",
+      required: ["patientId"],
+      properties: {
+        patientId: { type: "string" },
+        fullName: { type: "string" },
+        phone: { type: "string" },
+        dateOfBirth: { type: "string" },
+        gender: { type: "string", enum: ["male", "female"] },
+        allergies: { type: "string" },
+        medicalHistory: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "delete_appointment",
+    description: "Supprimer un rendez-vous",
+    parameters: {
+      type: "object",
+      required: ["appointmentId"],
+      properties: { appointmentId: { type: "string" } },
+    },
+  },
+  {
     name: "get_consultations",
     description: "Obtenir les rapports de consultation et l'historique médical d'un patient",
     parameters: {
@@ -256,6 +298,58 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
         return JSON.stringify({ success: true, entry: data });
       }
 
+      case "create_patient": {
+        const { data, error } = await supabase.from("patients")
+          .insert({
+            full_name: args.fullName,
+            phone: args.phone ?? null,
+            date_of_birth: args.dateOfBirth ?? null,
+            gender: args.gender ?? null,
+            allergies: args.allergies ?? null,
+            medical_history: args.medicalHistory ?? null,
+            status: "active",
+          })
+          .select("id, full_name, phone, date_of_birth, gender")
+          .single();
+        if (error) return JSON.stringify({ error: error.message });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: p } = await supabase.from("profiles").select("name, role").eq("id", user.id).single();
+          await supabase.from("activity_logs").insert({ user_id: user.id, user_name: p?.name ?? "", user_role: p?.role ?? "", action: "create_patient", entity_type: "patient", entity_id: data?.id, entity_label: args.fullName });
+        }
+        return JSON.stringify({ success: true, patient: data });
+      }
+
+      case "update_patient": {
+        const updates: Record<string, any> = {};
+        if (args.fullName) updates.full_name = args.fullName;
+        if (args.phone !== undefined) updates.phone = args.phone;
+        if (args.dateOfBirth !== undefined) updates.date_of_birth = args.dateOfBirth;
+        if (args.gender !== undefined) updates.gender = args.gender;
+        if (args.allergies !== undefined) updates.allergies = args.allergies;
+        if (args.medicalHistory !== undefined) updates.medical_history = args.medicalHistory;
+        const { data, error } = await supabase.from("patients").update(updates).eq("id", args.patientId).select("id, full_name").single();
+        if (error) return JSON.stringify({ error: error.message });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: p } = await supabase.from("profiles").select("name, role").eq("id", user.id).single();
+          await supabase.from("activity_logs").insert({ user_id: user.id, user_name: p?.name ?? "", user_role: p?.role ?? "", action: "update_patient", entity_type: "patient", entity_id: args.patientId, entity_label: data?.full_name ?? "" });
+        }
+        return JSON.stringify({ success: true, patient: data });
+      }
+
+      case "delete_appointment": {
+        const { data: apt } = await supabase.from("appointments").select("patients(full_name), date, time").eq("id", args.appointmentId).single();
+        const { error } = await supabase.from("appointments").delete().eq("id", args.appointmentId);
+        if (error) return JSON.stringify({ error: error.message });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: p } = await supabase.from("profiles").select("name, role").eq("id", user.id).single();
+          await supabase.from("activity_logs").insert({ user_id: user.id, user_name: p?.name ?? "", user_role: p?.role ?? "", action: "delete_appointment", entity_type: "appointment", entity_id: args.appointmentId, entity_label: `${(apt as any)?.patients?.full_name ?? ""} – ${(apt as any)?.date ?? ""}` });
+        }
+        return JSON.stringify({ success: true });
+      }
+
       case "get_consultations": {
         let q = supabase.from("consultations")
           .select("id, diagnosis, treatment, notes, next_visit, created_at, patients(full_name), profiles(name)")
@@ -301,9 +395,12 @@ ACCÈS DONNÉES (utilise TOUJOURS les fonctions, ne jamais inventer) :
 - get_prescriptions : ordonnances et médicaments prescrits
 
 ACTIONS (exécute quand demandé) :
-- create_appointment : créer un rendez-vous (cherche d'abord l'ID patient avec search_patients)
+- create_patient : créer un nouveau patient
+- update_patient : modifier les infos d'un patient (cherche son ID avec search_patients)
+- create_appointment : créer un rendez-vous (cherche d'abord l'ID patient)
 - update_appointment_status : modifier le statut d'un RDV
-- add_to_waiting_room : ajouter un patient à la file
+- delete_appointment : supprimer un rendez-vous
+- add_to_waiting_room : ajouter un patient à la file d'attente
 
 RÈGLES :
 1. Utilise TOUJOURS les fonctions pour obtenir des données avant de répondre.
@@ -375,15 +472,16 @@ export async function POST(req: NextRequest) {
 
       // Execute the function
       const fnName = msg.function_call.name;
-      const fnArgs = JSON.parse(msg.function_call.arguments || "{}");
+      let fnArgs: Record<string, any> = {};
+      try { fnArgs = JSON.parse(msg.function_call.arguments || "{}"); } catch {}
       const fnResult = await executeTool(fnName, fnArgs);
 
       // Add assistant message + function result to history
-      openaiMessages.push({ role: "assistant", content: null, function_call: msg.function_call });
+      openaiMessages.push({ role: "assistant", content: msg.content ?? null, function_call: msg.function_call });
       openaiMessages.push({ role: "function", name: fnName, content: fnResult });
     }
 
-    if (!finalText) finalText = "Je n'ai pas pu générer une réponse. Veuillez réessayer.";
+    if (!finalText) finalText = "Désolé, je n'ai pas pu compléter cette action. Veuillez réessayer ou reformuler votre demande.";
 
     return NextResponse.json({ message: finalText, mode: "openai" });
   } catch (error: any) {
