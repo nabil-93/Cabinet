@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Clock, CheckCircle, ArrowRight, X, UserPlus, LogOut,
   Stethoscope, Search, ChevronDown, AlertCircle, Calendar,
-  Plus, ChevronRight, RefreshCw, SkipForward, Lock,
+  Plus, ChevronRight, RefreshCw, SkipForward, Lock, Ban,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -495,6 +495,22 @@ export default function WaitingRoomPage() {
     onError: (e: { response?: { data?: { error?: string } } }) => toast.error(e?.response?.data?.error || "Erreur"),
   });
 
+  const cancelAppt = useMutation({
+    mutationFn: (apptId: string) => api.patch(`/appointments/${apptId}/status`, { status: "cancelled" }),
+    onMutate: async (apptId) => {
+      await qc.cancelQueries({ queryKey: APPT_KEY });
+      const prev = qc.getQueryData<Appointment[]>(APPT_KEY);
+      qc.setQueryData<Appointment[]>(APPT_KEY, old => (old ?? []).map(a => a.id === apptId ? { ...a, status: "cancelled" } : a));
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(APPT_KEY, ctx.prev); toast.error("Erreur"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: APPT_KEY });
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      toast.success("Rendez-vous annulé");
+    },
+  });
+
   // ── Doctor-aware call logic ────────────────────────────────────────────────
 
   const callPatient = useCallback((entry: WREntry) => {
@@ -816,17 +832,47 @@ export default function WaitingRoomPage() {
                         <p className="text-xs text-muted-foreground">{a.type}</p>
                       </div>
 
+                      {/* ── Action buttons per RDV state ── */}
                       {!wr ? (
-                        <button
-                          onClick={() => addEntry.mutate({ patientId: a.patientId, priority: "normal", appointmentId: a.id })}
-                          disabled={addEntry.isPending}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-colors disabled:opacity-50 flex-shrink-0">
-                          <ArrowRight className="w-3.5 h-3.5" /> Arrivé
-                        </button>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {/* Confirm arrival → add to queue */}
+                          <button
+                            onClick={() => addEntry.mutate({ patientId: a.patientId, priority: "normal", appointmentId: a.id })}
+                            disabled={addEntry.isPending || cancelAppt.isPending}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-colors disabled:opacity-50"
+                            title="Confirmer l'arrivée et ajouter à la file d'attente"
+                          >
+                            <ArrowRight className="w-3.5 h-3.5" /> Arrivé
+                          </button>
+                          {/* Cancel appointment */}
+                          <button
+                            onClick={() => {
+                              if (confirm(`Annuler le RDV de ${a.patientName} ?`)) {
+                                cancelAppt.mutate(a.id);
+                              }
+                            }}
+                            disabled={addEntry.isPending || cancelAppt.isPending}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border hover:bg-red-50 hover:border-red-200 hover:text-red-500 dark:hover:bg-red-950 dark:hover:border-red-800 dark:hover:text-red-400 text-muted-foreground text-xs font-semibold transition-colors disabled:opacity-50"
+                            title="Annuler ce rendez-vous"
+                          >
+                            <Ban className="w-3.5 h-3.5" /> Annuler
+                          </button>
+                        </div>
                       ) : wr.status === "waiting" ? (
-                        <span className="text-[10px] px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 font-semibold flex-shrink-0">
-                          En file
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className="text-[10px] px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> En file
+                          </span>
+                          {/* Allow calling from appointment row too */}
+                          <button
+                            onClick={() => callPatient(wr)}
+                            disabled={updateStatus.isPending}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-xs font-semibold transition-colors disabled:opacity-50"
+                            title="Appeler ce patient"
+                          >
+                            <Stethoscope className="w-3.5 h-3.5" /> Appeler
+                          </button>
+                        </div>
                       ) : wr.status === "in_progress" ? (
                         <span className="text-[10px] px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 flex-shrink-0">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
