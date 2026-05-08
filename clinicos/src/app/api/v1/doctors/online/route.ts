@@ -15,7 +15,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("profiles")
     .select("id, name, role, specialty, is_available, is_online, last_seen_at")
-    .in("role", ["admin", "doctor"])
+    .in("role", ["admin", "doctor", "assistant"])
     .eq("is_online", true)
     .gte("last_seen_at", threshold)
     .order("name", { ascending: true });
