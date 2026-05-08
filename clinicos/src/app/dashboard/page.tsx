@@ -11,6 +11,7 @@ const YAxis = dynamic(() => import("recharts").then(m => ({ default: m.YAxis }))
 const CartesianGrid = dynamic(() => import("recharts").then(m => ({ default: m.CartesianGrid })), { ssr: false });
 const Tooltip = dynamic(() => import("recharts").then(m => ({ default: m.Tooltip })), { ssr: false });
 const ResponsiveContainer = dynamic(() => import("recharts").then(m => ({ default: m.ResponsiveContainer })), { ssr: false });
+import { useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import Link from "next/link";
@@ -21,9 +22,11 @@ import { StatCardSkeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import { useStore } from "@/store";
 import { useAuth } from "@/lib/auth-context";
-import { useDashboardStats, useRevenueData } from "@/hooks/useDashboard";
+import { useDashboardStats } from "@/hooks/useDashboard";
 import { useAppointmentsByDate } from "@/hooks/useAppointments";
 import { usePatients } from "@/hooks/usePatients";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/services/api";
 import { cn } from "@/lib/utils";
 
 const STATUS_CONFIG = {
@@ -52,16 +55,24 @@ export default function DashboardPage() {
   const router = useRouter();
   const { theme } = useStore();
   const { user } = useAuth();
+  const [chartPeriod, setChartPeriod] = useState<"1d" | "1w" | "1m" | "6m">("1d");
 
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
-  const { data: revenueData, isLoading: revenueLoading } = useRevenueData();
+  const { data: chartData, isLoading: chartLoading } = useQuery({
+    queryKey: ["analytics-chart", chartPeriod],
+    queryFn: async () => {
+      const r = await api.get(`/analytics/chart?period=${chartPeriod}`);
+      return r.data.data as { label: string; rdv: number; revenue: number }[];
+    },
+    staleTime: 30_000,
+  });
   const today = new Date().toISOString().split("T")[0];
   const { data: appointments = [], isLoading: aptsLoading } = useAppointmentsByDate(today);
   const { data: patients = [], isLoading: patientsLoading } = usePatients(undefined, 5);
 
   const todayApts = appointments.slice(0, 5);
   const recentPatients = patients.slice(0, 5);
-  const hasRevenue = revenueData && revenueData.some(d => d.revenue > 0 || d.appointments > 0);
+  const hasChartData = chartData && chartData.some(d => d.revenue > 0 || d.rdv > 0);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
@@ -107,45 +118,55 @@ export default function DashboardPage() {
         </div>
 
         {/* Charts */}
-        {!revenueLoading && hasRevenue ? (
-          <div className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="font-semibold text-foreground text-sm">Revenus & Rendez-vous</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">6 derniers mois</p>
-              </div>
-              <Link href="/analytics" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
-                Analytique <ArrowUpRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={revenueData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6272f5" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6272f5" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} fill="url(#gR)" name="Revenus" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-foreground text-sm">Revenus & Rendez-vous</h3>
+            <Link href="/analytics" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
+              Analytique <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-        ) : !revenueLoading && (
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-foreground text-sm mb-1">Revenus & Analytique</h3>
-            <p className="text-xs text-muted-foreground mb-6">Les graphiques apparaîtront après vos premières activités</p>
-            <div className="h-32 flex items-center justify-center border-2 border-dashed border-border/50 rounded-xl">
+          <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1 mb-4">
+            {(["1d", "1w", "1m", "6m"] as const).map(p => (
+              <button key={p} onClick={() => setChartPeriod(p)} className={cn(
+                "flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                chartPeriod === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}>
+                {p === "1d" ? "Aujourd'hui" : p === "1w" ? "7 jours" : p === "1m" ? "30 jours" : "6 mois"}
+              </button>
+            ))}
+          </div>
+          {chartLoading ? (
+            <div className="h-[200px] animate-pulse bg-muted/30 rounded-xl" />
+          ) : !hasChartData ? (
+            <div className="h-[200px] flex items-center justify-center border-2 border-dashed border-border/50 rounded-xl">
               <div className="text-center">
                 <TrendingUp className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
                 <p className="text-xs text-muted-foreground/60">Aucune donnée disponible</p>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6272f5" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#6272f5" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gA" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#43e97b" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#43e97b" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="rdv" stroke="#43e97b" strokeWidth={2} fill="url(#gA)" name="RDV" dot={false} />
+                <Area type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} fill="url(#gR)" name="Revenus (MAD)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
 
         {/* RDV + Patients */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
