@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix clinicos",
+    "build": "npm run build --prefix clinicos",
+    "start": "npm run start --prefix clinicos",
+    "install-all": "npm install --prefix clinicos && npm install --prefix clinicos-backend"
+  }
+}

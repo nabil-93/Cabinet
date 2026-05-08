@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npm run build --prefix clinicos",
+  "outputDirectory": "clinicos/.next",
+  "framework": "nextjs",
+  "installCommand": "npm install --prefix clinicos"
+}
