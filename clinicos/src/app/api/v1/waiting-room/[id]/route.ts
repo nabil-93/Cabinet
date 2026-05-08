@@ -87,6 +87,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         .update({ is_available: true })
         .eq("id", data.assigned_doctor_id);
     }
+    // Auto-create invoice for this consultation
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const prefix = `FAC-${year}${month}-`;
+    const { data: existing } = await supabase
+      .from("invoices")
+      .select("invoice_number")
+      .ilike("invoice_number", `${prefix}%`)
+      .order("invoice_number", { ascending: false })
+      .limit(1);
+    let nextNum = 1;
+    if (existing && existing.length > 0) {
+      const lastNum = parseInt(existing[0].invoice_number.split("-").pop() || "0", 10);
+      nextNum = lastNum + 1;
+    }
+    const invoiceNumber = `${prefix}${String(nextNum).padStart(4, "0")}`;
+    const defaultItem = { description: "Consultation médicale", quantity: 1, unitPrice: 300, total: 300 };
+    await supabase.from("invoices").insert({
+      invoice_number: invoiceNumber,
+      patient_id: data.patient_id,
+      date: now.toISOString().split("T")[0],
+      total: 300,
+      paid: 0,
+      status: "unpaid",
+      items: [defaultItem],
+    });
   }
 
   return ok(normalize(data));

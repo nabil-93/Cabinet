@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { FileText, Plus, Search, TrendingUp, Clock, CheckCircle, Pencil, X, Download } from "lucide-react";
+import { FileText, Plus, Search, TrendingUp, Clock, CheckCircle, Pencil, X, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import Header from "@/components/layout/Header";
@@ -676,11 +676,23 @@ function PayModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void 
 }
 
 export default function BillingPage() {
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | PaymentStatus>("all");
   const [showCreate, setShowCreate] = useState(false);
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
   const [payInvoice, setPayInvoice] = useState<Invoice | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => invoicesService.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      toast.success("Facture supprimée");
+      setDeletingId(null);
+    },
+    onError: () => toast.error("Erreur lors de la suppression"),
+  });
 
   const { data: apiInvoices, isLoading } = useQuery({
     queryKey: ["invoices"],
@@ -837,6 +849,13 @@ export default function BillingPage() {
                                 Payer
                               </button>
                             )}
+                            <button
+                              onClick={() => setDeletingId(inv.id)}
+                              title="Supprimer"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border hover:bg-red-50 hover:border-red-200 hover:text-red-500 dark:hover:bg-red-950 dark:hover:border-red-800 transition-all text-muted-foreground"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -855,6 +874,37 @@ export default function BillingPage() {
       {showCreate && <CreateInvoiceModal onClose={() => setShowCreate(false)} />}
       {editInvoice && <EditInvoiceModal invoice={editInvoice} onClose={() => setEditInvoice(null)} />}
       {payInvoice && <PayModal invoice={payInvoice} onClose={() => setPayInvoice(null)} />}
+
+      {deletingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-foreground">Supprimer la facture</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Cette action est irréversible.</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingId(null)}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-all"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(deletingId)}
+                disabled={deleteMutation.isPending}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

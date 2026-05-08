@@ -11,6 +11,16 @@ function computeStatus(paid: number, total: number, explicit?: string): string {
   return "unpaid";
 }
 
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: inv } = await supabase.from("invoices").select("invoice_number").eq("id", id).single();
+  const { error } = await supabase.from("invoices").delete().eq("id", id);
+  if (error) return err(error.message);
+  await logActivity({ supabase, action: "delete_invoice", entityType: "invoice", entityId: id, entityLabel: inv?.invoice_number || id });
+  return ok({ success: true });
+}
+
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();

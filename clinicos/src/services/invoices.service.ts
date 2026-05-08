@@ -49,4 +49,8 @@ export const invoicesService = {
     const res = await api.patch<Invoice>(`/invoices/${id}/pay`, {});
     return res.data;
   },
+
+  async delete(id: string): Promise<void> {
+    await api.delete(`/invoices/${id}`);
+  },
 };
