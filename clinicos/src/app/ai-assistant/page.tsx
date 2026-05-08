@@ -236,26 +236,12 @@ export default function AIAssistantPage() {
         const res = await fetch("/api/ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: history,
-            context: {
-              user: { name: user?.name, role: user?.role },
-              stats,
-              patients: patients?.map((p) => ({
-                name: p.fullName, allergies: p.allergies, history: p.medicalHistory,
-                status: p.status, lastVisit: p.lastVisit,
-              })),
-              appointments: appointments
-                ?.filter((a) => a.date === new Date().toISOString().split("T")[0])
-                .map((a) => ({ patient: a.patientName, time: a.time, type: a.type, status: a.status })),
-              timestamp: new Date().toISOString(),
-            },
-          }),
+          body: JSON.stringify({ messages: history }),
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (data.mode) setApiMode(data.mode === "openai" ? "openai" : "demo");
+        if (data.mode) setApiMode(data.mode === "claude" ? "openai" : data.mode === "demo" ? "demo" : "demo");
 
         const aiMsg: Message = {
           id: `a-${Date.now()}`,
