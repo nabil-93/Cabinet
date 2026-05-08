@@ -22,6 +22,14 @@ export async function POST(req: NextRequest) {
       .eq("id", data.user.id)
       .single();
 
+    if (profile?.is_active === false) {
+      await supabase.auth.signOut();
+      return NextResponse.json(
+        { error: "Votre compte a été temporairement désactivé. Veuillez contacter l'administrateur." },
+        { status: 403 }
+      );
+    }
+
     await supabase
       .from("profiles")
       .update({ last_login_at: new Date().toISOString() })

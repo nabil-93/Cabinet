@@ -41,6 +41,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params;
     const body = await req.json();
     const supabase = await createClient();
+    const admin    = createAdminClient();
+
+    // Reset password via admin SDK
+    if (body.newPassword) {
+      if (body.newPassword.length < 8) return err("Le mot de passe doit contenir au moins 8 caractères", 400);
+      const { error: pwErr } = await admin.auth.admin.updateUserById(id, { password: body.newPassword });
+      if (pwErr) return err(pwErr.message);
+      // Force password change on next login
+      await supabase.from("profiles").update({ must_change_password: true }).eq("id", id);
+      return ok({ success: true });
+    }
 
     const updates: Record<string, unknown> = {};
     if (body.name !== undefined) updates.name = body.name;
