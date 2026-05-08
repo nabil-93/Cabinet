@@ -51,38 +51,57 @@ export function useDoctorPresence() {
     if (me !== undefined) setMyAvailability(me.isAvailable);
   }, [onlineDoctors, user]);
 
-  // ── Heartbeat (ALL authenticated staff, not just doctors) ──────────────────
+  // ── Presence broadcast (ALL staff) ─────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
 
+    const displayRole =
+      user.role === "assistant" ? "Secrétaire"
+      : user.role === "admin"   ? "Médecin Admin"
+      : user.role === "doctor"  ? "Médecin"
+      : user.role || "Staff";
+
+    const myInfo = {
+      userId: user.id,
+      name: user.name || "Utilisateur",
+      role: user.role || "",
+      displayRole,
+    };
+
+    // Broadcast own presence to all other tabs / users
+    const announceOnline = () => {
+      sendBroadcast("staff:online", myInfo);
+    };
+
+    const announceOffline = () => {
+      sendBroadcast("staff:offline", { userId: user.id });
+    };
+
+    // Also do the doctor heartbeat API call (best-effort, doctors only)
     const beat = async () => {
       try {
         await api.post("/doctor/heartbeat");
         qc.invalidateQueries({ queryKey: DOCTORS_KEY });
-        sendBroadcast("doctor:online", { doctorId: user.id });
       } catch {}
+      announceOnline();
     };
 
-    beat(); // immediate
+    beat(); // immediate on mount
     const hb = setInterval(beat, HEARTBEAT_MS);
 
-    const markOffline = () => {
-      api.delete("/doctor/heartbeat").catch(() => {});
-      sendBroadcast("doctor:offline", { doctorId: user.id });
-    };
-
     const handleVisibility = () => {
-      if (!document.hidden) beat();
+      if (!document.hidden) announceOnline();
     };
 
-    window.addEventListener("beforeunload", markOffline);
+    window.addEventListener("beforeunload", announceOffline);
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       clearInterval(hb);
-      window.removeEventListener("beforeunload", markOffline);
+      window.removeEventListener("beforeunload", announceOffline);
       document.removeEventListener("visibilitychange", handleVisibility);
-      markOffline();
+      announceOffline();
+      api.delete("/doctor/heartbeat").catch(() => {});
     };
   }, [user, qc, sendBroadcast]);
 

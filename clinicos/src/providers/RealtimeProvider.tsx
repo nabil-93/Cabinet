@@ -155,6 +155,32 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           );
         }
       })
+      // ── All-staff presence (secretaries + doctors) ──
+      .on("broadcast", { event: "staff:online" }, ({ payload }) => {
+        const p = (payload ?? {}) as Record<string, any>;
+        if (!p.userId) return;
+        qc.setQueryData<any[]>(["doctors-online"], (old) => {
+          const list = old ?? [];
+          if (list.some(d => d.userId === p.userId)) return list;
+          return [...list, {
+            userId: p.userId,
+            name: p.name,
+            role: p.role,
+            displayRole: p.displayRole,
+            specialty: null,
+            isAvailable: true,
+            lastSeenAt: new Date().toISOString(),
+          }];
+        });
+      })
+      .on("broadcast", { event: "staff:offline" }, ({ payload }) => {
+        const { userId } = (payload ?? {}) as Record<string, any>;
+        if (userId) {
+          qc.setQueryData<any[]>(["doctors-online"], (old) =>
+            old?.filter(d => d.userId !== userId) ?? old
+          );
+        }
+      })
 
       .subscribe();
 
