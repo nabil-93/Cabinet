@@ -26,7 +26,7 @@ export async function GET() {
         .eq("date", today).in("status", ["confirmed", "pending"]),
       supabase.from("invoices").select("paid").gte("created_at", monthStr),
       supabase.from("invoices").select("*", { count: "exact", head: true }).eq("status", "unpaid"),
-      supabase.from("waiting_room").select("*", { count: "exact", head: true }).eq("status", "waiting"),
+      supabase.from("waiting_room").select("*", { count: "exact", head: true }).eq("status", "waiting").gte("arrived_at", `${today}T00:00:00`),
       supabase.from("appointments").select("*", { count: "exact", head: true })
         .eq("date", today).eq("status", "completed"),
     ]);
