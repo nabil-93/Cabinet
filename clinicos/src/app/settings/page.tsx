@@ -1,12 +1,13 @@
 "use client";
-import { useState } from "react";
-
-import { Settings, User, Bell, Shield, Palette, Building2, Save } from "lucide-react";
+import { useState, useRef } from "react";
+import { Settings, User, Bell, Shield, Palette, Building2, Save, Upload, Loader2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/lib/auth-context";
 import { useStore } from "@/store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
+import api from "@/services/api";
 
 const TABS = [
   { id: "profile", label: "Profil", icon: User },
@@ -17,10 +18,52 @@ const TABS = [
 ];
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const { theme, setTheme } = useStore();
   const [activeTab, setActiveTab] = useState("profile");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("L'image est trop volumineuse (max 2MB)");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const supabase = createClient();
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      // Update via API
+      await api.patch(`/users/${user.id}`, { avatarUrl: publicUrl });
+
+      // Update local state
+      setUser({ ...user, avatarUrl: publicUrl });
+      toast.success("Photo de profil mise à jour !");
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erreur lors de l'envoi de la photo. Vérifiez que le bucket 'avatars' existe dans Supabase.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -58,13 +101,35 @@ export default function SettingsPage() {
               <>
                 <h2 className="font-bold text-foreground text-base">Profil médecin</h2>
                 <div className="flex items-center gap-4 pb-5 border-b border-border/50">
-                  <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center text-white font-bold text-xl">
-                    {user?.name?.split(" ").map(w => w[0]).join("").slice(0, 2)}
+                  <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center text-white font-bold text-xl overflow-hidden relative group">
+                    {user?.avatarUrl ? (
+                      <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                    ) : (
+                      user?.name?.split(" ").map(w => w[0]).join("").slice(0, 2)
+                    )}
+                    {uploading && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <Loader2 className="w-6 h-6 text-white animate-spin" />
+                      </div>
+                    )}
                   </div>
                   <div>
                     <p className="font-bold text-foreground">{user?.name}</p>
                     <p className="text-sm text-muted-foreground capitalize">{user?.role === "admin" ? "Administrateur" : user?.role === "doctor" ? "Médecin" : "Secrétaire"}</p>
-                    <button className="text-xs text-primary hover:underline mt-1">Changer la photo</button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handlePhotoUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="text-xs text-primary hover:underline mt-1 flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {uploading ? "Envoi..." : "Changer la photo"}
+                    </button>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">

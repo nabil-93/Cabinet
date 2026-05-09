@@ -8,6 +8,7 @@ export interface AuthUser {
   email: string;
   role: "admin" | "doctor" | "assistant" | "patient";
   mustChangePassword?: boolean;
+  avatarUrl?: string;
 }
 
 interface AuthContextType {

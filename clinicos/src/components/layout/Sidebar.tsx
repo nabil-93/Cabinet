@@ -118,8 +118,12 @@ export default function Sidebar() {
 
         {/* User profile */}
         <div className={cn("flex items-center gap-2.5 p-2.5 rounded-xl mt-1 hover:bg-accent transition-all", sidebarCollapsed && "justify-center")}>
-          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center flex-shrink-0 text-white font-bold text-xs">
-            {initials}
+          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center flex-shrink-0 text-white font-bold text-xs overflow-hidden">
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              initials
+            )}
           </div>
           {!sidebarCollapsed && (
             <div className="flex-1 min-w-0">

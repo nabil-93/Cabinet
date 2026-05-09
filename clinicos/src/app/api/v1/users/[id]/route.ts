@@ -26,6 +26,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       role: profile.role,
       phone: profile.phone ?? null,
       specialty: profile.specialty ?? null,
+      avatarUrl: profile.avatar_url ?? null,
       isActive: profile.is_active ?? true,
       mustChangePassword: profile.must_change_password ?? false,
       lastLoginAt: profile.last_login_at ?? null,
@@ -68,6 +69,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (body.specialty !== undefined) updates.specialty = body.specialty;
     if (body.isActive !== undefined) updates.is_active = body.isActive;
     if (body.mustChangePassword !== undefined) updates.must_change_password = body.mustChangePassword;
+    if (body.avatarUrl !== undefined) updates.avatar_url = body.avatarUrl;
 
     const { data: profile, error } = await supabase
       .from("profiles")
@@ -104,6 +106,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       role: profile.role,
       phone: profile.phone ?? null,
       specialty: profile.specialty ?? null,
+      avatarUrl: profile.avatar_url ?? null,
       isActive: profile.is_active,
       mustChangePassword: profile.must_change_password,
       lastLoginAt: profile.last_login_at ?? null,
