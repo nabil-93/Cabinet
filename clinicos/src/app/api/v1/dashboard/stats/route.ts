@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { ok, err } from "@/lib/supabase/helpers";
 import { NextResponse } from "next/server";
 
-export const revalidate = 60; // Cache 60 secondes côté serveur
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -42,8 +43,6 @@ export async function GET() {
       completedToday: completedToday || 0,
     });
 
-    // Cache 30s côté client
-    response.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
     return response;
   } catch {
     return err("Erreur serveur", 500);

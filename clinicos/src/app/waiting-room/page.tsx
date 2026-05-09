@@ -457,6 +457,7 @@ export default function WaitingRoomPage() {
       qc.invalidateQueries({ queryKey: WR_KEY });
       qc.invalidateQueries({ queryKey: ["appointments"] });
       qc.invalidateQueries({ queryKey: APPT_KEY });
+      qc.invalidateQueries({ queryKey: ["dashboard", "stats"] });
       if (status === "in_progress") {
         sendBroadcast("wr:patient-called", { id, status, doctorId, doctorName });
         toast.success("Patient appelé en consultation");
@@ -481,6 +482,7 @@ export default function WaitingRoomPage() {
     onSuccess: (_, id) => {
       sendBroadcast("wr:updated", { removed: id });
       qc.invalidateQueries({ queryKey: WR_KEY });
+      qc.invalidateQueries({ queryKey: ["dashboard", "stats"] });
       toast.success("Patient retiré");
     },
   });
@@ -492,6 +494,7 @@ export default function WaitingRoomPage() {
       qc.setQueryData<WREntry[]>(WR_KEY, old => [...(old ?? []), res.data]);
       qc.invalidateQueries({ queryKey: APPT_KEY });
       qc.invalidateQueries({ queryKey: ["appointments"] });
+      qc.invalidateQueries({ queryKey: ["dashboard", "stats"] });
       sendBroadcast("wr:updated", { added: res.data });
       toast.success("Patient ajouté à la file");
       setAddOpen(false);
@@ -519,6 +522,7 @@ export default function WaitingRoomPage() {
     onSuccess: (entry) => {
       qc.setQueryData<WREntry[]>(WR_KEY, old => [...(old ?? []), entry]);
       qc.invalidateQueries({ queryKey: APPT_KEY });
+      qc.invalidateQueries({ queryKey: ["dashboard", "stats"] });
       sendBroadcast("wr:updated", { added: entry });
       toast.success("Patient créé et ajouté à la file");
       setAddOpen(false);
