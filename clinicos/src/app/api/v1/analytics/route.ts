@@ -15,6 +15,8 @@ function ageGroup(dob: string | null): string {
 
 const AGE_ORDER = ["0-17", "18-30", "31-45", "46-60", "61-75", "75+"];
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const supabase = await createClient();

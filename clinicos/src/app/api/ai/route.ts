@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getToday } from "@/lib/date-utils";
 
 // ─── OpenAI function definitions ──────────────────────────────────────────────
 
@@ -186,7 +187,7 @@ const FUNCTIONS = [
 
 async function executeTool(name: string, args: Record<string, any>): Promise<string> {
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getToday();
 
   try {
     switch (name) {

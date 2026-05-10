@@ -20,6 +20,8 @@ function normalize(a: any, patientName?: string, doctorName?: string) {
   };
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const date = req.nextUrl.searchParams.get("date");
   const month = req.nextUrl.searchParams.get("month");
