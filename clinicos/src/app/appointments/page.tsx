@@ -23,6 +23,7 @@ import {
 import { usePatients } from "@/hooks/usePatients";
 import { cn } from "@/lib/utils";
 import type { AppointmentStatus } from "@/types";
+import { getToday } from "@/lib/date-utils";
 
 type PeriodFilter = "all" | "today" | "week" | "month" | "custom";
 type StatusFilter  = "all" | AppointmentStatus;
