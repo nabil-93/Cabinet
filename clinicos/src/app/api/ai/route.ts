@@ -181,6 +181,47 @@ const FUNCTIONS = [
       },
     },
   },
+  {
+    name: "create_consultation",
+    description: "Créer un rapport de consultation médical pour un patient",
+    parameters: {
+      type: "object",
+      required: ["patientId", "diagnosis"],
+      properties: {
+        patientId: { type: "string" },
+        diagnosis: { type: "string", description: "Le diagnostic médical" },
+        treatment: { type: "string", description: "Le traitement recommandé" },
+        notes: { type: "string", description: "Notes de la consultation" },
+        nextVisit: { type: "string", description: "Date de la prochaine visite YYYY-MM-DD" },
+      },
+    },
+  },
+  {
+    name: "create_prescription",
+    description: "Créer une ordonnance pour un patient",
+    parameters: {
+      type: "object",
+      required: ["patientId", "medications"],
+      properties: {
+        patientId: { type: "string" },
+        diagnosis: { type: "string", description: "Le motif ou diagnostic pour l'ordonnance" },
+        medications: { 
+          type: "array", 
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              dosage: { type: "string" },
+              duration: { type: "string" },
+              instructions: { type: "string" }
+            }
+          },
+          description: "Liste des médicaments prescrits"
+        },
+        notes: { type: "string" },
+      },
+    },
+  }
 ];
 
 // ─── Tool executor ─────────────────────────────────────────────────────────────
@@ -382,6 +423,51 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
         return JSON.stringify(data ?? []);
       }
 
+      case "create_consultation": {
+        const { data: { user } } = await supabase.auth.getUser();
+        const payload: Record<string, any> = {
+          patient_id: args.patientId,
+          diagnosis: args.diagnosis,
+          date: today,
+          status: "completed"
+        };
+        if (args.treatment) payload.treatment = args.treatment;
+        if (args.notes) payload.notes = args.notes;
+        if (args.nextVisit) payload.next_visit = args.nextVisit;
+        if (user) payload.doctor_id = user.id;
+
+        const { data, error } = await supabase.from("consultations").insert(payload).select("id, diagnosis").single();
+        if (error) return JSON.stringify({ error: error.message });
+        
+        if (user) {
+          const { data: p } = await supabase.from("profiles").select("name, role").eq("id", user.id).single();
+          await supabase.from("activity_logs").insert({ user_id: user.id, user_name: p?.name ?? "", user_role: p?.role ?? "", action: "create_consultation", entity_type: "consultation", entity_id: data.id, entity_label: args.diagnosis });
+        }
+        return JSON.stringify({ success: true, consultation: data });
+      }
+
+      case "create_prescription": {
+        const { data: { user } } = await supabase.auth.getUser();
+        const payload: Record<string, any> = {
+          patient_id: args.patientId,
+          diagnosis: args.diagnosis || "Consultation générale",
+          medications: args.medications || [],
+          date: today,
+          status: "active"
+        };
+        if (args.notes) payload.notes = args.notes;
+        if (user) payload.doctor_id = user.id;
+
+        const { data, error } = await supabase.from("prescriptions").insert(payload).select("id").single();
+        if (error) return JSON.stringify({ error: error.message });
+
+        if (user) {
+          const { data: p } = await supabase.from("profiles").select("name, role").eq("id", user.id).single();
+          await supabase.from("activity_logs").insert({ user_id: user.id, user_name: p?.name ?? "", user_role: p?.role ?? "", action: "create_prescription", entity_type: "prescription", entity_id: data.id, entity_label: "Ordonnance IA" });
+        }
+        return JSON.stringify({ success: true, prescription: data });
+      }
+
       default:
         return JSON.stringify({ error: `Outil inconnu: ${name}` });
     }
@@ -418,11 +504,13 @@ ACCÈS DONNÉES (utilise TOUJOURS les fonctions, ne jamais inventer) :
 
 ACTIONS (exécute quand demandé) :
 - create_patient : créer un nouveau patient
-- update_patient : modifier les infos d'un patient (cherche son ID avec search_patients)
+- update_patient : modifier les infos d'un patient. TRÈS IMPORTANT: pour ajouter des allergies ou des antécédents médicaux, utilise search_patients pour récupérer les anciens, puis fusionne-les avec les nouveaux avant d'appeler update_patient.
 - create_appointment : créer un rendez-vous (cherche d'abord l'ID patient)
 - update_appointment_status : modifier le statut d'un RDV
 - delete_appointment : supprimer un rendez-vous
 - add_to_waiting_room : ajouter un patient à la file d'attente
+- create_consultation : rédiger et sauvegarder un rapport de consultation médicale pour un patient.
+- create_prescription : créer et sauvegarder une ordonnance avec la liste des médicaments pour un patient.
 
 RÈGLES :
 1. Utilise TOUJOURS les fonctions pour obtenir des données avant de répondre.
@@ -430,6 +518,8 @@ RÈGLES :
 3. Si tu as besoin d'un ID patient pour une action, utilise search_patients d'abord.
 4. Réponds TOUJOURS en français, de manière claire et professionnelle.
 5. Utilise **gras** pour les infos importantes, listes à puces pour l'organisation.
+6. Si le médecin demande "Ajoute une allergie au paracétamol pour patient X", tu dois récupérer son ID, puis utiliser update_patient en ajoutant cette allergie.
+7. Si le médecin dicte un rapport de consultation, tu dois utiliser create_consultation. S'il dicte une ordonnance, utilise create_prescription.
 
 Date d'aujourd'hui : ${dDate}
 Et rappelle toi que pour rechercher les rendez-vous de cette date de manière exacte, tu dois utiliser le format YYYY-MM-DD. Le format aujourd'hui est : ${getToday()}`;
