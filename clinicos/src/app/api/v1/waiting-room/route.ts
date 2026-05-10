@@ -20,6 +20,8 @@ export function normalize(w: any) {
   };
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const supabase = await createClient();
   const today = getToday();
@@ -83,7 +85,7 @@ export async function POST(req: NextRequest) {
       appointment_id: finalAppointmentId,
       priority,
       status: "waiting",
-      arrived_at: new Date().toISOString(),
+      arrived_at: `${today}T${new Date().toISOString().split('T')[1]}`,
     })
     .select("*, patients(full_name), appointments(time)")
     .single();

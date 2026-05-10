@@ -19,6 +19,7 @@ import { useDoctorPresence } from "@/hooks/useDoctorPresence";
 import type { OnlineDoctor } from "@/hooks/useDoctorPresence";
 import { useRealtimeContext } from "@/providers/RealtimeProvider";
 import { DoctorSelectModal } from "@/components/waiting-room/DoctorSelectModal";
+import { getToday } from "@/lib/date-utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,7 +86,6 @@ const COLORS = [
   "oklch(0.55 0.18 240)", "oklch(0.52 0.20 165)", "oklch(0.55 0.18 300)",
   "oklch(0.55 0.18 30)",  "oklch(0.52 0.18 200)", "oklch(0.55 0.20 120)",
 ];
-const TODAY    = format(new Date(), "yyyy-MM-dd");
 const WR_KEY   = ["waiting-room"] as const;
 const APPT_KEY = ["appointments-today"] as const;
 
@@ -381,7 +381,7 @@ export default function WaitingRoomPage() {
 
   const { data: todayAppts = [], refetch: refetchAppts } = useQuery<Appointment[]>({
     queryKey: APPT_KEY,
-    queryFn:  async () => { const r = await api.get(`/appointments?date=${TODAY}`); return r.data; },
+    queryFn:  async () => { const r = await api.get(`/appointments?date=${getToday()}`); return r.data; },
     staleTime: 0,
     refetchInterval: 5_000,
   });
@@ -510,7 +510,7 @@ export default function WaitingRoomPage() {
       });
       const patient = patientRes.data;
       const apptRes = await api.post("/appointments", {
-        patientId: patient.id, date: TODAY,
+        patientId: patient.id, date: getToday(),
         time: format(new Date(), "HH:mm"),
         type: f.visitType, status: "confirmed",
       });
@@ -531,7 +531,7 @@ export default function WaitingRoomPage() {
   });
 
   const cancelAppt = useMutation({
-    mutationFn: (apptId: string) => api.patch(`/appointments/${apptId}/status`, { status: "cancelled" }),
+    mutationFn: (apptId: string) => api.patch(`/appointments/${apptId}`, { status: "cancelled" }),
     onMutate: async (apptId) => {
       await qc.cancelQueries({ queryKey: APPT_KEY });
       const prev = qc.getQueryData<Appointment[]>(APPT_KEY);
