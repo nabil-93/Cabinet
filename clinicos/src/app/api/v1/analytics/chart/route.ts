@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ok, err } from "@/lib/supabase/helpers";
+import { formatDate } from "@/lib/date-utils";
 
 const MONTHS_FR = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Aoû","Sep","Oct","Nov","Déc"];
 
 function dateStr(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return formatDate(d);
 }
 
 function pad2(n: number) {

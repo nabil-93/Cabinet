@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
         diagnosis,
         medications: medications || [],
         notes: notes || null,
-        date: new Date().toISOString().slice(0, 10),
+        date: getToday(),
         status: "active",
       })
       .select("*, patients(full_name), profiles(name)")

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ok, err } from "@/lib/supabase/helpers";
+import { formatDate } from "@/lib/date-utils";
 
 const MONTHS_FR = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Aoû","Sep","Oct","Nov","Déc"];
 
@@ -9,7 +10,7 @@ export async function GET() {
     const dStart = new Date();
     dStart.setMonth(dStart.getMonth() - 5);
     dStart.setDate(1);
-    const sixMonthsAgo = dStart.toISOString().split("T")[0];
+    const sixMonthsAgo = formatDate(dStart);
     const sixMonthsAgoTs = dStart.toISOString();
 
     const { data: invoices } = await supabase.from("invoices").select("paid, date").gte("date", sixMonthsAgo);

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ok, err } from "@/lib/supabase/helpers";
+import { getToday, formatDate } from "@/lib/date-utils";
 
 function ageGroup(dob: string | null): string {
   if (!dob) return "Inconnu";
@@ -19,9 +20,9 @@ export async function GET() {
     const supabase = await createClient();
 
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    const today = getToday();
     const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(now.getDate() - 30);
-    const d30 = thirtyDaysAgo.toISOString().slice(0, 10);
+    const d30 = formatDate(thirtyDaysAgo);
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
     // Fetch all in parallel

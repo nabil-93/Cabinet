@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   const insertPayload: Record<string, any> = {
     invoice_number: invoiceNumber,
     patient_id: patientId,
-    date: now.toISOString().split("T")[0],
+    date: getToday(),
     total,
     paid: 0,
     status: "unpaid",
