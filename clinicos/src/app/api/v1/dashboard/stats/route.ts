@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ok, err } from "@/lib/supabase/helpers";
 import { NextResponse } from "next/server";
+import { getToday } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -8,7 +9,7 @@ export const revalidate = 0;
 export async function GET() {
   try {
     const supabase = await createClient();
-    const today = new Date().toISOString().split("T")[0];
+    const today = getToday();
     const month = new Date().getMonth() + 1;
     const year = new Date().getFullYear();
     const monthStr = `${year}-${month.toString().padStart(2, "0")}-01T00:00:00.000Z`;

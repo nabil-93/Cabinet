@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import type { AppointmentStatus, Prescription, Medication } from "@/types";
 import { prescriptionsService } from "@/services/prescriptions.service";
 import { FileText, Pill, Download, Pencil } from "lucide-react";
+import { getToday } from "@/lib/date-utils";
 
 const STATUS_MAP = {
   confirmed: { l: "Confirmé",   c: "badge-confirmed" },
@@ -125,7 +126,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
   };
 
   // ── Nouveau RDV form ──────────────────────────────────────
-  const [aptForm, setAptForm] = useState({ date: new Date().toISOString().split("T")[0], time: "09:00", type: "Consultation", notes: "" });
+  const [aptForm, setAptForm] = useState({ date: getToday(), time: "09:00", type: "Consultation", notes: "" });
   const handleAptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await createAptMutation.mutateAsync({ patientId: id, doctorId: undefined, date: aptForm.date, time: aptForm.time, duration: 30, type: aptForm.type, notes: aptForm.notes || undefined });
@@ -133,7 +134,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
   };
 
   // ── Consultation form (create + edit) ─────────────────────
-  const emptyConsult = { date: new Date().toISOString().split("T")[0], time: new Date().toTimeString().slice(0, 5), type: "Consultation", diagnosis: "", notes: "", treatment: "", nextVisit: "" };
+  const emptyConsult = { date: getToday(), time: new Date().toTimeString().slice(0, 5), type: "Consultation", diagnosis: "", notes: "", treatment: "", nextVisit: "" };
   const [consultForm, setConsultForm] = useState(emptyConsult);
 
   const openNewConsult = () => { setEditingConsultation(null); setConsultForm(emptyConsult); setShowConsultModal(true); };

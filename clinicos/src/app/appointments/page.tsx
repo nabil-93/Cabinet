@@ -75,7 +75,7 @@ export default function AppointmentsPage() {
   const [reportDate,   setReportDate]   = useState("");
   const [reportTime,   setReportTime]   = useState("");
   const [form, setForm] = useState({
-    patientId: "", date: new Date().toISOString().split("T")[0],
+    patientId: "", date: getToday(),
     time: "09:00", type: "Consultation", notes: "",
   });
 
@@ -150,7 +150,7 @@ export default function AppointmentsPage() {
     if (!form.patientId) return;
     await createMutation.mutateAsync({ patientId: form.patientId, doctorId: undefined, date: form.date, time: form.time, duration: 30, type: form.type, notes: form.notes || undefined });
     setShowAddModal(false);
-    setForm({ patientId: "", date: new Date().toISOString().split("T")[0], time: "09:00", type: "Consultation", notes: "" });
+    setForm({ patientId: "", date: getToday(), time: "09:00", type: "Consultation", notes: "" });
   };
 
   return (
@@ -412,7 +412,7 @@ export default function AppointmentsPage() {
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1.5">Nouvelle date *</label>
                 <input type="date" required value={reportDate} onChange={e => setReportDate(e.target.value)}
-                  min={new Date().toISOString().split("T")[0]}
+                  min={getToday()}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               </div>
               <div>

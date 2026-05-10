@@ -31,6 +31,7 @@ import { usePatients } from "@/hooks/usePatients";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/services/api";
 import { cn } from "@/lib/utils";
+import { getToday } from "@/lib/date-utils";
 
 const STATUS_CONFIG = {
   confirmed: { label: "Confirmé", className: "badge-confirmed" },
@@ -70,7 +71,7 @@ export default function DashboardPage() {
     },
     staleTime: 30_000,
   });
-  const today = new Date().toISOString().split("T")[0];
+  const today = getToday();
   const { data: appointments = [], isLoading: aptsLoading } = useAppointmentsByDate(today);
   const { data: patients = [], isLoading: patientsLoading } = usePatients(undefined, 5);
 

@@ -3,6 +3,7 @@ import { ok, err } from "@/lib/supabase/helpers";
 import { NextRequest } from "next/server";
 import { logActivity } from "@/lib/supabase/log-activity";
 import { normalize } from "../route";
+import { getToday } from "@/lib/date-utils";
 
 const ALLOWED_STATUSES = ["waiting", "in_progress", "done"];
 
@@ -113,7 +114,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await supabase.from("invoices").insert({
       invoice_number: invoiceNumber,
       patient_id: data.patient_id,
-      date: now.toISOString().split("T")[0],
+      date: getToday(),
       total: 300,
       paid: 0,
       status: "unpaid",

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ok, err } from "@/lib/supabase/helpers";
 import { logActivity } from "@/lib/supabase/log-activity";
+import { getToday } from "@/lib/date-utils";
 
 function parseDays(duration: string): number {
   if (!duration) return 0;

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ok, err } from "@/lib/supabase/helpers";
 import { NextRequest } from "next/server";
 import { logActivity } from "@/lib/supabase/log-activity";
+import { getToday } from "@/lib/date-utils";
 
 export function normalize(w: any) {
   return {
@@ -21,7 +22,7 @@ export function normalize(w: any) {
 
 export async function GET() {
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getToday();
 
   const { data, error } = await supabase
     .from("waiting_room")
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
   if (!patientId) return err("patientId requis", 400);
 
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getToday();
 
   const { data: existing } = await supabase
     .from("waiting_room")
