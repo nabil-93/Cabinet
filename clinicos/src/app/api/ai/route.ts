@@ -392,7 +392,17 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
 
 // ─── System prompt ─────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `Tu es l'assistant IA intégré de ClinicOS, une plateforme de gestion de cabinet médical.
+export async function POST(req: NextRequest) {
+  try {
+    const dDate = new Intl.DateTimeFormat('fr-FR', {
+      timeZone: 'Europe/Paris',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }).format(new Date());
+
+    const SYSTEM_PROMPT = `Tu es l'assistant IA intégré de ClinicOS, une plateforme de gestion de cabinet médical.
 Tu as un accès COMPLET et EN TEMPS RÉEL à toutes les données du cabinet via tes fonctions.
 
 ACCÈS DONNÉES (utilise TOUJOURS les fonctions, ne jamais inventer) :
@@ -421,12 +431,9 @@ RÈGLES :
 4. Réponds TOUJOURS en français, de manière claire et professionnelle.
 5. Utilise **gras** pour les infos importantes, listes à puces pour l'organisation.
 
-Date d'aujourd'hui : ${new Date().toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`;
+Date d'aujourd'hui : ${dDate}
+Et rappelle toi que pour rechercher les rendez-vous de cette date de manière exacte, tu dois utiliser le format YYYY-MM-DD. Le format aujourd'hui est : ${getToday()}`;
 
-// ─── Main route ────────────────────────────────────────────────────────────────
-
-export async function POST(req: NextRequest) {
-  try {
     const body = await req.json();
     const { messages, imageBase64 } = body as {
       messages: { role: string; content: string }[];
