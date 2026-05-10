@@ -6,7 +6,7 @@ import {
   Trash2, ChevronDown, ChevronUp, Stethoscope, RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
-import { format, differenceInDays, isToday, isFuture } from "date-fns";
+import { format, differenceInCalendarDays, isToday, isFuture } from "date-fns";
 import { fr } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { usePatient, useUpdatePatient } from "@/hooks/usePatients";
@@ -40,7 +40,7 @@ const STATUS_MAP = {
 const CONSULTATION_TYPES = ["Consultation", "Suivi", "Bilan", "Urgence", "Vaccination", "Contrôle", "Autre"];
 
 function Countdown({ dateStr }: { dateStr: string }) {
-  const days = differenceInDays(new Date(dateStr), new Date());
+  const days = differenceInCalendarDays(new Date(dateStr), new Date());
   if (isToday(new Date(dateStr))) return <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Aujourd&apos;hui</span>;
   if (days > 0)  return <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Dans {days} j</span>;
   if (days === -1) return <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Hier</span>;

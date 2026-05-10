@@ -5,7 +5,7 @@ import {
   CalendarDays, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import {
-  format, differenceInDays, isPast, isToday, isFuture,
+  format, differenceInCalendarDays, isPast, isToday, isFuture,
   startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   addDays, addWeeks, addMonths, subDays, subWeeks, subMonths,
   isWithinInterval, parseISO,
@@ -46,7 +46,7 @@ const PERIOD_TABS: { value: PeriodFilter; label: string; icon: string }[] = [
 const CONSULTATION_TYPES = ["Consultation", "Suivi", "Bilan", "Urgence", "Vaccination", "Contrôle", "Autre"];
 
 function Countdown({ dateStr }: { dateStr: string }) {
-  const days = differenceInDays(new Date(dateStr), new Date());
+  const days = differenceInCalendarDays(new Date(dateStr), new Date());
   if (isToday(new Date(dateStr))) return <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Aujourd&apos;hui</span>;
   if (days > 0)    return <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Dans {days} j</span>;
   if (days === -1) return <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Hier</span>;

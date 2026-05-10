@@ -1,4 +1,8 @@
-export function getToday(timeZone = 'Africa/Casablanca') {
+export function getToday(timeZone = 'Europe/Paris') {
+  if (typeof window !== 'undefined') {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
   return new Intl.DateTimeFormat('en-CA', {
     timeZone,
     year: 'numeric',
@@ -6,3 +10,4 @@ export function getToday(timeZone = 'Africa/Casablanca') {
     day: '2-digit'
   }).format(new Date());
 }
+
