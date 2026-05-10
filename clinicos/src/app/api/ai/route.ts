@@ -128,8 +128,8 @@ const FUNCTIONS = [
         phone: { type: "string" },
         dateOfBirth: { type: "string", description: "Date de naissance YYYY-MM-DD" },
         gender: { type: "string", enum: ["male", "female"] },
-        allergies: { type: "string" },
-        medicalHistory: { type: "string" },
+        allergies: { type: "array", items: { type: "string" } },
+        medicalHistory: { type: "array", items: { type: "string" } },
       },
     },
   },
@@ -145,8 +145,8 @@ const FUNCTIONS = [
         phone: { type: "string" },
         dateOfBirth: { type: "string" },
         gender: { type: "string", enum: ["male", "female"] },
-        allergies: { type: "string" },
-        medicalHistory: { type: "string" },
+        allergies: { type: "array", items: { type: "string" }, description: "La liste COMPLÈTE des allergies. Si tu en ajoutes une, inclus les anciennes." },
+        medicalHistory: { type: "array", items: { type: "string" }, description: "La liste COMPLÈTE des antécédents médicaux. Si tu en ajoutes un, inclus les anciens." },
       },
     },
   },
@@ -429,7 +429,8 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
           patient_id: args.patientId,
           diagnosis: args.diagnosis,
           date: today,
-          status: "completed"
+          time: new Date().toTimeString().slice(0, 5),
+          type: "Consultation"
         };
         if (args.treatment) payload.treatment = args.treatment;
         if (args.notes) payload.notes = args.notes;
