@@ -4,7 +4,7 @@ import {
   ArrowLeft, Phone, Mail, MapPin, Calendar, AlertCircle,
   Activity, Edit, Plus, X, CalendarPlus, ClipboardList,
   Trash2, ChevronDown, ChevronUp, Stethoscope, RotateCcw,
-  Upload, Image, FileAudio, File, Eye, FolderOpen,
+  Upload, Image, FileAudio, File, Eye, FolderOpen, Mic, Square, Play, Pause,
 } from "lucide-react";
 import Link from "next/link";
 import { format, differenceInCalendarDays, isToday, isFuture } from "date-fns";
@@ -80,6 +80,108 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
   const [uploadNotes, setUploadNotes] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+
+  // ── Audio Recorder ──────────────────────────────────────────
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
+  const [isPlayingRecording, setIsPlayingRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const audioPlayerRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        setRecordedBlob(blob);
+        setRecordedUrl(URL.createObjectURL(blob));
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      setRecordedBlob(null);
+      setRecordedUrl(null);
+      timerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    } catch {
+      toast.error("Impossible d'accéder au microphone");
+    }
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  }, [isRecording]);
+
+  const discardRecording = useCallback(() => {
+    setRecordedBlob(null);
+    if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+    setRecordedUrl(null);
+    setRecordingTime(0);
+    setIsPlayingRecording(false);
+    if (audioPreviewRef.current) audioPreviewRef.current.pause();
+  }, [recordedUrl]);
+
+  const saveRecording = useCallback(async () => {
+    if (!recordedBlob) return;
+    const timestamp = format(new Date(), "yyyy-MM-dd_HH-mm-ss");
+    const file = new File([recordedBlob], `enregistrement_${timestamp}.webm`, { type: "audio/webm" });
+    await uploadFileMutation.mutateAsync({ file, label: uploadLabel || "Enregistrement vocal", notes: uploadNotes || undefined });
+    discardRecording();
+    setShowUploadModal(false);
+    setUploadLabel("");
+    setUploadNotes("");
+  }, [recordedBlob, uploadLabel, uploadNotes, uploadFileMutation, discardRecording]);
+
+  const togglePlayRecording = useCallback(() => {
+    if (!audioPreviewRef.current || !recordedUrl) return;
+    if (isPlayingRecording) {
+      audioPreviewRef.current.pause();
+    } else {
+      audioPreviewRef.current.play();
+    }
+    setIsPlayingRecording(!isPlayingRecording);
+  }, [isPlayingRecording, recordedUrl]);
+
+  const togglePlayFile = useCallback((fileId: string, url: string) => {
+    const currentPlayer = audioPlayerRefs.current.get(fileId);
+    if (playingAudioId === fileId && currentPlayer) {
+      currentPlayer.pause();
+      setPlayingAudioId(null);
+      return;
+    }
+    // Stop any currently playing
+    audioPlayerRefs.current.forEach((p, id) => { if (id !== fileId) p.pause(); });
+    if (!currentPlayer) {
+      const audio = new Audio(url);
+      audio.onended = () => setPlayingAudioId(null);
+      audioPlayerRefs.current.set(fileId, audio);
+      audio.play();
+    } else {
+      currentPlayer.currentTime = 0;
+      currentPlayer.play();
+    }
+    setPlayingAudioId(fileId);
+  }, [playingAudioId]);
+
+  function formatRecordingTime(secs: number) {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
 
   const handleFileDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -726,11 +828,17 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                     <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border border-border cursor-pointer" onClick={() => setPreviewFile(f)}>
                       <img src={f.url} alt={f.originalName} className="w-full h-full object-cover" />
                     </div>
+                  ) : f.category === "audio" ? (
+                    <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950 flex items-center justify-center flex-shrink-0 cursor-pointer group/audio"
+                      onClick={() => togglePlayFile(f.id, f.url)}>
+                      {playingAudioId === f.id
+                        ? <Pause className="w-4 h-4 text-amber-600" />
+                        : <Play className="w-4 h-4 text-amber-500 ml-0.5" />}
+                    </div>
                   ) : (
                     <div className={cn(
                       "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
                       f.category === "pdf" ? "bg-red-50 dark:bg-red-950" :
-                      f.category === "audio" ? "bg-amber-50 dark:bg-amber-950" :
                       f.category === "document" ? "bg-blue-50 dark:bg-blue-950" :
                       "bg-muted"
                     )}>
@@ -809,6 +917,59 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
               <p className="text-[10px] text-muted-foreground/60 mt-2">Images, PDF, Word, Audio · Max 10 Mo</p>
               <input ref={fileInputRef} type="file" multiple onChange={handleFileSelect} className="hidden"
                 accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,audio/*" />
+            </div>
+
+            {/* ── Voice Recorder ── */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-1 h-4 rounded-full bg-gradient-to-b from-amber-400 to-red-500" />
+                <p className="text-xs font-semibold text-foreground">Enregistrement vocal</p>
+              </div>
+
+              {!isRecording && !recordedBlob && (
+                <button onClick={startRecording}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-sm font-semibold transition-all">
+                  <Mic className="w-4 h-4" /> Enregistrer un audio
+                </button>
+              )}
+
+              {isRecording && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 animate-pulse">
+                  <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                  <span className="text-sm font-mono font-bold text-red-600 dark:text-red-400 flex-1">{formatRecordingTime(recordingTime)}</span>
+                  <span className="text-xs text-red-500 font-medium">Enregistrement...</span>
+                  <button onClick={stopRecording}
+                    className="w-8 h-8 rounded-lg bg-red-500 hover:bg-red-600 flex items-center justify-center text-white transition-all flex-shrink-0">
+                    <Square className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {recordedBlob && recordedUrl && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700">
+                    <button onClick={togglePlayRecording}
+                      className="w-9 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 flex items-center justify-center text-white transition-all flex-shrink-0">
+                      {isPlayingRecording ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                    </button>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-foreground">Enregistrement</p>
+                      <p className="text-xs text-muted-foreground">{formatRecordingTime(recordingTime)}</p>
+                    </div>
+                    <button onClick={discardRecording} title="Supprimer"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950 transition-all">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <audio ref={audioPreviewRef} src={recordedUrl} onEnded={() => setIsPlayingRecording(false)} className="hidden" />
+                  <button onClick={saveRecording} disabled={uploadFileMutation.isPending}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                    {uploadFileMutation.isPending
+                      ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      : <><Upload className="w-3.5 h-3.5" /> Sauvegarder l&apos;enregistrement</>}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Selected files */}
