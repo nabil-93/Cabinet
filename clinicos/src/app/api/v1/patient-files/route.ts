@@ -26,35 +26,22 @@ function getFileCategory(mimeType: string): string {
   return "other";
 }
 
-interface PatientFile {
-  id: string;
-  patientId: string;
-  name: string;
-  originalName: string;
-  mimeType: string;
-  category: string;
-  size: number;
-  storagePath: string;
-  label: string;
-  notes: string | null;
-  url: string;
-  createdAt: string;
-}
-
-function normalize(row: any, publicUrl: string): PatientFile {
+function normalize(row: any, publicUrl: string, audioPublicUrl: string | null) {
   return {
-    id:           row.id,
-    patientId:    row.patient_id,
-    name:         row.name,
-    originalName: row.original_name,
-    mimeType:     row.mime_type,
-    category:     row.category,
-    size:         row.size,
-    storagePath:  row.storage_path,
-    label:        row.label || "",
-    notes:        row.notes,
-    url:          publicUrl,
-    createdAt:    row.created_at,
+    id:               row.id,
+    patientId:        row.patient_id,
+    name:             row.name,
+    originalName:     row.original_name,
+    mimeType:         row.mime_type,
+    category:         row.category,
+    size:             row.size,
+    storagePath:      row.storage_path,
+    audioStoragePath: row.audio_storage_path || null,
+    label:            row.label || "",
+    notes:            row.notes,
+    url:              publicUrl,
+    audioUrl:         audioPublicUrl,
+    createdAt:        row.created_at,
   };
 }
 
@@ -74,7 +61,12 @@ export async function GET(req: NextRequest) {
 
   const files = (data || []).map((row: any) => {
     const { data: urlData } = supabase.storage.from("patient-files").getPublicUrl(row.storage_path);
-    return normalize(row, urlData.publicUrl);
+    let audioPublicUrl: string | null = null;
+    if (row.audio_storage_path) {
+      const { data: audioUrlData } = supabase.storage.from("patient-files").getPublicUrl(row.audio_storage_path);
+      audioPublicUrl = audioUrlData.publicUrl;
+    }
+    return normalize(row, urlData.publicUrl, audioPublicUrl);
   });
 
   return ok(files);
@@ -85,6 +77,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file      = formData.get("file") as File | null;
+    const audio     = formData.get("audio") as File | null;
     const patientId = formData.get("patientId") as string | null;
     const label     = (formData.get("label") as string) || "";
     const notes     = (formData.get("notes") as string) || null;
@@ -99,7 +92,7 @@ export async function POST(req: NextRequest) {
     const ext = file.name.split(".").pop() || "bin";
     const storagePath = `${patientId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-    // Upload to Supabase Storage
+    // Upload main file to Supabase Storage
     const buffer = Buffer.from(await file.arrayBuffer());
     const { error: uploadError } = await supabase.storage
       .from("patient-files")
@@ -110,31 +103,61 @@ export async function POST(req: NextRequest) {
 
     if (uploadError) return err(`Upload échoué: ${uploadError.message}`, 500);
 
+    // Upload audio attachment if present
+    let audioStoragePath: string | null = null;
+    if (audio && audio.size > 0) {
+      audioStoragePath = `${patientId}/audio_${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webm`;
+      const audioBuffer = Buffer.from(await audio.arrayBuffer());
+      const { error: audioUploadError } = await supabase.storage
+        .from("patient-files")
+        .upload(audioStoragePath, audioBuffer, {
+          contentType: audio.type || "audio/webm",
+          upsert: false,
+        });
+      if (audioUploadError) {
+        // Clean up main file if audio fails
+        await supabase.storage.from("patient-files").remove([storagePath]);
+        return err(`Upload audio échoué: ${audioUploadError.message}`, 500);
+      }
+    }
+
     // Save metadata in DB
+    const insertData: Record<string, any> = {
+      patient_id:    patientId,
+      name:          file.name.replace(/\.[^/.]+$/, ""),
+      original_name: file.name,
+      mime_type:     file.type,
+      category,
+      size:          file.size,
+      storage_path:  storagePath,
+      label:         label || category,
+      notes,
+    };
+    if (audioStoragePath) {
+      insertData.audio_storage_path = audioStoragePath;
+    }
+
     const { data: row, error: dbError } = await supabase
       .from("patient_files")
-      .insert({
-        patient_id:    patientId,
-        name:          file.name.replace(/\.[^/.]+$/, ""),
-        original_name: file.name,
-        mime_type:     file.type,
-        category,
-        size:          file.size,
-        storage_path:  storagePath,
-        label:         label || category,
-        notes,
-      })
+      .insert(insertData)
       .select("*")
       .single();
 
     if (dbError) {
-      // Clean up uploaded file on DB error
-      await supabase.storage.from("patient-files").remove([storagePath]);
+      // Clean up uploaded files on DB error
+      const toRemove = [storagePath];
+      if (audioStoragePath) toRemove.push(audioStoragePath);
+      await supabase.storage.from("patient-files").remove(toRemove);
       return err(dbError.message, 500);
     }
 
-    // Get public URL
+    // Get public URLs
     const { data: urlData } = supabase.storage.from("patient-files").getPublicUrl(storagePath);
+    let audioPublicUrl: string | null = null;
+    if (audioStoragePath) {
+      const { data: audioUrlData } = supabase.storage.from("patient-files").getPublicUrl(audioStoragePath);
+      audioPublicUrl = audioUrlData.publicUrl;
+    }
 
     // Log activity
     const { data: patientData } = await supabase.from("patients").select("full_name").eq("id", patientId).single();
@@ -144,10 +167,10 @@ export async function POST(req: NextRequest) {
       action: "upload_patient_file",
       entityType: "patient",
       entityId: patientId,
-      entityLabel: `${patientName} – ${file.name}`,
+      entityLabel: `${patientName} – ${file.name}${audioStoragePath ? " + audio" : ""}`,
     });
 
-    return ok(normalize(row, urlData.publicUrl), 201);
+    return ok(normalize(row, urlData.publicUrl, audioPublicUrl), 201);
   } catch (e: any) {
     return err(e?.message || "Erreur serveur", 500);
   }

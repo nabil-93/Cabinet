@@ -142,6 +142,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
     await uploadFileMutation.mutateAsync({ file, label: uploadLabel || "Enregistrement vocal", notes: uploadNotes || undefined });
     discardRecording();
     setShowUploadModal(false);
+    setSelectedFiles([]);
     setUploadLabel("");
     setUploadNotes("");
   }, [recordedBlob, uploadLabel, uploadNotes, uploadFileMutation, discardRecording]);
@@ -197,10 +198,19 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
   }, []);
 
   const handleUploadSubmit = async () => {
-    if (selectedFiles.length === 0) return;
-    for (const file of selectedFiles) {
-      await uploadFileMutation.mutateAsync({ file, label: uploadLabel || undefined, notes: uploadNotes || undefined });
+    if (selectedFiles.length === 0 && !recordedBlob) return;
+    // If files selected: upload each, attaching audio to the first one if present
+    if (selectedFiles.length > 0) {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const audioAttach = (i === 0 && recordedBlob) ? recordedBlob : undefined;
+        await uploadFileMutation.mutateAsync({ file: selectedFiles[i], audio: audioAttach, label: uploadLabel || undefined, notes: uploadNotes || undefined });
+      }
+    } else if (recordedBlob) {
+      // Audio only (no file selected) — save as standalone
+      await saveRecording();
+      return;
     }
+    discardRecording();
     setShowUploadModal(false);
     setSelectedFiles([]);
     setUploadLabel("");
@@ -825,8 +835,14 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                 <div key={f.id} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-accent/40 transition-all group">
                   {/* Thumbnail / Icon */}
                   {f.category === "image" ? (
-                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border border-border cursor-pointer" onClick={() => setPreviewFile(f)}>
+                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border border-border cursor-pointer relative" onClick={() => setPreviewFile(f)}>
                       <img src={f.url} alt={f.originalName} className="w-full h-full object-cover" />
+                      {f.audioUrl && (
+                        <button onClick={e => { e.stopPropagation(); togglePlayFile(f.id, f.audioUrl!); }}
+                          className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                          {playingAudioId === f.id ? <Pause className="w-4 h-4 text-white" /> : <Play className="w-4 h-4 text-white ml-0.5" />}
+                        </button>
+                      )}
                     </div>
                   ) : f.category === "audio" ? (
                     <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950 flex items-center justify-center flex-shrink-0 cursor-pointer group/audio"
@@ -837,12 +853,18 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                     </div>
                   ) : (
                     <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
+                      "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 relative",
                       f.category === "pdf" ? "bg-red-50 dark:bg-red-950" :
                       f.category === "document" ? "bg-blue-50 dark:bg-blue-950" :
                       "bg-muted"
                     )}>
                       {fileCategoryIcon(f.category)}
+                      {f.audioUrl && (
+                        <button onClick={() => togglePlayFile(f.id, f.audioUrl!)}
+                          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center shadow-sm border-2 border-white dark:border-card">
+                          {playingAudioId === f.id ? <Pause className="w-2.5 h-2.5 text-white" /> : <Play className="w-2.5 h-2.5 text-white ml-px" />}
+                        </button>
+                      )}
                     </div>
                   )}
                   {/* Info */}
@@ -858,6 +880,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                       )}>{fileCategoryLabel(f.category)}</span>
                       <span className="text-[10px] text-muted-foreground">{formatFileSize(f.size)}</span>
                       <span className="text-[10px] text-muted-foreground">{format(new Date(f.createdAt), "d MMM yyyy", { locale: fr })}</span>
+                      {f.audioUrl && <span className="text-[10px] font-semibold text-amber-500 flex items-center gap-0.5"><Mic className="w-2.5 h-2.5" /> Audio</span>}
                     </div>
                   </div>
                   {/* Actions */}
@@ -1004,14 +1027,14 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => { setShowUploadModal(false); setSelectedFiles([]); }}
+              <button onClick={() => { setShowUploadModal(false); setSelectedFiles([]); discardRecording(); }}
                 className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">Annuler</button>
               <button onClick={handleUploadSubmit}
-                disabled={selectedFiles.length === 0 || uploadFileMutation.isPending}
+                disabled={(selectedFiles.length === 0 && !recordedBlob) || uploadFileMutation.isPending}
                 className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                 {uploadFileMutation.isPending
                   ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  : <><Upload className="w-3.5 h-3.5" /> Envoyer ({selectedFiles.length})</>}
+                  : <><Upload className="w-3.5 h-3.5" /> Envoyer{selectedFiles.length > 0 && recordedBlob ? ` (${selectedFiles.length} + 🎤)` : selectedFiles.length > 0 ? ` (${selectedFiles.length})` : recordedBlob ? " (🎤)" : ""}</>}
               </button>
             </div>
           </div>

@@ -12,9 +12,11 @@ export interface PatientFile {
   category: string;
   size: number;
   storagePath: string;
+  audioStoragePath: string | null;
   label: string;
   notes: string | null;
   url: string;
+  audioUrl: string | null;
   createdAt: string;
 }
 
@@ -35,16 +37,17 @@ export function usePatientFiles(patientId: string) {
 export function useUploadPatientFile(patientId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ file, label, notes }: { file: File; label?: string; notes?: string }) => {
+    mutationFn: async ({ file, audio, label, notes }: { file: File; audio?: Blob; label?: string; notes?: string }) => {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("patientId", patientId);
       if (label) formData.append("label", label);
       if (notes) formData.append("notes", notes);
+      if (audio) formData.append("audio", audio, "audio_note.webm");
 
       const res = await api.post<PatientFile>("/patient-files", formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        timeout: 30000, // 30s for uploads
+        timeout: 30000,
       });
       return res.data;
     },

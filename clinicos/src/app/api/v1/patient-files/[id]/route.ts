@@ -17,10 +17,13 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
 
   if (fetchError || !file) return err("Fichier introuvable", 404);
 
-  // Delete from storage
+  // Delete from storage (main file + audio if exists)
+  const toRemove = [file.storage_path];
+  if (file.audio_storage_path) toRemove.push(file.audio_storage_path);
+
   const { error: storageError } = await supabase.storage
     .from("patient-files")
-    .remove([file.storage_path]);
+    .remove(toRemove);
 
   if (storageError) return err(`Erreur suppression fichier: ${storageError.message}`, 500);
 
