@@ -1,9 +1,10 @@
 "use client";
-import { use, useState } from "react";
+import { use, useState, useRef, useCallback } from "react";
 import {
   ArrowLeft, Phone, Mail, MapPin, Calendar, AlertCircle,
   Activity, Edit, Plus, X, CalendarPlus, ClipboardList,
   Trash2, ChevronDown, ChevronUp, Stethoscope, RotateCcw,
+  Upload, Image, FileAudio, File, Eye, FolderOpen,
 } from "lucide-react";
 import Link from "next/link";
 import { format, differenceInCalendarDays, isToday, isFuture } from "date-fns";
@@ -18,6 +19,7 @@ import {
   useConsultations, useCreateConsultation,
   useDeleteConsultation, type Consultation,
 } from "@/hooks/useConsultations";
+import { usePatientFiles, useUploadPatientFile, useDeletePatientFile, type PatientFile } from "@/hooks/usePatientFiles";
 import api from "@/services/api";
 import StatusPicker from "@/components/ui/StatusPicker";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
@@ -65,6 +67,80 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
   const [reportTime, setReportTime] = useState('');
   const createConsultMutation = useCreateConsultation(id);
   const deleteConsultMutation = useDeleteConsultation(id);
+
+  // ── Patient Files ─────────────────────────────────────────
+  const { data: patientFiles = [], isLoading: filesLoading } = usePatientFiles(id);
+  const uploadFileMutation = useUploadPatientFile(id);
+  const deleteFileMutation = useDeletePatientFile(id);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [previewFile, setPreviewFile] = useState<PatientFile | null>(null);
+  const [fileFilter, setFileFilter] = useState<string>("all");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadLabel, setUploadLabel] = useState("");
+  const [uploadNotes, setUploadNotes] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    setSelectedFiles(prev => [...prev, ...files]);
+  }, []);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+    }
+  }, []);
+
+  const handleUploadSubmit = async () => {
+    if (selectedFiles.length === 0) return;
+    for (const file of selectedFiles) {
+      await uploadFileMutation.mutateAsync({ file, label: uploadLabel || undefined, notes: uploadNotes || undefined });
+    }
+    setShowUploadModal(false);
+    setSelectedFiles([]);
+    setUploadLabel("");
+    setUploadNotes("");
+  };
+
+  const filteredFiles = fileFilter === "all" ? patientFiles : patientFiles.filter(f => f.category === fileFilter);
+
+  const fileCategoryCounts = {
+    all: patientFiles.length,
+    image: patientFiles.filter(f => f.category === "image").length,
+    pdf: patientFiles.filter(f => f.category === "pdf").length,
+    document: patientFiles.filter(f => f.category === "document").length,
+    audio: patientFiles.filter(f => f.category === "audio").length,
+    other: patientFiles.filter(f => f.category === "other").length,
+  };
+
+  function formatFileSize(bytes: number) {
+    if (bytes < 1024) return bytes + " o";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " Ko";
+    return (bytes / (1024 * 1024)).toFixed(1) + " Mo";
+  }
+
+  function fileCategoryIcon(category: string) {
+    switch (category) {
+      case "image": return <Image className="w-4 h-4 text-violet-500" />;
+      case "pdf": return <FileText className="w-4 h-4 text-red-500" />;
+      case "audio": return <FileAudio className="w-4 h-4 text-amber-500" />;
+      case "document": return <File className="w-4 h-4 text-blue-500" />;
+      default: return <File className="w-4 h-4 text-muted-foreground" />;
+    }
+  }
+
+  function fileCategoryLabel(category: string) {
+    switch (category) {
+      case "image": return "Image";
+      case "pdf": return "PDF";
+      case "audio": return "Audio";
+      case "document": return "Document";
+      default: return "Autre";
+    }
+  }
 
   const _today = format(new Date(), "yyyy-MM-dd");
   const patientApts = allAppointments
@@ -359,10 +435,11 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
             { label: "Rapports",    value: consultations.length,                icon: ClipboardList, color: "gradient-success" },
             { label: "Rendez-vous", value: patientApts.length,                  icon: Calendar,      color: "gradient-primary" },
+            { label: "Fichiers",    value: patientFiles.length,                 icon: FolderOpen,    color: "bg-gradient-to-br from-violet-500 to-purple-600" },
             { label: "Antécédents", value: (patient.medicalHistory||[]).length, icon: Activity,      color: "gradient-danger" },
             { label: "Allergies",   value: (patient.allergies||[]).length,      icon: AlertCircle,   color: "gradient-warning" },
           ].map(({ label, value, icon: Icon, color }) => (
@@ -593,7 +670,210 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
           )}
         </div>
 
+        {/* ── Fichiers du patient ────────────────────────────── */}
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
+              <FolderOpen className="w-4 h-4 text-violet-500" /> Fichiers
+              {patientFiles.length > 0 && <span className="text-xs font-normal text-muted-foreground">({patientFiles.length})</span>}
+            </h3>
+            <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium">
+              <Upload className="w-3.5 h-3.5" /> Ajouter un fichier
+            </button>
+          </div>
+
+          {/* Filter tabs */}
+          {patientFiles.length > 0 && (
+            <div className="flex gap-1.5 mb-3 bg-muted/40 rounded-xl p-1 overflow-x-auto">
+              {(["all", "image", "pdf", "document", "audio", "other"] as const).map(cat => {
+                const count = fileCategoryCounts[cat];
+                if (cat !== "all" && count === 0) return null;
+                return (
+                  <button key={cat} onClick={() => setFileFilter(cat)}
+                    className={cn(
+                      "px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap",
+                      fileFilter === cat
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}>
+                    {cat === "all" ? "Tous" : fileCategoryLabel(cat)}
+                    <span className={cn("ml-1 font-bold", fileFilter === cat ? "text-primary" : "text-muted-foreground")}>({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {filesLoading ? (
+            <div className="space-y-2">{Array(2).fill(0).map((_, i) => <div key={i} className="h-14 bg-muted/30 rounded-xl animate-pulse" />)}</div>
+          ) : patientFiles.length === 0 ? (
+            <div className="py-10 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-violet-50 dark:bg-violet-950 flex items-center justify-center mx-auto mb-3">
+                <FolderOpen className="w-7 h-7 text-violet-300" />
+              </div>
+              <p className="text-sm text-muted-foreground mb-1">Aucun fichier enregistré</p>
+              <p className="text-xs text-muted-foreground/70 mb-3">Photos, rapports scanner, analyses, ordonnances...</p>
+              <button onClick={() => setShowUploadModal(true)} className="text-xs text-primary hover:underline font-medium inline-flex items-center gap-1">
+                <Upload className="w-3 h-3" /> Ajouter le premier fichier
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {filteredFiles.map(f => (
+                <div key={f.id} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-accent/40 transition-all group">
+                  {/* Thumbnail / Icon */}
+                  {f.category === "image" ? (
+                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border border-border cursor-pointer" onClick={() => setPreviewFile(f)}>
+                      <img src={f.url} alt={f.originalName} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className={cn(
+                      "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
+                      f.category === "pdf" ? "bg-red-50 dark:bg-red-950" :
+                      f.category === "audio" ? "bg-amber-50 dark:bg-amber-950" :
+                      f.category === "document" ? "bg-blue-50 dark:bg-blue-950" :
+                      "bg-muted"
+                    )}>
+                      {fileCategoryIcon(f.category)}
+                    </div>
+                  )}
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{f.originalName}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                        f.category === "image" ? "bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-400" :
+                        f.category === "pdf" ? "bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400" :
+                        f.category === "audio" ? "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400" :
+                        f.category === "document" ? "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400" :
+                        "bg-muted text-muted-foreground"
+                      )}>{fileCategoryLabel(f.category)}</span>
+                      <span className="text-[10px] text-muted-foreground">{formatFileSize(f.size)}</span>
+                      <span className="text-[10px] text-muted-foreground">{format(new Date(f.createdAt), "d MMM yyyy", { locale: fr })}</span>
+                    </div>
+                  </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {f.category === "image" && (
+                      <button onClick={() => setPreviewFile(f)} title="Aperçu"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-violet-50 hover:text-violet-500 dark:hover:bg-violet-950 transition-all">
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <a href={f.url} download={f.originalName} target="_blank" rel="noopener noreferrer" title="Télécharger"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all">
+                      <Download className="w-3.5 h-3.5" />
+                    </a>
+                    <button onClick={() => { if (confirm(`Supprimer ${f.originalName} ?`)) deleteFileMutation.mutate(f.id); }} title="Supprimer"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950 transition-all">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
+
+      {/* ── Modal: Upload fichier ── */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowUploadModal(false); setSelectedFiles([]); }} />
+          <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Ajouter des fichiers</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Patient : {patient.fullName}</p>
+              </div>
+              <button onClick={() => { setShowUploadModal(false); setSelectedFiles([]); }} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
+            </div>
+
+            {/* Drop zone */}
+            <div
+              onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleFileDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all mb-4",
+                isDragging
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/50 hover:bg-accent/30"
+              )}
+            >
+              <Upload className={cn("w-8 h-8 mx-auto mb-3", isDragging ? "text-primary" : "text-muted-foreground/50")} />
+              <p className="text-sm font-medium text-foreground">Glissez vos fichiers ici</p>
+              <p className="text-xs text-muted-foreground mt-1">ou cliquez pour parcourir</p>
+              <p className="text-[10px] text-muted-foreground/60 mt-2">Images, PDF, Word, Audio · Max 10 Mo</p>
+              <input ref={fileInputRef} type="file" multiple onChange={handleFileSelect} className="hidden"
+                accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,audio/*" />
+            </div>
+
+            {/* Selected files */}
+            {selectedFiles.length > 0 && (
+              <div className="space-y-2 mb-4 max-h-40 overflow-y-auto custom-scroll">
+                {selectedFiles.map((file, i) => (
+                  <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border">
+                    <File className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-xs font-medium text-foreground truncate flex-1">{file.name}</span>
+                    <span className="text-[10px] text-muted-foreground flex-shrink-0">{formatFileSize(file.size)}</span>
+                    <button onClick={() => setSelectedFiles(prev => prev.filter((_, j) => j !== i))}
+                      className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-red-500"><X className="w-3 h-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Label + notes */}
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">Étiquette</label>
+                <input value={uploadLabel} onChange={e => setUploadLabel(e.target.value)}
+                  placeholder="Ex: Radio panoramique, Analyse sanguine..."
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">Notes</label>
+                <textarea value={uploadNotes} onChange={e => setUploadNotes(e.target.value)} rows={2}
+                  placeholder="Remarques optionnelles..."
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => { setShowUploadModal(false); setSelectedFiles([]); }}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">Annuler</button>
+              <button onClick={handleUploadSubmit}
+                disabled={selectedFiles.length === 0 || uploadFileMutation.isPending}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                {uploadFileMutation.isPending
+                  ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <><Upload className="w-3.5 h-3.5" /> Envoyer ({selectedFiles.length})</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Preview image ── */}
+      {previewFile && previewFile.category === "image" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setPreviewFile(null)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+          <div className="relative max-w-3xl max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPreviewFile(null)}
+              className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-all">
+              <X className="w-4 h-4" />
+            </button>
+            <img src={previewFile.url} alt={previewFile.originalName} className="max-h-[85vh] object-contain" />
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+              <p className="text-white font-semibold text-sm">{previewFile.originalName}</p>
+              <p className="text-white/60 text-xs">{formatFileSize(previewFile.size)} · {format(new Date(previewFile.createdAt), "d MMM yyyy", { locale: fr })}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal: Nouvelle ordonnance ── */}
       {showPrescModal && (
