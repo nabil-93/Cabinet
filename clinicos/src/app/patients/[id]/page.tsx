@@ -138,7 +138,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
   const saveRecording = useCallback(async () => {
     if (!recordedBlob) return;
     const timestamp = format(new Date(), "yyyy-MM-dd_HH-mm-ss");
-    const file = new File([recordedBlob], `enregistrement_${timestamp}.webm`, { type: "audio/webm" });
+    const file = new globalThis.File([recordedBlob] as BlobPart[], `enregistrement_${timestamp}.webm`, { type: "audio/webm" });
     await uploadFileMutation.mutateAsync({ file, label: uploadLabel || "Enregistrement vocal", notes: uploadNotes || undefined });
     discardRecording();
     setShowUploadModal(false);
