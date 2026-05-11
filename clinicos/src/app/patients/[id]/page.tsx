@@ -165,7 +165,15 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
   }, [isPlayingRecording, recordedUrl]);
 
   const togglePlayFile = useCallback((fileId: string, url: string) => {
-    const currentPlayer = audioPlayerRefs.current.get(fileId);
+    let currentPlayer = audioPlayerRefs.current.get(fileId);
+
+    // If the URL changed (e.g. user replaced the audio), discard the old audio object
+    if (currentPlayer && !currentPlayer.src.includes(url)) {
+      currentPlayer.pause();
+      currentPlayer = undefined;
+      audioPlayerRefs.current.delete(fileId);
+    }
+
     if (playingAudioId === fileId && currentPlayer) {
       currentPlayer.pause();
       setPlayingAudioId(null);
