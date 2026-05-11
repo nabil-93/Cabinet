@@ -74,7 +74,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
   const deleteFileMutation = useDeletePatientFile(id);
   const updateFileMutation = useUpdatePatientFile(id);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditFileModal, setShowEditFileModal] = useState(false);
   const [editingFile, setEditingFile] = useState<PatientFile | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [editNotes, setEditNotes] = useState("");
@@ -224,7 +224,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
     setUploadNotes("");
   };
 
-  const handleEditSubmit = async () => {
+  const handleEditFileSubmit = async () => {
     if (!editingFile) return;
     await updateFileMutation.mutateAsync({
       fileId: editingFile.id,
@@ -235,7 +235,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       notes: editNotes !== (editingFile.notes || "") ? editNotes : undefined,
     });
     discardRecording();
-    setShowEditModal(false);
+    setShowEditFileModal(false);
     setEditingFile(null);
     setEditSelectedFile(null);
     setEditRemoveAudio(false);
@@ -248,7 +248,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
     setEditRemoveAudio(false);
     setEditSelectedFile(null);
     discardRecording();
-    setShowEditModal(true);
+    setShowEditFileModal(true);
   };
 
   const filteredFiles = fileFilter === "all" ? patientFiles : patientFiles.filter(f => f.category === fileFilter);
@@ -1080,16 +1080,16 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       )}
 
       {/* ── Modal: Modifier fichier ── */}
-      {showEditModal && editingFile && (
+      {showEditFileModal && editingFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowEditModal(false); discardRecording(); }} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowEditFileModal(false); discardRecording(); }} />
           <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-xl p-6 overflow-y-auto max-h-[90vh] custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h2 className="text-lg font-bold text-foreground">Modifier le fichier</h2>
                 <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[250px]">{editingFile.originalName}</p>
               </div>
-              <button onClick={() => { setShowEditModal(false); discardRecording(); }} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
+              <button onClick={() => { setShowEditFileModal(false); discardRecording(); }} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
             </div>
 
             {/* Replace file zone */}
@@ -1199,9 +1199,9 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => { setShowEditModal(false); discardRecording(); }}
+              <button onClick={() => { setShowEditFileModal(false); discardRecording(); }}
                 className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">Annuler</button>
-              <button onClick={handleEditSubmit} disabled={updateFileMutation.isPending}
+              <button onClick={handleEditFileSubmit} disabled={updateFileMutation.isPending}
                 className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                 {updateFileMutation.isPending
                   ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
