@@ -19,7 +19,7 @@ import {
   useConsultations, useCreateConsultation,
   useDeleteConsultation, type Consultation,
 } from "@/hooks/useConsultations";
-import { usePatientFiles, useUploadPatientFile, useDeletePatientFile, type PatientFile } from "@/hooks/usePatientFiles";
+import { usePatientFiles, useUploadPatientFile, useDeletePatientFile, useUpdatePatientFile, type PatientFile } from "@/hooks/usePatientFiles";
 import api from "@/services/api";
 import StatusPicker from "@/components/ui/StatusPicker";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
@@ -72,7 +72,14 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
   const { data: patientFiles = [], isLoading: filesLoading } = usePatientFiles(id);
   const uploadFileMutation = useUploadPatientFile(id);
   const deleteFileMutation = useDeletePatientFile(id);
+  const updateFileMutation = useUpdatePatientFile(id);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingFile, setEditingFile] = useState<PatientFile | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editRemoveAudio, setEditRemoveAudio] = useState(false);
+  const [editSelectedFile, setEditSelectedFile] = useState<File | null>(null);
   const [previewFile, setPreviewFile] = useState<PatientFile | null>(null);
   const [fileFilter, setFileFilter] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -215,6 +222,33 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
     setSelectedFiles([]);
     setUploadLabel("");
     setUploadNotes("");
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingFile) return;
+    await updateFileMutation.mutateAsync({
+      fileId: editingFile.id,
+      file: editSelectedFile || undefined,
+      audio: recordedBlob || undefined,
+      removeAudio: editRemoveAudio,
+      label: editLabel !== editingFile.label ? editLabel : undefined,
+      notes: editNotes !== (editingFile.notes || "") ? editNotes : undefined,
+    });
+    discardRecording();
+    setShowEditModal(false);
+    setEditingFile(null);
+    setEditSelectedFile(null);
+    setEditRemoveAudio(false);
+  };
+
+  const openEditModal = (f: PatientFile) => {
+    setEditingFile(f);
+    setEditLabel(f.label);
+    setEditNotes(f.notes || "");
+    setEditRemoveAudio(false);
+    setEditSelectedFile(null);
+    discardRecording();
+    setShowEditModal(true);
   };
 
   const filteredFiles = fileFilter === "all" ? patientFiles : patientFiles.filter(f => f.category === fileFilter);
@@ -885,6 +919,10 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                   </div>
                   {/* Actions */}
                   <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openEditModal(f)} title="Modifier"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-950 transition-all">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
                     {f.category === "image" && (
                       <button onClick={() => setPreviewFile(f)} title="Aperçu"
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-violet-50 hover:text-violet-500 dark:hover:bg-violet-950 transition-all">
@@ -1035,6 +1073,139 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                 {uploadFileMutation.isPending
                   ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   : <><Upload className="w-3.5 h-3.5" /> Envoyer{selectedFiles.length > 0 && recordedBlob ? ` (${selectedFiles.length} + 🎤)` : selectedFiles.length > 0 ? ` (${selectedFiles.length})` : recordedBlob ? " (🎤)" : ""}</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Modifier fichier ── */}
+      {showEditModal && editingFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowEditModal(false); discardRecording(); }} />
+          <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-xl p-6 overflow-y-auto max-h-[90vh] custom-scroll">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Modifier le fichier</h2>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[250px]">{editingFile.originalName}</p>
+              </div>
+              <button onClick={() => { setShowEditModal(false); discardRecording(); }} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
+            </div>
+
+            {/* Replace file zone */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-foreground mb-1">Remplacer le fichier (Optionnel)</label>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  "border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all",
+                  editSelectedFile ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-accent/30"
+                )}
+              >
+                <Upload className={cn("w-6 h-6 mx-auto mb-2", editSelectedFile ? "text-primary" : "text-muted-foreground/50")} />
+                {editSelectedFile ? (
+                  <p className="text-sm font-medium text-primary truncate px-2">{editSelectedFile.name}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Cliquez pour choisir un nouveau fichier</p>
+                )}
+                <input ref={fileInputRef} type="file" onChange={e => { if (e.target.files?.[0]) setEditSelectedFile(e.target.files[0]); }} className="hidden"
+                  accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,audio/*" />
+              </div>
+            </div>
+
+            {/* Voice Recorder Edit */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-1 h-4 rounded-full bg-gradient-to-b from-amber-400 to-red-500" />
+                <p className="text-xs font-semibold text-foreground">Enregistrement vocal</p>
+              </div>
+
+              {editingFile.audioUrl && !editRemoveAudio && !recordedBlob && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 mb-2">
+                  <button onClick={() => togglePlayFile(editingFile.id, editingFile.audioUrl!)}
+                    className="w-9 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 flex items-center justify-center text-white transition-all flex-shrink-0">
+                    {playingAudioId === editingFile.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                  </button>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-foreground">Audio actuel</p>
+                  </div>
+                  <button onClick={() => setEditRemoveAudio(true)} title="Supprimer l'audio actuel"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950 transition-all">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {editRemoveAudio && (
+                <p className="text-xs text-red-500 font-medium mb-2 bg-red-50 p-2 rounded flex items-center gap-2">
+                  <Trash2 className="w-3.5 h-3.5" /> L'audio actuel sera supprimé.
+                  <button onClick={() => setEditRemoveAudio(false)} className="underline text-red-600 hover:text-red-700 ml-auto">Annuler</button>
+                </p>
+              )}
+
+              {!isRecording && !recordedBlob && (
+                <button onClick={startRecording}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-sm font-semibold transition-all">
+                  <Mic className="w-4 h-4" /> Enregistrer un {editingFile.audioUrl ? "nouvel " : ""}audio
+                </button>
+              )}
+
+              {isRecording && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 animate-pulse">
+                  <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                  <span className="text-sm font-mono font-bold text-red-600 dark:text-red-400 flex-1">{formatRecordingTime(recordingTime)}</span>
+                  <span className="text-xs text-red-500 font-medium">Enregistrement...</span>
+                  <button onClick={stopRecording}
+                    className="w-8 h-8 rounded-lg bg-red-500 hover:bg-red-600 flex items-center justify-center text-white transition-all flex-shrink-0">
+                    <Square className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {recordedBlob && recordedUrl && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700">
+                    <button onClick={togglePlayRecording}
+                      className="w-9 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 flex items-center justify-center text-white transition-all flex-shrink-0">
+                      {isPlayingRecording ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                    </button>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-foreground">Nouvel enregistrement</p>
+                      <p className="text-xs text-muted-foreground">{formatRecordingTime(recordingTime)}</p>
+                    </div>
+                    <button onClick={discardRecording} title="Supprimer"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950 transition-all">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Label + notes */}
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">Étiquette</label>
+                <input value={editLabel} onChange={e => setEditLabel(e.target.value)}
+                  placeholder="Ex: Radio panoramique..."
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">Notes</label>
+                <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2}
+                  placeholder="Remarques..."
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => { setShowEditModal(false); discardRecording(); }}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">Annuler</button>
+              <button onClick={handleEditSubmit} disabled={updateFileMutation.isPending}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                {updateFileMutation.isPending
+                  ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : "Sauvegarder"}
               </button>
             </div>
           </div>

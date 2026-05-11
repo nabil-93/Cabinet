@@ -62,6 +62,41 @@ export function useUploadPatientFile(patientId: string) {
   });
 }
 
+export function useUpdatePatientFile(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ fileId, file, audio, removeAudio, label, notes }: {
+      fileId: string;
+      file?: File;
+      audio?: Blob;
+      removeAudio?: boolean;
+      label?: string;
+      notes?: string;
+    }) => {
+      const formData = new FormData();
+      if (file) formData.append("file", file);
+      if (audio) formData.append("audio", audio, "audio_note.webm");
+      if (removeAudio) formData.append("removeAudio", "true");
+      if (label !== undefined) formData.append("label", label);
+      if (notes !== undefined) formData.append("notes", notes);
+
+      const res = await api.patch<PatientFile>(`/patient-files/${fileId}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 30000,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEY(patientId) });
+      toast.success("Fichier modifié !");
+    },
+    onError: (e: any) => {
+      const msg = e?.response?.data?.error || "Erreur lors de la modification";
+      toast.error(msg);
+    },
+  });
+}
+
 export function useDeletePatientFile(patientId: string) {
   const qc = useQueryClient();
   return useMutation({
