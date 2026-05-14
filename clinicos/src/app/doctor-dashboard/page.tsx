@@ -34,6 +34,9 @@ import {
   CheckCircle2,
   History,
   Syringe,
+  PhoneCall,
+  StopCircle,
+  Timer,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
@@ -349,6 +352,36 @@ export default function DoctorDashboardPage() {
     staleTime: 60_000,
   });
 
+  // Waiting room action state
+  const [wrActionId, setWrActionId] = useState<string | null>(null);
+
+  const callPatient = async (entryId: string) => {
+    setWrActionId(entryId);
+    try {
+      await api.patch(`/waiting-room/${entryId}`, {
+        status: "in_progress",
+        doctorId: user?.id,
+        doctorName: user?.name,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["waiting-room"] });
+    } finally {
+      setWrActionId(null);
+    }
+  };
+
+  const finishConsultation = async (entryId: string) => {
+    setWrActionId(entryId);
+    try {
+      await api.patch(`/waiting-room/${entryId}`, { status: "done" });
+      await queryClient.invalidateQueries({ queryKey: ["waiting-room"] });
+      await queryClient.invalidateQueries({ queryKey: ["invoices-all"] });
+      // Reset selected patient if it was this one
+      setSelectedId(null);
+    } finally {
+      setWrActionId(null);
+    }
+  };
+
   // ── Derived ───────────────────────────────────────────────────────────────
 
   // Search only filters the header — the patients list always shows all
@@ -644,40 +677,73 @@ export default function DoctorDashboardPage() {
                 {waitingPatients.some(w => w.status === "in_progress") ? " · 1 en cours" : ""}
               </span>
             </div>
-            <div className="p-2 space-y-0.5 max-h-48 overflow-y-auto custom-scroll">
+            <div className="p-2 space-y-1.5 max-h-64 overflow-y-auto custom-scroll">
               {waitingPatients.length === 0 ? (
                 <div className="py-4 text-center text-[11px] text-muted-foreground">Salle d&apos;attente vide</div>
               ) : (
-                waitingPatients.slice(0, 6).map(wp => {
+                waitingPatients.map(wp => {
                   const isInProgress = wp.status === "in_progress";
-                  const waitMins = wp.arrivedAt
+                  const elapsedMins = wp.arrivedAt
                     ? Math.max(0, Math.floor((nowMs - new Date(wp.arrivedAt).getTime()) / 60_000))
                     : (wp.estimatedWait ?? 0);
+                  const isActing = wrActionId === wp.id;
                   return (
                     <div key={wp.id} className={cn(
-                      "flex items-center gap-2 p-2 rounded-xl transition-all",
-                      isInProgress ? "bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800" : "hover:bg-accent/60"
+                      "rounded-xl border transition-all",
+                      isInProgress
+                        ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
+                        : "bg-muted/30 border-border/60"
                     )}>
-                      <div className={cn(
-                        "w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0",
-                        isInProgress ? "bg-emerald-100 dark:bg-emerald-900/40" : "bg-amber-50 dark:bg-amber-950/30"
-                      )}>
-                        <span className={cn("font-bold text-[9px]", isInProgress ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300")}>
-                          {getInitials(wp.patientName)}
-                        </span>
+                      {/* Patient row */}
+                      <div className="flex items-center gap-2 p-2">
+                        <div className={cn(
+                          "w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0",
+                          isInProgress ? "bg-emerald-100 dark:bg-emerald-900/40" : "bg-amber-50 dark:bg-amber-950/30"
+                        )}>
+                          <span className={cn("font-bold text-[9px]", isInProgress ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300")}>
+                            {getInitials(wp.patientName)}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-semibold text-foreground truncate">{wp.patientName}</p>
+                          <p className={cn("text-[9px] flex items-center gap-1", isInProgress ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
+                            <Timer className="w-2.5 h-2.5 flex-shrink-0" />
+                            {isInProgress ? `En consultation depuis ${elapsedMins}min` : `Attend depuis ${elapsedMins}min`}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-[11px] font-medium text-foreground flex-1 truncate">{wp.patientName}</p>
-                      {isInProgress
-                        ? <span className="text-[9px] text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">En consultation</span>
-                        : <span className="text-[9px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">{waitMins}m</span>
-                      }
+                      {/* Action buttons */}
+                      <div className="flex gap-1 px-2 pb-2">
+                        {isInProgress ? (
+                          <button
+                            onClick={() => finishConsultation(wp.id)}
+                            disabled={isActing}
+                            className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg py-1.5 transition-colors"
+                          >
+                            {isActing ? <Loader2 className="w-3 h-3 animate-spin" /> : <StopCircle className="w-3 h-3" />}
+                            Terminer consultation
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => callPatient(wp.id)}
+                            disabled={isActing || waitingPatients.some(w => w.status === "in_progress")}
+                            className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-white bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg py-1.5 transition-colors"
+                          >
+                            {isActing ? <Loader2 className="w-3 h-3 animate-spin" /> : <PhoneCall className="w-3 h-3" />}
+                            Appeler ce patient
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })
               )}
             </div>
             <div className="px-3 py-2 border-t border-border/60 flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">{waitingPatients.length} total</span>
+              <span className="text-[10px] text-muted-foreground">
+                {waitingPatients.filter(w => w.status === "waiting").length} en attente
+                {waitingPatients.some(w => w.status === "in_progress") ? " · 1 en cours" : ""}
+              </span>
               <Link href="/waiting-room" className="text-[10px] text-primary hover:underline flex items-center gap-0.5 font-medium">
                 Voir tout <ChevronRight className="w-3 h-3" />
               </Link>
