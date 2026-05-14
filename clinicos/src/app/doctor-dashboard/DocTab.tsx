@@ -390,8 +390,9 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
           status: "pending",
           notes: `Suivi — consultation du ${data.date ?? getToday()}`,
         });
-        await qc.invalidateQueries({ queryKey: ["appointments-patient", patientId] });
-        await qc.invalidateQueries({ queryKey: ["appointments-today"] });
+        // Invalidate all appointment-related queries so every section updates
+        await qc.invalidateQueries({ queryKey: ["appointments"] });          // useAppointmentsByDate, useAppointments
+        await qc.invalidateQueries({ queryKey: ["appointments-patient", patientId] }); // patient history in dashboard
       }
       await qc.invalidateQueries({ queryKey: ["consultations", patientId] });
       setShowNewConsult(false);

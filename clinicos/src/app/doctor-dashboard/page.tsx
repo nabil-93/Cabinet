@@ -390,7 +390,8 @@ export default function DoctorDashboardPage() {
       await api.patch(`/waiting-room/${entryId}`, { status: "done" });
       await queryClient.invalidateQueries({ queryKey: ["waiting-room"] });
       await queryClient.invalidateQueries({ queryKey: ["invoices-all"] });
-      // Reset selected patient if it was this one
+      await queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      await queryClient.invalidateQueries({ queryKey: ["appointments-patient", effectiveSelectedId ?? ""] });
       setSelectedId(null);
     } finally {
       setWrActionId(null);
@@ -494,8 +495,8 @@ export default function DoctorDashboardPage() {
     setChangingAptStatus(aptId);
     try {
       await api.patch(`/appointments/${aptId}`, { status: newStatus });
-      await queryClient.invalidateQueries({ queryKey: ["appointments-patient", effectiveSelectedId] });
-      await queryClient.invalidateQueries({ queryKey: ["appointments-today"] });
+      await queryClient.invalidateQueries({ queryKey: ["appointments"] });                              // covers useAppointmentsByDate(today)
+      await queryClient.invalidateQueries({ queryKey: ["appointments-patient", effectiveSelectedId] }); // patient history tab
     } finally {
       setChangingAptStatus(null);
     }
@@ -515,7 +516,8 @@ export default function DoctorDashboardPage() {
         notes: newAptNotes || undefined,
         status: "confirmed",
       });
-      await queryClient.invalidateQueries({ queryKey: ["appointments-patient", effectiveSelectedId] });
+      await queryClient.invalidateQueries({ queryKey: ["appointments"] });                               // today list + all pages
+      await queryClient.invalidateQueries({ queryKey: ["appointments-patient", effectiveSelectedId] });  // patient history
       setShowNewApt(false);
       setNewAptNotes("");
     } catch {
