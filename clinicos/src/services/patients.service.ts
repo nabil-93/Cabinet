@@ -12,6 +12,7 @@ export interface UpdatePatientDTO {
   dateOfBirth?: string; gender?: string; address?: string;
   bloodType?: string; medicalHistory?: string[]; allergies?: string[];
   status?: string;  // actif / inactif
+  avatarUrl?: string | null;
 }
 
 export const patientsService = {

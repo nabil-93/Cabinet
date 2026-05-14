@@ -5,7 +5,9 @@ import {
   Activity, Edit, Plus, X, CalendarPlus, ClipboardList,
   Trash2, ChevronDown, ChevronUp, Stethoscope, RotateCcw,
   Upload, Image, FileAudio, File, Eye, FolderOpen, Mic, Square, Play, Pause,
+  Camera, Loader2,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { format, differenceInCalendarDays, isToday, isFuture } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -98,6 +100,46 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
   const [previewFile, setPreviewFile] = useState<PatientFile | null>(null);
   const [fileFilter, setFileFilter] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleAvatarUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !patient) return;
+
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      toast.error("Format non supporté. Utilisez JPEG, PNG ou WebP.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("La photo ne doit pas dépasser 5 Mo.");
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+      const supabase = createClient();
+      const safeName = `${Date.now()}-${file.name.replace(/\s/g, "_")}`;
+      const filePath = `avatars/patients/${id}/${safeName}`;
+
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(filePath);
+
+      await updateMutation.mutateAsync({ id, data: { avatarUrl: publicUrl } });
+      toast.success("Photo mise à jour !");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erreur lors du téléchargement de la photo.");
+    } finally {
+      setUploadingAvatar(false);
+      // Reset input so the same file can be re-selected if needed
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  }, [patient, id, updateMutation]);
+
   const [uploadLabel, setUploadLabel] = useState("");
   const [uploadNotes, setUploadNotes] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -578,8 +620,36 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
         {/* Profile card */}
         <div className="bg-card border border-border rounded-xl p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center text-white font-bold text-xl shadow-lg flex-shrink-0">
-              {patient.fullName.split(" ").map(w => w[0]).join("").slice(0, 2)}
+            <div className="relative flex-shrink-0 group/avatar">
+              <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg">
+                {patient.avatarUrl ? (
+                  <img src={patient.avatarUrl} alt={patient.fullName} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full gradient-primary flex items-center justify-center text-white font-bold text-xl">
+                    {patient.fullName.split(" ").map(w => w[0]).join("").slice(0, 2)}
+                  </div>
+                )}
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-2xl">
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  </div>
+                )}
+              </div>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center shadow-md opacity-0 group-hover/avatar:opacity-100 transition-opacity disabled:opacity-50"
+                title="Changer la photo"
+              >
+                <Camera className="w-3 h-3" />
+              </button>
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-bold text-foreground">{patient.fullName}</h2>

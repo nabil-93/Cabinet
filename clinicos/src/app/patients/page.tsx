@@ -161,9 +161,15 @@ export default function PatientsPage() {
             filtered.map((patient, i) => (
               <div key={patient.id} className="bg-card border border-border rounded-xl p-5 hover:shadow-md transition-all group">
                 <div className="flex items-start gap-3 mb-3">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 font-bold text-sm text-white shadow-md"
-                    style={{ background: `hsl(${(i * 47 + 220)}deg 65% 55%)` }}>
-                    {patient.fullName?.split(" ").map(w => w[0]).join("").slice(0, 2)}
+                  <div className="w-11 h-11 rounded-2xl overflow-hidden flex-shrink-0 shadow-md">
+                    {patient.avatarUrl ? (
+                      <img src={patient.avatarUrl} alt={patient.fullName} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center font-bold text-sm text-white"
+                        style={{ background: `hsl(${(i * 47 + 220)}deg 65% 55%)` }}>
+                        {patient.fullName?.split(" ").map(w => w[0]).join("").slice(0, 2)}
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">

@@ -29,6 +29,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.medicalHistory !== undefined) updateData.medical_history = body.medicalHistory;
   if (body.allergies      !== undefined) updateData.allergies       = body.allergies;
   if (body.status         !== undefined) updateData.status          = body.status;
+  if (body.avatarUrl      !== undefined) updateData.avatar_url      = body.avatarUrl;
 
   if (Object.keys(updateData).length === 0) return err("Aucun champ à modifier", 400);
 

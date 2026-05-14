@@ -30,6 +30,7 @@ export interface Patient {
   createdAt: string;
   lastVisit?: string;
   avatar?: string;
+  avatarUrl?: string | null;
   status: "active" | "inactive";
 }
 

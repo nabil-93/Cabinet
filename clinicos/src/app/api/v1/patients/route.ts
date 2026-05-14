@@ -60,5 +60,6 @@ export function normalize(p: any) {
     bloodType: p.blood_type, medicalHistory: p.medical_history || [],
     allergies: p.allergies || [], status: p.status,
     createdAt: p.created_at, lastVisit: p.last_visit,
+    avatarUrl: p.avatar_url ?? null,
   };
 }

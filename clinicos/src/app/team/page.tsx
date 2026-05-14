@@ -22,6 +22,7 @@ interface TeamMember {
   mustChangePassword: boolean;
   lastLoginAt: string | null;
   createdAt: string;
+  avatarUrl?: string | null;
 }
 
 interface MemberForm {
@@ -206,9 +207,15 @@ export default function TeamPage() {
                   !member.isActive && "opacity-60"
                 )}>
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 font-bold text-sm text-white shadow-md"
-                      style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>
-                      {initials(member.name)}
+                    <div className="w-11 h-11 rounded-2xl overflow-hidden flex-shrink-0 shadow-md">
+                      {member.avatarUrl ? (
+                        <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center font-bold text-sm text-white"
+                          style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>
+                          {initials(member.name)}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">

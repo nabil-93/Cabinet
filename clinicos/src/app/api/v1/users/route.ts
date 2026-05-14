@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       mustChangePassword: p.must_change_password ?? false,
       lastLoginAt: p.last_login_at ?? null,
       createdAt: p.created_at,
+      avatarUrl: p.avatar_url ?? null,
     }));
 
     return ok(result);
@@ -112,6 +113,7 @@ export async function POST(req: NextRequest) {
       mustChangePassword: profile.must_change_password,
       lastLoginAt: profile.last_login_at ?? null,
       createdAt: profile.created_at,
+      avatarUrl: profile.avatar_url ?? null,
     }, 201);
   } catch (e: any) {
     return err(e.message ?? "Erreur serveur", 500);
