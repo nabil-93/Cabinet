@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
       email: data.user.email,
       id: data.user.id,
       mustChangePassword: profile?.must_change_password ?? false,
+      avatarUrl: profile?.avatar_url ?? null,
     });
   } catch {
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

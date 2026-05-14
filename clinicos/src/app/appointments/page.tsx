@@ -1,5 +1,6 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Calendar, Plus, Search, Clock, X, RotateCcw, Trash2,
   CalendarDays, ChevronLeft, ChevronRight,
@@ -54,6 +55,14 @@ function getPeriodLabel(period: PeriodFilter, ref: Date): string {
 
 export default function AppointmentsPage() {
   const { t } = useLang();
+  const searchParams = useSearchParams();
+
+  // Auto-open modal when navigated from header "Nouveau RDV" button
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setShowAddModal(true);
+    }
+  }, [searchParams]);
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter,   setTypeFilter]   = useState<string>("all");

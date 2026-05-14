@@ -3,7 +3,7 @@ import Cookies from "js-cookie";
 
 export interface LoginRequest { email: string; password: string; }
 export interface RegisterRequest { name: string; email: string; password: string; role: string; phone?: string; specialty?: string; }
-export interface AuthResponse { token: string; role: string; name: string; email: string; id: string; mustChangePassword: boolean; }
+export interface AuthResponse { token: string; role: string; name: string; email: string; id: string; mustChangePassword: boolean; avatarUrl?: string | null; }
 
 const COOKIE_OPTS = { expires: 7, secure: process.env.NODE_ENV === "production", sameSite: "strict" as const };
 
@@ -12,7 +12,7 @@ export const authService = {
     const res = await api.post<AuthResponse>("/auth/login", data);
     const user = res.data;
     Cookies.set("clinicos_token", user.token, COOKIE_OPTS);
-    Cookies.set("clinicos_user", JSON.stringify({ id: user.id, name: user.name, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword }), COOKIE_OPTS);
+    Cookies.set("clinicos_user", JSON.stringify({ id: user.id, name: user.name, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword, avatarUrl: user.avatarUrl ?? null }), COOKIE_OPTS);
     return user;
   },
 
@@ -20,7 +20,7 @@ export const authService = {
     const res = await api.post<AuthResponse>("/auth/register", data);
     const user = res.data;
     Cookies.set("clinicos_token", user.token, COOKIE_OPTS);
-    Cookies.set("clinicos_user", JSON.stringify({ id: user.id, name: user.name, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword }), COOKIE_OPTS);
+    Cookies.set("clinicos_user", JSON.stringify({ id: user.id, name: user.name, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword, avatarUrl: user.avatarUrl ?? null }), COOKIE_OPTS);
     return user;
   },
 

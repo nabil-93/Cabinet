@@ -1,5 +1,6 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import api from "@/services/api";
 import { Search, Plus, Users, Phone, Mail, ChevronRight, UserCheck, UserX, Trash2, Edit, X } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -49,10 +50,15 @@ export default function PatientsPage() {
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [form, setForm] = useState<PatientForm>(EMPTY_FORM);
 
-  const { data: patients = [], isLoading } = usePatients(search || undefined);
+  const { data: patients = [], isLoading, refetch } = usePatients(search || undefined);
   const createMutation = useCreatePatient();
   const updateMutation = useUpdatePatient();
   const deleteMutation = useDeletePatient();
+
+  // Auto-inactivate patients with no visit for 3+ months
+  useEffect(() => {
+    api.post("/patients/sync-status").then(() => refetch()).catch(() => {});
+  }, []);
 
   const filtered = patients.filter((p) => {
     const matchSearch = search === "" || p.fullName.toLowerCase().includes(search.toLowerCase()) || p.phone?.includes(search);
@@ -201,6 +207,16 @@ export default function PatientsPage() {
                       : t("common.noVisit")}
                   </span>
                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => updateMutation.mutate({ id: patient.id, data: { status: patient.status === "active" ? "inactive" : "active" } })}
+                      title={patient.status === "active" ? t("common.inactive") : t("common.active")}
+                      className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all text-xs font-bold",
+                        patient.status === "active"
+                          ? "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                          : "text-muted-foreground hover:bg-emerald-50 hover:text-emerald-600"
+                      )}>
+                      {patient.status === "active" ? "✓" : "○"}
+                    </button>
                     <button onClick={() => openEdit(patient)}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
                       title={t("common.edit")}>
