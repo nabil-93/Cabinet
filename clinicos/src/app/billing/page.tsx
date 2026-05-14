@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { FileText, Plus, Search, TrendingUp, Clock, CheckCircle, Pencil, X, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { TableRowSkeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -615,7 +615,8 @@ function PayModal({ invoice, onClose, t }: {
 
 export default function BillingPage() {
   const qc = useQueryClient();
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const dateLocale = lang === "de" ? de : fr;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | PaymentStatus>("all");
   const [showCreate, setShowCreate] = useState(false);
@@ -739,12 +740,12 @@ export default function BillingPage() {
                         </td>
                         <td className="hidden md:table-cell">
                           <span className="text-xs text-muted-foreground">
-                            {inv.date ? format(new Date(inv.date), "d MMM yyyy", { locale: fr }) : "—"}
+                            {inv.date ? format(new Date(inv.date), "d MMM yyyy", { locale: dateLocale }) : "—"}
                           </span>
                         </td>
                         <td className="hidden lg:table-cell">
                           <span className={cn("text-xs font-medium", (inv as any).paidAt ? "text-emerald-600" : "text-muted-foreground/50")}>
-                            {(inv as any).paidAt ? format(new Date((inv as any).paidAt), "d MMM yyyy", { locale: fr }) : "—"}
+                            {(inv as any).paidAt ? format(new Date((inv as any).paidAt), "d MMM yyyy", { locale: dateLocale }) : "—"}
                           </span>
                         </td>
                         <td className="text-right"><span className="text-xs font-semibold text-foreground">{inv.total?.toLocaleString("fr-MA")} MAD</span></td>

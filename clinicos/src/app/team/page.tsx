@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { UserCog, Plus, Users, Stethoscope, X, Mail, Phone, Clock, Edit, ChevronRight, ToggleLeft, ToggleRight, Shield, Trash2, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -51,7 +51,8 @@ function displayName(m: TeamMember) {
 }
 
 export default function TeamPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const dateLocale = lang === "de" ? de : fr;
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
@@ -63,7 +64,8 @@ export default function TeamPage() {
   const { data: members = [], isLoading } = useQuery<TeamMember[]>({
     queryKey: ["team"],
     queryFn: async () => { const r = await api.get("/users"); return r.data; },
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: 10_000,
   });
 
   function roleBadge(role: string) {
@@ -245,7 +247,7 @@ export default function TeamPage() {
                       <Clock className="w-3.5 h-3.5 flex-shrink-0" />
                       <span>
                         {member.lastLoginAt
-                          ? `${t("team.seenAt", { date: format(new Date(member.lastLoginAt), "d MMM yyyy 'à' HH:mm", { locale: fr }) })}`
+                          ? `${t("team.seenAt", { date: format(new Date(member.lastLoginAt), "d MMM yyyy 'à' HH:mm", { locale: dateLocale }) })}`
                           : t("team.neverConnected")}
                       </span>
                     </div>

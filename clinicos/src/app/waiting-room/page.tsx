@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import api from "@/services/api";
 import { differenceInMinutes, format, parseISO } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de } from "date-fns/locale";
 import { useAuth } from "@/lib/auth-context";
 import { useDoctorPresence } from "@/hooks/useDoctorPresence";
 import type { OnlineDoctor } from "@/hooks/useDoctorPresence";
@@ -372,7 +372,8 @@ export default function WaitingRoomPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const router = useRouter();
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const dateLocale = lang === "de" ? de : fr;
 
   const {
     onlineDoctors,
@@ -632,7 +633,7 @@ export default function WaitingRoomPage() {
     <div className="flex flex-col h-full">
       <Header
         title={t("waitingRoom.title")}
-        subtitle={format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
+        subtitle={format(new Date(), "EEEE d MMMM yyyy", { locale: dateLocale })}
       />
 
       {/* Realtime status bar */}

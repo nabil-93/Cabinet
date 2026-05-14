@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Activity, LogIn, LogOut, Edit, Trash2, UserPlus, Filter, RefreshCw,
   CalendarPlus, RotateCcw, FileText, CreditCard, ArrowRight, CheckCircle,
-  X, ClipboardList, Pill, UserCog,
+  X, ClipboardList, Pill, UserCog, Smartphone, Monitor,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -252,10 +252,16 @@ export default function ActivityPage() {
                           <span className="text-muted-foreground"> · {translateEntityLabel(log.entity_label)}</span>
                         )}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
                         {roleBadge(log.user_role)}
                         {" · "}
                         {format(new Date(log.created_at), lang === "de" ? "d MMM yyyy 'um' HH:mm" : "d MMM yyyy 'à' HH:mm", { locale: dateLocale })}
+                        {(log.action === "login" || log.action === "logout") && (log.details as any)?.device && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted text-[10px] font-medium ml-1">
+                            {(log.details as any).device === "mobile" ? <Smartphone className="w-3 h-3" /> : <Monitor className="w-3 h-3" />}
+                            {(log.details as any).device}
+                          </span>
+                        )}
                       </p>
                     </div>
 

@@ -10,7 +10,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { format, differenceInCalendarDays, isToday, isFuture } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { usePatient, useUpdatePatient } from "@/hooks/usePatients";
 import {
@@ -58,7 +58,8 @@ function Countdown({ dateStr }: { dateStr: string }) {
 }
 
 export default function PatientProfilePage({ params }: { params: Promise<{ id: string }> }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const dateLocale = lang === "de" ? de : fr;
 
   const STATUS_MAP = {
     confirmed: { l: t("appointments.statusLabels.confirmed"), c: "badge-confirmed" },
@@ -456,7 +457,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
         await createAptMutation.mutateAsync({
           patientId: id, doctorId: undefined,
           date: consultForm.nextVisit, time: "09:00", duration: 30, type: "Suivi",
-          notes: `Suivi suite à consultation du ${format(new Date(consultForm.date), "d MMM yyyy", { locale: fr })}`,
+          notes: `Suivi suite à consultation du ${format(new Date(consultForm.date), "d MMM yyyy", { locale: dateLocale })}`,
         });
       }
     }
@@ -668,7 +669,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
               <span className={cn("text-xs font-semibold px-3 py-1 rounded-full", patient.status === "active" ? "badge-confirmed" : "badge-cancelled")}>
                 {patient.status === "active" ? t("patientProfile.activeStatus") : t("patientProfile.inactiveStatus")}
               </span>
-              <p className="text-[10px] text-muted-foreground block">{t("patientProfile.inscribedOn")} {format(new Date(patient.createdAt), "d MMM yyyy", { locale: fr })}</p>
+              <p className="text-[10px] text-muted-foreground block">{t("patientProfile.inscribedOn")} {format(new Date(patient.createdAt), "d MMM yyyy", { locale: dateLocale })}</p>
             </div>
           </div>
         </div>
@@ -726,7 +727,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                           <p className="text-sm font-semibold text-foreground">{c.type}</p>
                           {c.diagnosis && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium truncate max-w-[140px]">{c.diagnosis}</span>}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(c.date), "EEEE d MMMM yyyy", { locale: fr })} à {c.time}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(c.date), "EEEE d MMMM yyyy", { locale: dateLocale })} à {c.time}</p>
                       </div>
                       {/* Actions */}
                       <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
@@ -746,7 +747,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                         {c.nextVisit && (
                           <div className="flex items-center gap-2 text-xs text-primary font-medium">
                             <Calendar className="w-3.5 h-3.5" />
-                            {t("patientProfile.nextRdv")} : {format(new Date(c.nextVisit), "d MMMM yyyy", { locale: fr })}
+                            {t("patientProfile.nextRdv")} : {format(new Date(c.nextVisit), "d MMMM yyyy", { locale: dateLocale })}
                             <Countdown dateStr={c.nextVisit} />
                           </div>
                         )}
@@ -826,7 +827,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground">{apt.type}</p>
-                      <p className="text-xs text-muted-foreground">{format(aptDate, "EEEE d MMMM yyyy", { locale: fr })} · {apt.time}</p>
+                      <p className="text-xs text-muted-foreground">{format(aptDate, "EEEE d MMMM yyyy", { locale: dateLocale })} · {apt.time}</p>
                     </div>
                     {/* Countdown + status + actions */}
                     <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -884,7 +885,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">{prx.diagnosis}</p>
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(prx.date), "d MMM yyyy", { locale: fr })} · {prx.medications.length === 1 ? t("prescriptions.medicationSingular", { count: prx.medications.length }) : t("prescriptions.medicationPlural", { count: prx.medications.length })}
+                      {format(new Date(prx.date), "d MMM yyyy", { locale: dateLocale })} · {prx.medications.length === 1 ? t("prescriptions.medicationSingular", { count: prx.medications.length }) : t("prescriptions.medicationPlural", { count: prx.medications.length })}
                     </p>
                   </div>
                   <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0",
@@ -1006,7 +1007,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                         "bg-muted text-muted-foreground"
                       )}>{fileCategoryLabel(f.category)}</span>
                       <span className="text-[10px] text-muted-foreground">{formatFileSize(f.size)}</span>
-                      <span className="text-[10px] text-muted-foreground">{format(new Date(f.createdAt), "d MMM yyyy", { locale: fr })}</span>
+                      <span className="text-[10px] text-muted-foreground">{format(new Date(f.createdAt), "d MMM yyyy", { locale: dateLocale })}</span>
                       {f.audioUrl && <span className="text-[10px] font-semibold text-amber-500 flex items-center gap-0.5"><Mic className="w-2.5 h-2.5" /> {t("patients.files.audio")}</span>}
                     </div>
                   </div>
@@ -1317,7 +1318,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
             <img src={previewFile.url} alt={previewFile.originalName} className="max-h-[85vh] object-contain" />
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
               <p className="text-white font-semibold text-sm">{previewFile.originalName}</p>
-              <p className="text-white/60 text-xs">{formatFileSize(previewFile.size)} · {format(new Date(previewFile.createdAt), "d MMM yyyy", { locale: fr })}</p>
+              <p className="text-white/60 text-xs">{formatFileSize(previewFile.size)} · {format(new Date(previewFile.createdAt), "d MMM yyyy", { locale: dateLocale })}</p>
             </div>
           </div>
         </div>

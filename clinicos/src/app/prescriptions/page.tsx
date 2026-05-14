@@ -5,7 +5,7 @@ import {
   Calendar, ChevronRight, CheckCircle, Pencil, Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -457,7 +457,8 @@ function CreateModal({ initialPatient, onClose, doctorId }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PrescriptionsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const dateLocale = lang === "de" ? de : fr;
   const { user } = useAuth();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -617,7 +618,7 @@ export default function PrescriptionsPage() {
                         <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{prx.diagnosis}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[10px] text-muted-foreground/70">
-                            {format(new Date(prx.date), "d MMM yyyy", { locale: fr })}
+                            {format(new Date(prx.date), "d MMM yyyy", { locale: dateLocale })}
                           </span>
                           <span className="text-[10px] text-muted-foreground/50">·</span>
                           <span className="text-[10px] text-muted-foreground/70">
@@ -649,7 +650,7 @@ export default function PrescriptionsPage() {
                     </div>
                     <h2 className="text-base font-bold text-foreground">{selected.diagnosis}</h2>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      {selected.patientName} · {format(new Date(selected.date), "d MMMM yyyy", { locale: fr })}
+                      {selected.patientName} · {format(new Date(selected.date), "d MMMM yyyy", { locale: dateLocale })}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

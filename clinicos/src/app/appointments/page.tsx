@@ -11,7 +11,7 @@ import {
   addDays, addWeeks, addMonths, subDays, subWeeks, subMonths,
   isWithinInterval, parseISO,
 } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { TableRowSkeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/ui/EmptyState";
@@ -41,20 +41,20 @@ const TYPE_KEYS: Record<string, string> = {
   "Autre":        "appointments.types.autre",
 };
 
-// Navigation label selon la période
-function getPeriodLabel(period: PeriodFilter, ref: Date): string {
-  if (period === "today") return format(ref, "EEEE d MMMM yyyy", { locale: fr });
-  if (period === "week") {
-    const s = startOfWeek(ref, { weekStartsOn: 1 });
-    const e = endOfWeek(ref, { weekStartsOn: 1 });
-    return `${format(s, "d MMM", { locale: fr })} – ${format(e, "d MMM yyyy", { locale: fr })}`;
-  }
-  if (period === "month") return format(ref, "MMMM yyyy", { locale: fr });
-  return "";
-}
-
 export default function AppointmentsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const dateLocale = lang === "de" ? de : fr;
+
+  function getPeriodLabel(period: PeriodFilter, ref: Date): string {
+    if (period === "today") return format(ref, "EEEE d MMMM yyyy", { locale: dateLocale });
+    if (period === "week") {
+      const s = startOfWeek(ref, { weekStartsOn: 1 });
+      const e = endOfWeek(ref, { weekStartsOn: 1 });
+      return `${format(s, "d MMM", { locale: dateLocale })} – ${format(e, "d MMM yyyy", { locale: dateLocale })}`;
+    }
+    if (period === "month") return format(ref, "MMMM yyyy", { locale: dateLocale });
+    return "";
+  }
   const searchParams = useSearchParams();
 
   // Auto-open modal when navigated from header "Nouveau RDV" button
@@ -309,7 +309,7 @@ export default function AppointmentsPage() {
                         <td className="hidden md:table-cell"><span className="text-xs text-muted-foreground">{apt.type}</span></td>
                         <td>
                           <div>
-                            <p className="text-xs font-medium text-foreground">{format(new Date(apt.date), "d MMM yyyy", { locale: fr })}</p>
+                            <p className="text-xs font-medium text-foreground">{format(new Date(apt.date), "d MMM yyyy", { locale: dateLocale })}</p>
                             <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> {apt.time} · {apt.duration}min</p>
                           </div>
                         </td>
@@ -417,7 +417,7 @@ export default function AppointmentsPage() {
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h2 className="text-lg font-bold text-foreground">{t("appointments.reschedule")}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">{t("appointments.currentDate")} {format(new Date(reportingApt.date), "d MMMM yyyy", { locale: fr })}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("appointments.currentDate")} {format(new Date(reportingApt.date), "d MMMM yyyy", { locale: dateLocale })}</p>
               </div>
               <button onClick={() => setReportingApt(null)} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
             </div>

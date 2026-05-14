@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+function detectDevice(ua: string): string {
+  if (/mobile|android|iphone|ipad|tablet/i.test(ua)) return "mobile";
+  if (/tablet|ipad/i.test(ua)) return "tablet";
+  return "desktop";
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
+    const userAgent = req.headers.get("user-agent") ?? "";
+    const device = detectDevice(userAgent);
 
     if (!email || !password) {
       return NextResponse.json({ error: "Email et mot de passe requis" }, { status: 400 });
@@ -42,6 +50,7 @@ export async function POST(req: NextRequest) {
       action: "login",
       entity_type: "session",
       entity_label: "Connexion",
+      details: { device, userAgent: userAgent.slice(0, 200) },
     });
 
     return NextResponse.json({

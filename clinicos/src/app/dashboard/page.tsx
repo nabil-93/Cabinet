@@ -16,7 +16,7 @@ const Legend       = dynamic(() => import("recharts").then(m => ({ default: m.Le
 const ResponsiveContainer = dynamic(() => import("recharts").then(m => ({ default: m.ResponsiveContainer })), { ssr: false });
 import { useState } from "react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de } from "date-fns/locale";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
@@ -53,8 +53,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const { theme } = useStore();
   const { user } = useAuth();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [chartPeriod, setChartPeriod] = useState<"1d" | "1w" | "1m" | "6m">("1d");
+  const dateLocale = lang === "de" ? de : fr;
   const [chartType,   setChartType]   = useState<"bar" | "area" | "line">("bar");
 
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
@@ -92,7 +93,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title={t("dashboard.title")} subtitle={format(new Date(), "EEEE d MMMM yyyy", { locale: fr })} />
+      <Header title={t("dashboard.title")} subtitle={format(new Date(), "EEEE d MMMM yyyy", { locale: dateLocale })} />
 
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-6">
         {/* Welcome */}

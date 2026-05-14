@@ -4,7 +4,7 @@ import api from "@/services/api";
 import { Search, Plus, Users, Phone, Mail, ChevronRight, UserCheck, UserX, Trash2, Edit, X } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { PatientCardSkeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/ui/EmptyState";
@@ -42,7 +42,8 @@ function patientToForm(p: Patient): PatientForm {
 }
 
 export default function PatientsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const dateLocale = lang === "de" ? de : fr;
   const [search, setSearch] = useState("");
   const [genderFilter, setGenderFilter] = useState<GenderFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -209,7 +210,7 @@ export default function PatientsPage() {
                 <div className="flex items-center justify-between pt-3 border-t border-border/40">
                   <span className="text-[10px] text-muted-foreground">
                     {patient.lastVisit
-                      ? `${t("common.lastVisit")}: ${format(new Date(patient.lastVisit), "d MMM", { locale: fr })}`
+                      ? `${t("common.lastVisit")}: ${format(new Date(patient.lastVisit), "d MMM", { locale: dateLocale })}`
                       : t("common.noVisit")}
                   </span>
                   <div className="flex items-center gap-1">
