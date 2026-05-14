@@ -256,7 +256,7 @@ export default function ActivityPage() {
                         {roleBadge(log.user_role)}
                         {" · "}
                         {format(new Date(log.created_at), lang === "de" ? "d MMM yyyy 'um' HH:mm" : "d MMM yyyy 'à' HH:mm", { locale: dateLocale })}
-                        {(log.action === "login" || log.action === "logout") && (log.details as any)?.device && (
+                        {(log.details as any)?.device && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted text-[10px] font-medium ml-1">
                             {(log.details as any).device === "mobile" ? <Smartphone className="w-3 h-3" /> : <Monitor className="w-3 h-3" />}
                             {(log.details as any).device}

@@ -195,7 +195,7 @@ export default function UserActivityPage({ params }: { params: Promise<{ id: str
                             {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: dateLocale })}
                           </span>
                         </div>
-                        {(log.action === "login" || log.action === "logout") && (log.details as any)?.device && (
+                        {(log.details as any)?.device && (
                           <p className="text-xs text-muted-foreground mt-0.5">
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted font-medium">
                               {(log.details as any).device === "mobile" ? "📱" : "🖥"} {(log.details as any).device}
