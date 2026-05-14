@@ -50,6 +50,7 @@ import { getToday } from "@/lib/date-utils";
 import { useLang } from "@/lib/i18n";
 import { DocTab } from "./DocTab";
 import { BillingTab } from "./BillingTab";
+import { ValuesTab } from "./ValuesTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1558,40 +1559,20 @@ export default function DoctorDashboardPage() {
           {/* ── VALEURS ─────────────────────────────────────────────────── */}
           {activeTop === "values" && (
             <div className="flex-1 overflow-y-auto custom-scroll">
-              <div className="bg-card border border-border rounded-2xl overflow-hidden h-full">
-                <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">Valeurs médicales</h3>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {selectedPatient ? selectedPatient.fullName : "Sélectionnez un patient"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Normal</div>
-                    <div className="flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-amber-500" />Attention</div>
-                    <div className="flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-red-500" />Critique</div>
-                  </div>
-                </div>
-                {!effectiveSelectedId ? (
-                  <div className="py-16 text-center">
+              {!effectiveSelectedId ? (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center py-16">
                     <Heart className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
                     <p className="text-sm font-medium text-muted-foreground">Aucun patient sélectionné</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">Sélectionnez un patient pour analyser ses valeurs biologiques</p>
                   </div>
-                ) : (
-                  <div className="p-4">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {medicalValues.map(mv => <ValueCard key={mv.label} {...mv} />)}
-                    </div>
-                    <div className="mt-4 bg-muted/30 border border-border rounded-xl p-3">
-                      <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                        <Info className="w-3 h-3 flex-shrink-0" />
-                        Valeurs issues de la dernière consultation.{" "}
-                        <Link href={`/patients/${effectiveSelectedId}`} className="text-primary hover:underline">Voir le dossier complet</Link>
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <ValuesTab
+                  patientId={effectiveSelectedId}
+                  patientName={selectedPatient?.fullName}
+                />
+              )}
             </div>
           )}
 
