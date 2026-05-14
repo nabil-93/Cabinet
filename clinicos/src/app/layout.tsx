@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import QueryProvider from "@/components/providers/QueryProvider";
 import { AuthProvider } from "@/lib/auth-context";
+import { LanguageProvider } from "@/lib/i18n";
 import NextTopLoader from "nextjs-toploader";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
@@ -28,11 +29,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           speed={200} 
           shadow="0 0 10px #6272f5, 0 0 5px #6272f5"
         />
-        <AuthProvider>
-          <QueryProvider>
-            {children}
-          </QueryProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <QueryProvider>
+              {children}
+            </QueryProvider>
+          </AuthProvider>
+        </LanguageProvider>
         <Toaster position="bottom-right" richColors expand closeButton />
       </body>
     </html>

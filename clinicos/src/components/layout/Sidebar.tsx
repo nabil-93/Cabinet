@@ -11,32 +11,27 @@ import { useStore } from "@/store";
 import { useAuth } from "@/lib/auth-context";
 import { useEffect } from "react";
 import { usePathname as usePN } from "next/navigation";
+import { useLang } from "@/lib/i18n";
 
 const NAV_ITEMS = [
-  { href: "/dashboard",    label: "Tableau de bord", icon: LayoutDashboard, roles: ["admin","doctor","assistant"] },
-  { href: "/patients",     label: "Patients",         icon: Users,           roles: ["admin","doctor","assistant"] },
-  { href: "/appointments", label: "Rendez-vous",      icon: Calendar,        roles: ["admin","doctor","assistant"] },
-  { href: "/calendar",     label: "Calendrier",       icon: ClipboardList,   roles: ["admin","doctor","assistant"] },
-  { href: "/waiting-room", label: "Salle d'attente",  icon: Clock,           roles: ["admin","doctor","assistant"] },
-  { href: "/billing",      label: "Facturation",      icon: CreditCard,      roles: ["admin","doctor","assistant"] },
-  { href: "/prescriptions",label: "Ordonnances",      icon: FileText,        roles: ["admin","doctor"] },
-  { href: "/analytics",    label: "Analytique",       icon: BarChart2,       roles: ["admin","doctor"] },
-  { href: "/ai-assistant", label: "Assistant IA",     icon: Bot,             roles: ["admin","doctor","assistant"] },
-  { href: "/team",         label: "Équipe",           icon: UserCog,         roles: ["admin"] },
-  { href: "/activity",     label: "Activité",         icon: Activity,        roles: ["admin"] },
+  { href: "/dashboard",    labelKey: "sidebar.dashboard",    icon: LayoutDashboard, roles: ["admin","doctor","assistant"] },
+  { href: "/patients",     labelKey: "sidebar.patients",     icon: Users,           roles: ["admin","doctor","assistant"] },
+  { href: "/appointments", labelKey: "sidebar.appointments", icon: Calendar,        roles: ["admin","doctor","assistant"] },
+  { href: "/calendar",     labelKey: "sidebar.calendar",     icon: ClipboardList,   roles: ["admin","doctor","assistant"] },
+  { href: "/waiting-room", labelKey: "sidebar.waitingRoom",  icon: Clock,           roles: ["admin","doctor","assistant"] },
+  { href: "/billing",      labelKey: "sidebar.billing",      icon: CreditCard,      roles: ["admin","doctor","assistant"] },
+  { href: "/prescriptions",labelKey: "sidebar.prescriptions",icon: FileText,        roles: ["admin","doctor"] },
+  { href: "/analytics",    labelKey: "sidebar.analytics",    icon: BarChart2,       roles: ["admin","doctor"] },
+  { href: "/ai-assistant", labelKey: "sidebar.aiAssistant",  icon: Bot,             roles: ["admin","doctor","assistant"] },
+  { href: "/team",         labelKey: "sidebar.team",         icon: UserCog,         roles: ["admin"] },
+  { href: "/activity",     labelKey: "sidebar.activity",     icon: Activity,        roles: ["admin"] },
 ];
-
-const ROLE_LABELS: Record<string, string> = {
-  admin:     "Administrateur",
-  doctor:    "Médecin",
-  assistant: "Secrétaire",
-  patient:   "Patient",
-};
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { sidebarCollapsed, sidebarMobileOpen, toggleSidebar, closeMobileSidebar } = useStore();
   const { user, logout } = useAuth();
+  const { t } = useLang();
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -96,12 +91,13 @@ export default function Sidebar() {
         {visibleItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
+          const label = t(item.labelKey);
           return (
-            <Link key={item.href} href={item.href} className={cn("nav-item", active && "active")} title={sidebarCollapsed ? item.label : undefined}>
+            <Link key={item.href} href={item.href} className={cn("nav-item", active && "active")} title={sidebarCollapsed ? label : undefined}>
               <Icon className="w-[18px] h-[18px] flex-shrink-0" />
               {!sidebarCollapsed && (
                 <span className="overflow-hidden whitespace-nowrap text-[13px]">
-                  {item.label}
+                  {label}
                 </span>
               )}
             </Link>
@@ -111,9 +107,9 @@ export default function Sidebar() {
 
       {/* Bottom */}
       <div className="px-3 pb-4 border-t border-border/40 pt-3 space-y-0.5">
-        <Link href="/settings" className={cn("nav-item", pathname === "/settings" && "active")} title={sidebarCollapsed ? "Paramètres" : undefined}>
+        <Link href="/settings" className={cn("nav-item", pathname === "/settings" && "active")} title={sidebarCollapsed ? t("sidebar.settings") : undefined}>
           <Settings className="w-[18px] h-[18px] flex-shrink-0" />
-          {!sidebarCollapsed && <span className="text-[13px]">Paramètres</span>}
+          {!sidebarCollapsed && <span className="text-[13px]">{t("sidebar.settings")}</span>}
         </Link>
 
         {/* User profile */}
@@ -130,11 +126,11 @@ export default function Sidebar() {
               <p className="text-[12px] font-semibold text-foreground truncate">
                 {(role === "doctor" || role === "admin") ? `Dr. ${user?.name || "—"}` : user?.name || "—"}
               </p>
-              <p className="text-[10px] text-muted-foreground">{ROLE_LABELS[role]}</p>
+              <p className="text-[10px] text-muted-foreground">{t(`team.roles.${role}`) || role}</p>
             </div>
           )}
           {!sidebarCollapsed && (
-            <button onClick={logout} className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0" title="Déconnexion">
+            <button onClick={logout} className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0" title={t("sidebar.logout")}>
               <LogOut className="w-3.5 h-3.5" />
             </button>
           )}

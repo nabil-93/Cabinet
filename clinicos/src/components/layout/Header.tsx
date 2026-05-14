@@ -7,10 +7,35 @@ import { useMarkNotificationRead, useMarkAllRead } from "@/hooks/useNotification
 import { useDoctorPresence } from "@/hooks/useDoctorPresence";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { useLang } from "@/lib/i18n";
+
+// ─── Language Switcher ────────────────────────────────────────────────────────
+function LangSwitcher() {
+  const { lang, setLang } = useLang();
+  return (
+    <div className="flex items-center gap-0.5 bg-muted/60 border border-border/50 rounded-xl p-1">
+      {(["fr", "de"] as const).map((l) => (
+        <button
+          key={l}
+          onClick={() => setLang(l)}
+          className={cn(
+            "px-2.5 py-1 rounded-lg text-xs font-bold uppercase transition-all",
+            lang === l
+              ? "bg-primary text-white shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // ─── Online Users Widget ──────────────────────────────────────────────────────
 function OnlineUsers() {
   const { onlineDoctors } = useDoctorPresence();
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const count = onlineDoctors.length;
 
@@ -61,7 +86,11 @@ function OnlineUsers() {
 
         {/* Count label */}
         <span className="text-xs font-semibold text-foreground hidden sm:inline">
-          {count === 0 ? "Hors ligne" : `${count} connecté${count > 1 ? "s" : ""}`}
+          {count === 0
+            ? t("header.offline")
+            : count > 1
+              ? t("header.connectedPlural", { count })
+              : t("header.connected", { count })}
         </span>
 
         {/* Status dot */}
@@ -78,7 +107,7 @@ function OnlineUsers() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
               <p className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Users className="w-3.5 h-3.5 text-primary" />
-                Connectés en ce moment
+                {t("header.connectedNow")}
               </p>
               <button
                 onClick={() => setOpen(false)}
@@ -91,7 +120,7 @@ function OnlineUsers() {
               {count === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">
                   <Users className="w-6 h-6 mx-auto mb-2 opacity-40" />
-                  Personne connectée
+                  {t("header.noOne")}
                 </div>
               ) : (
                 onlineDoctors.map((d, i) => (
@@ -129,6 +158,7 @@ function OnlineUsers() {
 // ─── Main Header ──────────────────────────────────────────────────────────────
 export default function Header({ title, subtitle }: { title: string; subtitle?: string }) {
   const { toggleMobileSidebar, theme, setTheme } = useStore();
+  const { t } = useLang();
   const router = useRouter();
   const [showNotifs, setShowNotifs] = useState(false);
   const { data: notifications = [] } = useNotifications();
@@ -157,6 +187,9 @@ export default function Header({ title, subtitle }: { title: string; subtitle?: 
       {/* Online users widget — replaces search bar */}
       <OnlineUsers />
 
+      {/* Language switcher */}
+      <LangSwitcher />
+
       {/* Theme toggle */}
       <button
         onClick={() => setTheme(theme === "light" ? "dark" : "light")}
@@ -184,14 +217,14 @@ export default function Header({ title, subtitle }: { title: string; subtitle?: 
             <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)} />
             <div className="absolute right-0 top-11 w-80 bg-popover border border-border rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-                <p className="text-sm font-semibold text-foreground">Notifications</p>
+                <p className="text-sm font-semibold text-foreground">{t("header.notifications")}</p>
                 <div className="flex items-center gap-1">
                   {unread > 0 && (
                     <button
                       onClick={() => markAll.mutate()}
                       className="text-xs text-primary hover:underline flex items-center gap-1"
                     >
-                      <Check className="w-3 h-3" /> Tout lire
+                      <Check className="w-3 h-3" /> {t("header.markAllRead")}
                     </button>
                   )}
                   <button
@@ -204,7 +237,7 @@ export default function Header({ title, subtitle }: { title: string; subtitle?: 
               </div>
               <div className="max-h-72 overflow-y-auto custom-scroll">
                 {notifications.length === 0 ? (
-                  <div className="py-10 text-center text-sm text-muted-foreground">Aucune notification</div>
+                  <div className="py-10 text-center text-sm text-muted-foreground">{t("header.noNotifications")}</div>
                 ) : (
                   notifications.map((notif) => (
                     <button
@@ -240,7 +273,7 @@ export default function Header({ title, subtitle }: { title: string; subtitle?: 
         onClick={() => router.push("/appointments?new=1")}
         className="hidden md:flex items-center gap-2 px-3.5 py-2 rounded-xl gradient-primary text-white text-xs font-semibold shadow-sm hover:opacity-90 active:scale-95 transition-all"
       >
-        <Plus className="w-3.5 h-3.5" /> Nouveau RDV
+        <Plus className="w-3.5 h-3.5" /> {t("header.newAppointment")}
       </button>
     </header>
   );

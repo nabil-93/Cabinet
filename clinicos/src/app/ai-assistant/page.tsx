@@ -13,6 +13,7 @@ import { usePatients } from "@/hooks/usePatients";
 import { useAppointments } from "@/hooks/useAppointments";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useLang } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 interface Message {
@@ -131,19 +132,20 @@ function renderContent(content: string) {
   return elements;
 }
 
-// ─── Quick actions ──────────────────────────────────────────────────────────
-const QUICK_ACTIONS = [
-  { icon: "📅", label: "RDV d'aujourd'hui" },
-  { icon: "👥", label: "Résumé patients" },
-  { icon: "💊", label: "Aide ordonnance" },
-  { icon: "💰", label: "Factures impayées" },
-  { icon: "📊", label: "Statistiques du mois" },
-  { icon: "🚨", label: "Patients urgents" },
+// ─── Quick actions keys ──────────────────────────────────────────────────────
+const QUICK_ACTION_KEYS = [
+  { icon: "📅", key: "aiAssistant.quickActions.todayRdv" },
+  { icon: "👥", key: "aiAssistant.quickActions.patientSummary" },
+  { icon: "💊", key: "aiAssistant.quickActions.prescriptionHelp" },
+  { icon: "💰", key: "aiAssistant.quickActions.unpaidInvoices" },
+  { icon: "📊", key: "aiAssistant.quickActions.monthlyStats" },
+  { icon: "🚨", key: "aiAssistant.quickActions.urgentPatients" },
 ];
 
 // ─── Main component ─────────────────────────────────────────────────────────
 export default function AIAssistantPage() {
   const { user } = useAuth();
+  const { lang, t } = useLang();
   const { data: stats } = useDashboardStats();
   const { data: patients } = usePatients(undefined, 50);
   const { data: appointments } = useAppointments();
@@ -316,6 +318,7 @@ export default function AIAssistantPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages: history,
+            language: lang,
             ...(imageSnapshot ? { imageBase64: imageSnapshot.base64 } : {}),
           }),
         });
@@ -336,7 +339,7 @@ export default function AIAssistantPage() {
         const errMsg: Message = {
           id: `e-${Date.now()}`,
           role: "assistant",
-          content: "⚠️ Impossible de contacter l'assistant IA.\n\nVérifiez votre connexion internet et réessayez.",
+          content: t("aiAssistant.errorMessage"),
           timestamp: new Date(),
           mode: "error",
         };
@@ -346,7 +349,7 @@ export default function AIAssistantPage() {
         setLoading(false);
       }
     },
-    [loading, activeId, conversations, user, stats, patients, appointments, updateConv, attachedImage]
+    [loading, activeId, conversations, user, stats, patients, appointments, updateConv, attachedImage, lang, t]
   );
 
   const toggleListening = useCallback(() => {
@@ -368,7 +371,7 @@ export default function AIAssistantPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Assistant IA" subtitle="Alimenté par intelligence artificielle" />
+      <Header title={t("aiAssistant.title")} subtitle={t("aiAssistant.subtitle")} />
 
       {/* Hidden file inputs */}
       <input
@@ -404,14 +407,14 @@ export default function AIAssistantPage() {
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-sm font-medium transition-all"
                 >
                   <Plus className="w-4 h-4" />
-                  Nouvelle conversation
+                  {t("aiAssistant.newConversation")}
                 </button>
               </div>
 
               {/* Conversation list */}
               <div className="flex-1 overflow-y-auto custom-scroll p-2 space-y-0.5">
                 {conversations.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center mt-6">Aucune conversation</p>
+                  <p className="text-xs text-muted-foreground text-center mt-6">{t("aiAssistant.noConversations")}</p>
                 )}
                 {conversations.map((conv) => (
                   <div
@@ -451,7 +454,7 @@ export default function AIAssistantPage() {
                     apiMode === "openai" ? "bg-emerald-500" : apiMode === "demo" ? "bg-amber-500" : "bg-muted-foreground"
                   )} />
                   <span className="text-[10px] text-muted-foreground">
-                    {apiMode === "openai" ? "GPT-4o Mini actif" : apiMode === "demo" ? "Mode démo" : "En attente..."}
+                    {apiMode === "openai" ? t("aiAssistant.gptActive") : apiMode === "demo" ? t("aiAssistant.demoMode") : t("aiAssistant.waiting")}
                   </span>
                 </div>
               </div>
@@ -555,16 +558,19 @@ export default function AIAssistantPage() {
           {/* Quick actions */}
           <div className="px-4 md:px-6 pb-2">
             <div className="flex gap-2 overflow-x-auto pb-1 custom-scroll">
-              {QUICK_ACTIONS.map((a) => (
-                <button
-                  key={a.label}
-                  onClick={() => sendMessage(a.label)}
-                  disabled={loading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background/50 text-xs text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-all whitespace-nowrap disabled:opacity-40 flex-shrink-0"
-                >
-                  <span>{a.icon}</span>{a.label}
-                </button>
-              ))}
+              {QUICK_ACTION_KEYS.map((a) => {
+                const label = t(a.key);
+                return (
+                  <button
+                    key={a.key}
+                    onClick={() => sendMessage(label)}
+                    disabled={loading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background/50 text-xs text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-all whitespace-nowrap disabled:opacity-40 flex-shrink-0"
+                  >
+                    <span>{a.icon}</span>{label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -614,9 +620,9 @@ export default function AIAssistantPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
                 placeholder={
-                  listening ? "Écoute en cours..." :
-                  isTranscribing ? "Transcription en cours..." :
-                  "Posez une question... (Entrée pour envoyer)"
+                  listening ? t("aiAssistant.listening") :
+                  isTranscribing ? t("aiAssistant.transcribing") :
+                  t("aiAssistant.placeholder")
                 }
                 rows={1}
                 disabled={loading || isTranscribing}
@@ -659,7 +665,7 @@ export default function AIAssistantPage() {
                           className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
                         >
                           <ImageIcon className="w-4 h-4 text-primary flex-shrink-0" />
-                          Image
+                          {t("aiAssistant.attachImage")}
                         </button>
                         <div className="h-px bg-border/50" />
                         <button
@@ -667,7 +673,7 @@ export default function AIAssistantPage() {
                           className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
                         >
                           <FileAudio className="w-4 h-4 text-primary flex-shrink-0" />
-                          Audio (Whisper)
+                          {t("aiAssistant.attachAudio")}
                         </button>
                       </motion.div>
                     )}
@@ -678,7 +684,7 @@ export default function AIAssistantPage() {
                 <button
                   onClick={newConversation}
                   className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
-                  title="Nouvelle conversation"
+                  title={t("aiAssistant.newConversation")}
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -704,7 +710,7 @@ export default function AIAssistantPage() {
                       animate={{ height: [4, Math.random() * 20 + 8, 4] }}
                       transition={{ duration: 0.5 + Math.random() * 0.5, repeat: Infinity, delay: i * 0.05 }} />
                   ))}
-                  <span className="ml-2 text-xs text-red-500 font-medium">Écoute en cours...</span>
+                  <span className="ml-2 text-xs text-red-500 font-medium">{t("aiAssistant.listening")}</span>
                 </motion.div>
               )}
             </AnimatePresence>

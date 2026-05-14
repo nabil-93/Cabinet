@@ -479,17 +479,47 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
 
 // ─── System prompt ─────────────────────────────────────────────────────────────
 
-export async function POST(req: NextRequest) {
-  try {
-    const dDate = new Intl.DateTimeFormat('fr-FR', {
-      timeZone: 'Europe/Paris',
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }).format(new Date());
+function buildSystemPrompt(language: string, dDate: string, today: string): string {
+  if (language === "de") {
+    return `Du bist der integrierte KI-Assistent von ClinicOS, einer Verwaltungsplattform für Arztpraxen.
+Du hast VOLLSTÄNDIGEN und ECHTZEITIGEN Zugriff auf alle Praxisdaten über deine Funktionen.
 
-    const SYSTEM_PROMPT = `Tu es l'assistant IA intégré de ClinicOS, une plateforme de gestion de cabinet médical.
+DATENZUGRIFF (verwende IMMER die Funktionen, erfinde NIEMALS Daten):
+- get_stats: globale Statistiken
+- get_patients / search_patients: Patientenakten mit Allergien und Krankengeschichte
+- get_appointments: Termine
+- get_waiting_room: Wartezimmer in Echtzeit
+- get_invoices: Rechnungen und Zahlungen
+- get_team: medizinisches Team
+- get_activity: Aktivitätsverlauf
+- get_consultations: Konsultationsberichte, Diagnosen, Behandlungen
+- get_prescriptions: Rezepte und verschriebene Medikamente
+
+AKTIONEN (ausführen wenn angefordert):
+- create_patient: neuen Patienten anlegen
+- update_patient: Patientendaten ändern. SEHR WICHTIG: Um Allergien oder Krankengeschichte hinzuzufügen, zuerst search_patients verwenden, dann mit update_patient zusammenführen.
+- create_appointment: Termin erstellen (zuerst Patienten-ID suchen)
+- update_appointment_status: Terminstatus ändern
+- delete_appointment: Termin löschen
+- add_to_waiting_room: Patient zur Warteschlange hinzufügen
+- create_consultation: Konsultationsbericht erstellen und speichern
+- create_prescription: Rezept mit Medikamentenliste erstellen und speichern
+
+REGELN:
+1. Verwende IMMER die Funktionen, um Daten abzurufen, bevor du antwortest.
+2. Bestätige jede ausgeführte Aktion mit Details.
+3. Wenn du eine Patienten-ID benötigst, verwende zuerst search_patients.
+4. Antworte IMMER auf Deutsch, klar und professionell.
+5. Verwende **Fett** für wichtige Informationen, Aufzählungspunkte für die Organisation.
+6. Wenn der Arzt nach Allergien oder Vorgeschichte fragt, immer zuerst search_patients aufrufen.
+7. Wenn der Arzt einen Konsultationsbericht diktiert, create_consultation verwenden. Bei einem Rezept create_prescription verwenden.
+
+Heutiges Datum: ${dDate}
+Für die genaue Terminsuche das Format YYYY-MM-DD verwenden. Heute: ${today}`;
+  }
+
+  // Default: French
+  return `Tu es l'assistant IA intégré de ClinicOS, une plateforme de gestion de cabinet médical.
 Tu as un accès COMPLET et EN TEMPS RÉEL à toutes les données du cabinet via tes fonctions.
 
 ACCÈS DONNÉES (utilise TOUJOURS les fonctions, ne jamais inventer) :
@@ -523,13 +553,29 @@ RÈGLES :
 7. Si le médecin dicte un rapport de consultation, tu dois utiliser create_consultation. S'il dicte une ordonnance, utilise create_prescription.
 
 Date d'aujourd'hui : ${dDate}
-Et rappelle toi que pour rechercher les rendez-vous de cette date de manière exacte, tu dois utiliser le format YYYY-MM-DD. Le format aujourd'hui est : ${getToday()}`;
+Et rappelle toi que pour rechercher les rendez-vous de cette date de manière exacte, tu dois utiliser le format YYYY-MM-DD. Le format aujourd'hui est : ${today}`;
+}
 
+export async function POST(req: NextRequest) {
+  try {
     const body = await req.json();
-    const { messages, imageBase64 } = body as {
+    const { messages, imageBase64, language } = body as {
       messages: { role: string; content: string }[];
       imageBase64?: string;
+      language?: string;
     };
+
+    const locale = language === "de" ? "de-DE" : "fr-FR";
+    const timeZone = "Europe/Paris";
+    const dDate = new Intl.DateTimeFormat(locale, {
+      timeZone,
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(new Date());
+
+    const SYSTEM_PROMPT = buildSystemPrompt(language ?? "fr", dDate, getToday());
 
     if (!messages?.length) return NextResponse.json({ message: "Messages invalides." }, { status: 400 });
 
