@@ -8,7 +8,8 @@ import {
 } from "recharts";
 import {
   Upload, Loader2, AlertTriangle, CheckCircle2, XCircle,
-  RefreshCw, Microscope, TrendingUp, Info, X,
+  RefreshCw, Microscope, TrendingUp, Info, X, ChevronRight,
+  FileText, Stethoscope, ShieldAlert, ListChecks, HeartPulse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -62,9 +63,40 @@ function save(patientId: string, result: ExtractionResult) {
   } catch {}
 }
 
+// ─── Markdown-lite renderer ───────────────────────────────────────────────────
+
+function MdText({ text }: { text: string }) {
+  const lines = text.split("\n");
+  return (
+    <div className="space-y-2 text-xs text-foreground leading-relaxed">
+      {lines.map((line, i) => {
+        if (!line.trim()) return <div key={i} className="h-1" />;
+        // Heading **text**
+        if (line.startsWith("**") && line.endsWith("**") && line.length > 4) {
+          return <p key={i} className="font-bold text-foreground mt-3 first:mt-0">{line.slice(2, -2)}</p>;
+        }
+        // Bold inline
+        const parts = line.split(/(\*\*[^*]+\*\*)/g);
+        const rendered = parts.map((part, j) =>
+          part.startsWith("**") && part.endsWith("**")
+            ? <strong key={j}>{part.slice(2, -2)}</strong>
+            : part
+        );
+        if (/^\d+\./.test(line)) {
+          return <p key={i} className="pl-2 border-l-2 border-primary/30">{rendered}</p>;
+        }
+        if (line.startsWith("- ") || line.startsWith("• ")) {
+          return <p key={i} className="pl-3 flex gap-2"><span className="text-primary flex-shrink-0">•</span><span>{rendered}</span></p>;
+        }
+        return <p key={i}>{rendered}</p>;
+      })}
+    </div>
+  );
+}
+
 // ─── Value Card ────────────────────────────────────────────────────────────────
 
-function ValueCard({ v }: { v: ExtractedValue }) {
+function ValueCard({ v, onClick }: { v: ExtractedValue; onClick: () => void }) {
   const s = STATUS[v.status];
   const numVal = parseFloat(v.value);
   const hasRange = v.refMin !== null && v.refMax !== null;
@@ -73,12 +105,20 @@ function ValueCard({ v }: { v: ExtractedValue }) {
     : null;
 
   return (
-    <div className={cn("rounded-xl border p-3 flex flex-col gap-2", s.bg, s.border)}>
+    <button
+      onClick={onClick}
+      className={cn(
+        "rounded-xl border p-3 flex flex-col gap-2 text-left w-full transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer group relative",
+        s.bg, s.border
+      )}>
       <div className="flex items-start justify-between gap-1">
         <span className="text-[11px] text-muted-foreground font-medium leading-tight">{v.label}</span>
-        {v.status === "ok"     && <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0 mt-0.5" />}
-        {v.status === "warn"   && <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />}
-        {v.status === "danger" && <AlertTriangle className="w-3 h-3 text-red-500 flex-shrink-0" />}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {v.status === "ok"     && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+          {v.status === "warn"   && <AlertTriangle className="w-3 h-3 text-amber-500" />}
+          {v.status === "danger" && <AlertTriangle className="w-3 h-3 text-red-500" />}
+          <ChevronRight className="w-3 h-3 text-muted-foreground/0 group-hover:text-muted-foreground transition-all" />
+        </div>
       </div>
       <div className="flex items-baseline gap-1">
         <span className={cn("text-xl font-bold", s.text)}>{v.value}</span>
@@ -92,6 +132,65 @@ function ValueCard({ v }: { v: ExtractedValue }) {
           <p className="text-[9px] text-muted-foreground">Réf: {v.refMin} – {v.refMax} {v.unit}</p>
         </>
       )}
+    </button>
+  );
+}
+
+// ─── Detail Panel ──────────────────────────────────────────────────────────────
+
+function DetailPanel({ v, explanation, loading, onClose }: {
+  v: ExtractedValue;
+  explanation: string | null;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const s = STATUS[v.status];
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+
+      {/* Panel — slides in from right */}
+      <div className="relative ml-auto w-full max-w-lg h-full bg-card shadow-2xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className={cn("px-6 py-4 border-b border-border flex items-start justify-between gap-4", s.bg)}>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              {v.status === "danger" && <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />}
+              {v.status === "warn"   && <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />}
+              {v.status === "ok"     && <CheckCircle2  className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+              <h2 className="text-base font-bold text-foreground">{v.label}</h2>
+              <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", s.bg, s.border, s.text, "border")}>
+                {s.label}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className={cn("text-2xl font-bold", s.text)}>{v.value}</span>
+              <span className="text-sm text-muted-foreground">{v.unit}</span>
+              {v.refMin !== null && v.refMax !== null && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  (norme: {v.refMin} – {v.refMax} {v.unit})
+                </span>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center flex-shrink-0 transition-colors">
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="flex flex-col items-center gap-3 py-12">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              <p className="text-sm text-muted-foreground">Analyse médicale en cours...</p>
+            </div>
+          ) : explanation ? (
+            <MdText text={explanation} />
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -251,12 +350,150 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Detail panel
+  const [selectedValue, setSelectedValue]     = useState<ExtractedValue | null>(null);
+  const [valueExplanation, setValueExplanation] = useState<string | null>(null);
+  const [explainLoading, setExplainLoading]   = useState(false);
+  const explanationCache = useRef<Record<string, string>>({});
+
+  // General report
+  const [generalReport, setGeneralReport]         = useState<string | null>(null);
+  const [generalReportLoading, setGeneralReportLoading] = useState(false);
+
   // Reset when patient changes
   useEffect(() => {
     setResult(loadSaved(patientId));
     setPreview(null);
     setError(null);
+    setSelectedValue(null);
+    setValueExplanation(null);
+    setGeneralReport(null);
+    explanationCache.current = {};
   }, [patientId]);
+
+  const openValueDetail = useCallback(async (v: ExtractedValue) => {
+    setSelectedValue(v);
+    const cacheKey = `${v.label}-${v.value}`;
+    if (explanationCache.current[cacheKey]) {
+      setValueExplanation(explanationCache.current[cacheKey]);
+      return;
+    }
+    setValueExplanation(null);
+    setExplainLoading(true);
+    try {
+      const statusLabel = v.status === "danger" ? "CRITIQUE — très anormal" : v.status === "warn" ? "ATTENTION — légèrement anormal" : "NORMAL";
+      const prompt = `Tu es un médecin expert en biologie médicale et clinique. Analyse cette valeur:
+
+**Examen:** ${v.label}
+**Résultat:** ${v.value} ${v.unit}
+**Plage normale:** ${v.refMin ?? "?"} – ${v.refMax ?? "?"} ${v.unit}
+**Statut:** ${statusLabel}
+**Catégorie:** ${v.category}
+
+Fournis une analyse médicale complète structurée ainsi (utilise des titres en **gras**):
+
+**1. Qu'est-ce que cet examen mesure ?**
+Explication simple de ce que mesure cet indicateur et son rôle physiologique.
+
+**2. Interprétation de ce résultat**
+Pourquoi cette valeur est-elle ${v.status === "ok" ? "normale et rassurante" : "préoccupante"} ? Ce que ça signifie cliniquement.
+
+**3. Causes possibles** ${v.status !== "ok" ? "(les plus fréquentes)" : ""}
+Liste les causes les plus courantes de ce résultat.
+
+**4. Risques si non traité** ${v.status !== "ok" ? "(à court et long terme)" : ""}
+Quelles sont les conséquences potentielles.
+
+**5. Recommandations médicales**
+Ce que le médecin devrait envisager comme examens complémentaires ou traitements.
+
+**6. Conseils pour le patient**
+Ce que le patient doit faire concrètement (alimentation, activité, médicaments, consultation urgente ?).
+
+Réponse claire, professionnelle, en français. Sois précis et utile.`;
+
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "user", content: prompt }], language: "fr" }),
+      });
+      const data = await res.json();
+      const explanation = data.message ?? "Analyse non disponible.";
+      explanationCache.current[cacheKey] = explanation;
+      setValueExplanation(explanation);
+    } catch {
+      setValueExplanation("Erreur lors de l'analyse. Veuillez réessayer.");
+    } finally {
+      setExplainLoading(false);
+    }
+  }, []);
+
+  const generateGeneralReport = useCallback(async () => {
+    if (!result) return;
+    setGeneralReportLoading(true);
+    setGeneralReport(null);
+    try {
+      const criticalVals = result.values.filter(v => v.status === "danger");
+      const warnVals     = result.values.filter(v => v.status === "warn");
+      const okVals       = result.values.filter(v => v.status === "ok");
+      const fmt = (vals: ExtractedValue[]) =>
+        vals.map(v => `- ${v.label}: ${v.value} ${v.unit} [norme: ${v.refMin ?? "?"}-${v.refMax ?? "?"} ${v.unit}]`).join("\n");
+
+      const prompt = `Tu es un médecin clinicien senior. Génère un rapport médical complet et professionnel basé sur ces résultats d'analyses biologiques pour ${patientName ?? "ce patient"}:
+
+**VALEURS CRITIQUES (${criticalVals.length}):**
+${fmt(criticalVals) || "Aucune"}
+
+**VALEURS À SURVEILLER (${warnVals.length}):**
+${fmt(warnVals) || "Aucune"}
+
+**VALEURS NORMALES (${okVals.length}):**
+${fmt(okVals) || "Aucune"}
+
+${result.summary ? `**Interprétation du laboratoire:** ${result.summary}` : ""}
+**Score global:** ${Math.round((okVals.length / result.values.length) * 100)}% des valeurs normales
+
+Génère un rapport structuré et complet:
+
+**RÉSUMÉ EXÉCUTIF**
+État de santé général du patient en 2-3 phrases. Niveau d'urgence.
+
+**ANALYSE DES FINDINGS CRITIQUES**
+Pour chaque valeur critique: signification clinique, causes probables, risques immédiats.
+
+**HYPOTHÈSES DIAGNOSTIQUES**
+Les diagnostics les plus probables au vu de ce tableau biologique.
+
+**PLAN THÉRAPEUTIQUE RECOMMANDÉ**
+Traitements et interventions à envisager par ordre de priorité.
+
+**EXAMENS COMPLÉMENTAIRES**
+Quels examens supplémentaires sont nécessaires et dans quel délai.
+
+**CONSEILS AU PATIENT**
+Instructions claires pour le patient: régime, activité physique, médicaments, signes d'alarme à surveiller.
+
+**SUIVI RECOMMANDÉ**
+Quand revoir le patient, quels contrôles biologiques refaire et à quelle fréquence.
+
+**NIVEAU D'URGENCE**
+Urgence immédiate / Semi-urgent (< 48h) / Consultation programmée. Justification.
+
+Réponse professionnelle, structurée, en français. Sois précis et cliniquement utile.`;
+
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "user", content: prompt }], language: "fr" }),
+      });
+      const data = await res.json();
+      setGeneralReport(data.message ?? "Rapport non disponible.");
+    } catch {
+      setGeneralReport("Erreur lors de la génération du rapport.");
+    } finally {
+      setGeneralReportLoading(false);
+    }
+  }, [result, patientName]);
 
   const extractValues = useCallback(async (file: File) => {
     setLoading(true);
@@ -443,7 +680,9 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
                   </div>
                 </div>
                 <div className="p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-                  {catValues.map((v, i) => <ValueCard key={i} v={v} />)}
+                  {catValues.map((v, i) => (
+                    <ValueCard key={i} v={v} onClick={() => openValueDetail(v)} />
+                  ))}
                 </div>
               </div>
             );
@@ -467,10 +706,79 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
               <Info className="w-3 h-3 flex-shrink-0" />
               Valeurs extraites par IA depuis le rapport fourni.
               {result.labName && ` Source: ${result.labName}.`}
-              {" "}Consultez toujours un professionnel pour l&apos;interprétation clinique.
+              {" "}Cliquez sur une valeur pour l&apos;analyser en détail.
             </p>
           </div>
+
+          {/* ── General report ── */}
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Rapport médical complet</h3>
+                  <p className="text-[10px] text-muted-foreground">Analyse IA — Recommandations et plan de suivi</p>
+                </div>
+              </div>
+              <button
+                onClick={generateGeneralReport}
+                disabled={generalReportLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-60 transition-colors">
+                {generalReportLoading
+                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Génération...</>
+                  : generalReport
+                  ? <><RefreshCw className="w-3 h-3" /> Regénérer</>
+                  : <><Stethoscope className="w-3 h-3" /> Générer le rapport</>
+                }
+              </button>
+            </div>
+
+            {!generalReport && !generalReportLoading ? (
+              <div className="p-8 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <Stethoscope className="w-7 h-7 text-primary/60" />
+                </div>
+                <p className="text-sm font-medium text-foreground mb-1">Rapport médical personnalisé</p>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  Cliquez sur &quot;Générer le rapport&quot; pour obtenir une analyse complète avec diagnostic, recommandations thérapeutiques et plan de suivi.
+                </p>
+                <div className="flex items-center justify-center gap-4 mt-4 text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-1"><ShieldAlert className="w-3 h-3" /> Findings critiques</div>
+                  <div className="flex items-center gap-1"><ListChecks className="w-3 h-3" /> Plan thérapeutique</div>
+                  <div className="flex items-center gap-1"><HeartPulse className="w-3 h-3" /> Suivi recommandé</div>
+                </div>
+              </div>
+            ) : generalReportLoading ? (
+              <div className="flex flex-col items-center gap-3 py-10">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="text-sm text-muted-foreground">Analyse complète en cours...</p>
+                <p className="text-[10px] text-muted-foreground/60">GPT-4o génère le rapport médical complet</p>
+              </div>
+            ) : generalReport ? (
+              <div className="p-6">
+                <MdText text={generalReport} />
+                <div className="mt-6 pt-4 border-t border-border/60">
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                    <Info className="w-3 h-3 flex-shrink-0" />
+                    Ce rapport est généré par IA à titre indicatif. Il ne remplace pas le jugement clinique du médecin.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </>
+      )}
+
+      {/* ── Detail Panel ── */}
+      {selectedValue && (
+        <DetailPanel
+          v={selectedValue}
+          explanation={valueExplanation}
+          loading={explainLoading}
+          onClose={() => { setSelectedValue(null); setValueExplanation(null); }}
+        />
       )}
     </div>
   );
