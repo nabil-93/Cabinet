@@ -583,19 +583,19 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
                             </p>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             onClick={() => setEditingConsult(c.id)}
-                            className="w-6 h-6 rounded-lg hover:bg-primary/10 text-primary flex items-center justify-center transition-colors"
+                            className="w-7 h-7 rounded-lg bg-primary/5 hover:bg-primary/15 text-primary flex items-center justify-center transition-colors border border-primary/20"
                             title="Modifier">
-                            <Edit2 className="w-3 h-3" />
+                            <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => deleteConsult(c.id)}
                             disabled={deletingConsult === c.id}
-                            className="w-6 h-6 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-red-500 flex items-center justify-center transition-colors disabled:opacity-50"
+                            className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/30 hover:bg-red-100 text-red-500 hover:text-red-700 flex items-center justify-center transition-colors disabled:opacity-50 border border-red-200 dark:border-red-800"
                             title="Supprimer">
-                            {deletingConsult === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                            {deletingConsult === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                           </button>
                         </div>
                       </div>
@@ -682,8 +682,8 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
                     <button
                       onClick={() => deleteRx(rx.id)}
                       disabled={deletingRx === rx.id}
-                      className="w-6 h-6 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-red-400 hover:text-red-600 flex items-center justify-center transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100 flex-shrink-0">
-                      {deletingRx === rx.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                      className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 hover:text-red-700 flex items-center justify-center transition-colors disabled:opacity-50 flex-shrink-0 border border-red-200 dark:border-red-800">
+                      {deletingRx === rx.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>

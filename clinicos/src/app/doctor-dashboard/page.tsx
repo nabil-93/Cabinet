@@ -1009,45 +1009,57 @@ export default function DoctorDashboardPage() {
 
                               return (
                                 <div key={apt.id}>
-                                  {/* Visit row — clickable */}
-                                  <button
-                                    onClick={() => setExpandedAptId(prev => prev === apt.id ? null : apt.id)}
-                                    className={cn(
-                                      "w-full flex items-center gap-3 px-4 py-3 text-left transition-all",
-                                      isExpanded ? "bg-primary/5 dark:bg-primary/10" : "hover:bg-accent/40"
-                                    )}>
-                                    <div className={cn(
-                                      "w-9 h-9 rounded-xl flex flex-col items-center justify-center flex-shrink-0 transition-colors",
-                                      isExpanded ? "bg-primary/20" : "bg-muted/50"
-                                    )}>
-                                      <span className={cn("font-bold text-[9px] leading-none", isExpanded ? "text-primary" : "text-muted-foreground")}>{format(d, "d")}</span>
-                                      <span className={cn("text-[8px] leading-none capitalize", isExpanded ? "text-primary/60" : "text-muted-foreground/60")}>{format(d, "MMM", { locale: dateLocale })}</span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-semibold text-foreground capitalize">{format(d, "EEEE d MMMM yyyy", { locale: dateLocale })}</p>
-                                      <div className="flex items-center gap-2 mt-0.5">
-                                        <p className="text-[10px] text-muted-foreground">{apt.time} · {apt.type}</p>
-                                        {hasDetails && (
+                                  {/* Visit row — clickable only if has details */}
+                                  {hasDetails ? (
+                                    <button
+                                      onClick={() => setExpandedAptId(prev => prev === apt.id ? null : apt.id)}
+                                      className={cn(
+                                        "w-full flex items-center gap-3 px-4 py-3 text-left transition-all",
+                                        isExpanded ? "bg-primary/5 dark:bg-primary/10" : "hover:bg-accent/40"
+                                      )}>
+                                      <div className={cn(
+                                        "w-9 h-9 rounded-xl flex flex-col items-center justify-center flex-shrink-0 transition-colors",
+                                        isExpanded ? "bg-primary/20" : "bg-muted/50"
+                                      )}>
+                                        <span className={cn("font-bold text-[9px] leading-none", isExpanded ? "text-primary" : "text-muted-foreground")}>{format(d, "d")}</span>
+                                        <span className={cn("text-[8px] leading-none capitalize", isExpanded ? "text-primary/60" : "text-muted-foreground/60")}>{format(d, "MMM", { locale: dateLocale })}</span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-semibold text-foreground capitalize">{format(d, "EEEE d MMMM yyyy", { locale: dateLocale })}</p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                          <p className="text-[10px] text-muted-foreground">{apt.time} · {apt.type}</p>
                                           <span className="text-[9px] text-primary font-medium">
                                             {aptConsultations.length > 0 && "• Rapport"}
                                             {aptPrescriptions.length > 0 && " • Ordonnance"}
                                           </span>
-                                        )}
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 flex-shrink-0">
+                                        <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full", sc.className)}>{sc.label}</span>
+                                        <ChevronRight className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
+                                      </div>
+                                    </button>
+                                  ) : (
+                                    /* Non-expandable row — no details */
+                                    <div className="flex items-center gap-3 px-4 py-3 opacity-70">
+                                      <div className="w-9 h-9 rounded-xl bg-muted/50 flex flex-col items-center justify-center flex-shrink-0">
+                                        <span className="text-muted-foreground font-bold text-[9px] leading-none">{format(d, "d")}</span>
+                                        <span className="text-muted-foreground/60 text-[8px] leading-none capitalize">{format(d, "MMM", { locale: dateLocale })}</span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-foreground capitalize">{format(d, "EEEE d MMMM yyyy", { locale: dateLocale })}</p>
+                                        <p className="text-[10px] text-muted-foreground">{apt.time} · {apt.type}</p>
+                                      </div>
+                                      <div className="flex items-center gap-2 flex-shrink-0">
+                                        <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full", sc.className)}>{sc.label}</span>
+                                        <span className="text-[9px] text-muted-foreground/50 italic">Rien d&apos;enregistré</span>
                                       </div>
                                     </div>
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                      <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full", sc.className)}>{sc.label}</span>
-                                      <ChevronRight className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
-                                    </div>
-                                  </button>
+                                  )}
 
-                                  {/* Expanded detail */}
-                                  {isExpanded && (
+                                  {/* Expanded detail — only when has details */}
+                                  {isExpanded && hasDetails && (
                                     <div className="px-4 pb-4 pt-2 bg-muted/20 space-y-3 border-t border-border/40">
-                                      {!hasDetails && (
-                                        <p className="text-xs text-muted-foreground italic py-2 text-center">Aucun rapport ou ordonnance enregistré pour cette visite</p>
-                                      )}
-
                                       {/* Consultations from this date */}
                                       {aptConsultations.map(c => (
                                         <div key={c.id} className="bg-card rounded-xl border border-border p-3 space-y-1.5">
