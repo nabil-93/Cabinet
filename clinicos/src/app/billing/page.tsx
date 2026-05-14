@@ -153,9 +153,7 @@ function usePatientSearch(q: string) {
   });
 }
 
-const DESCRIPTION_OPTIONS = [
-  "Consultation", "Suivi", "Bilan", "Urgence", "Vaccination", "Contrôle", "Autre",
-];
+const DESCRIPTION_VALUES = ["Consultation", "Suivi", "Bilan", "Urgence", "Vaccination", "Contrôle", "Autre"];
 
 function ItemsTable({
   items,
@@ -166,6 +164,17 @@ function ItemsTable({
   onChange: (items: InvoiceItem[]) => void;
   addLineLabel: string;
 }) {
+  const { t } = useLang();
+  const TYPE_LABELS: Record<string, string> = {
+    "Consultation": t("appointments.types.consultation"),
+    "Suivi":        t("appointments.types.suivi"),
+    "Bilan":        t("appointments.types.bilan"),
+    "Urgence":      t("appointments.types.urgence"),
+    "Vaccination":  t("appointments.types.vaccination"),
+    "Contrôle":     t("appointments.types.controle"),
+    "Autre":        t("appointments.types.autre"),
+  };
+
   function update(idx: number, field: keyof InvoiceItem, value: string) {
     const next = items.map((item, i) => {
       if (i !== idx) return item;
@@ -192,11 +201,11 @@ function ItemsTable({
       {items.map((item, idx) => (
         <div key={idx} className="grid grid-cols-[1fr_60px_80px_80px_32px] gap-1 items-center">
           <select
-            value={DESCRIPTION_OPTIONS.includes(item.description) ? item.description : "Autre"}
+            value={DESCRIPTION_VALUES.includes(item.description) ? item.description : "Autre"}
             onChange={e => update(idx, "description", e.target.value)}
             className="px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
           >
-            {DESCRIPTION_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+            {DESCRIPTION_VALUES.map(o => <option key={o} value={o}>{TYPE_LABELS[o] ?? o}</option>)}
           </select>
           <input type="number" min="1" value={item.quantity} onChange={e => update(idx, "quantity", e.target.value)}
             className="px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs text-center focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />

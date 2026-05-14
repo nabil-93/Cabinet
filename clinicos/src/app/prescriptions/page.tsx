@@ -135,16 +135,28 @@ function MedRow({ med, idx, onChange, onRemove }: {
   onChange: (idx: number, m: Medication) => void;
   onRemove: (idx: number) => void;
 }) {
+  const { t } = useLang();
   const set = (k: keyof Medication, v: string) => onChange(idx, { ...med, [k]: v });
   const inputCls = "w-full px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary";
-
+  const FREQ_LABELS: Record<string, string> = {
+    "1×/jour": t("prescriptions.frequencies.once"), "2×/jour": t("prescriptions.frequencies.twice"),
+    "3×/jour": t("prescriptions.frequencies.three"), "Matin et soir": t("prescriptions.frequencies.morningEvening"),
+    "Le matin": t("prescriptions.frequencies.morning"), "Le soir": t("prescriptions.frequencies.evening"),
+    "Si besoin": t("prescriptions.frequencies.asNeeded"),
+  };
+  const DUR_LABELS: Record<string, string> = {
+    "3 jours": t("prescriptions.durations.d3"), "5 jours": t("prescriptions.durations.d5"),
+    "7 jours": t("prescriptions.durations.d7"), "10 jours": t("prescriptions.durations.d10"),
+    "14 jours": t("prescriptions.durations.d14"), "1 mois": t("prescriptions.durations.m1"),
+    "3 mois": t("prescriptions.durations.m3"), "À vie": t("prescriptions.durations.forever"),
+  };
   return (
     <div className="bg-muted/20 border border-border rounded-xl p-3 space-y-2">
       <div className="flex items-center gap-2">
         <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">{idx + 1}</div>
-        <input value={med.name} onChange={e => set("name", e.target.value)} placeholder="Nom du médicament *"
+        <input value={med.name} onChange={e => set("name", e.target.value)} placeholder={t("prescriptions.medicationName")}
           className={cn(inputCls, "flex-1 font-semibold")} />
-        <input value={med.dosage} onChange={e => set("dosage", e.target.value)} placeholder="Dosage (ex: 500mg)"
+        <input value={med.dosage} onChange={e => set("dosage", e.target.value)} placeholder={t("prescriptions.dosage")}
           className={cn(inputCls, "w-28")} />
         <button type="button" onClick={() => onRemove(idx)}
           className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-100 text-muted-foreground hover:text-red-500 transition-all flex-shrink-0">
@@ -153,21 +165,21 @@ function MedRow({ med, idx, onChange, onRemove }: {
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div>
-          <label className="text-[10px] text-muted-foreground mb-0.5 block">Fréquence</label>
+          <label className="text-[10px] text-muted-foreground mb-0.5 block">{t("prescriptions.frequency")}</label>
           <select value={med.frequency} onChange={e => set("frequency", e.target.value)} className={inputCls}>
-            {FREQ_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+            {FREQ_OPTIONS.map(f => <option key={f} value={f}>{FREQ_LABELS[f] ?? f}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-[10px] text-muted-foreground mb-0.5 block">Durée</label>
+          <label className="text-[10px] text-muted-foreground mb-0.5 block">{t("prescriptions.duration")}</label>
           <select value={med.duration} onChange={e => set("duration", e.target.value)} className={inputCls}>
-            {DUR_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+            {DUR_OPTIONS.map(d => <option key={d} value={d}>{DUR_LABELS[d] ?? d}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-[10px] text-muted-foreground mb-0.5 block">Instructions</label>
+          <label className="text-[10px] text-muted-foreground mb-0.5 block">{t("prescriptions.instructionsLabel")}</label>
           <input value={med.instructions || ""} onChange={e => set("instructions", e.target.value)}
-            placeholder="À jeun, avec eau..." className={inputCls} />
+            placeholder={t("prescriptions.instructions")} className={inputCls} />
         </div>
       </div>
     </div>
@@ -181,6 +193,7 @@ function EditPrescriptionModal({ prescription, onClose }: {
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const { t } = useLang();
   const [diagnosis, setDiagnosis] = useState(prescription.diagnosis);
   const [notes, setNotes] = useState(prescription.notes || "");
   const [meds, setMeds] = useState<Medication[]>(
@@ -220,7 +233,7 @@ function EditPrescriptionModal({ prescription, onClose }: {
             <div className="w-8 h-8 rounded-xl gradient-primary flex items-center justify-center">
               <Pencil className="w-4 h-4 text-white" />
             </div>
-            <h2 className="text-base font-bold text-foreground">Modifier l&apos;ordonnance</h2>
+            <h2 className="text-base font-bold text-foreground">{t("prescriptions.editPrescriptionTitle")}</h2>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent">
             <X className="w-4 h-4 text-muted-foreground" />
@@ -229,20 +242,20 @@ function EditPrescriptionModal({ prescription, onClose }: {
 
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Diagnostic *</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("prescriptions.diagnosisLabel")} *</label>
             <input value={diagnosis} onChange={e => setDiagnosis(e.target.value)} required
-              placeholder="Ex: Infection respiratoire, Hypertension artérielle..."
+              placeholder={t("prescriptions.diagnosisPlaceholder")}
               className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                <Pill className="w-3.5 h-3.5" /> Médicaments *
+                <Pill className="w-3.5 h-3.5" /> {t("prescriptions.medicationsLabel")} *
               </label>
               <button type="button" onClick={addMed}
                 className="flex items-center gap-1 text-xs text-primary hover:underline font-semibold">
-                <Plus className="w-3.5 h-3.5" /> Ajouter
+                <Plus className="w-3.5 h-3.5" /> {t("prescriptions.addMedication")}
               </button>
             </div>
             <div className="space-y-2">
@@ -253,20 +266,20 @@ function EditPrescriptionModal({ prescription, onClose }: {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Notes</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("prescriptions.notesLabel")}</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              placeholder="Conseils, recommandations, contre-indications..."
+              placeholder={t("prescriptions.notesPlaceholder")}
               className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
           </div>
 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
               className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-all">
-              Annuler
+              {t("common.cancel")}
             </button>
             <button type="submit" disabled={mutation.isPending}
               className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50">
-              {mutation.isPending ? "Enregistrement..." : "Enregistrer"}
+              {mutation.isPending ? t("common.saving") : t("common.save")}
             </button>
           </div>
         </form>
@@ -283,6 +296,7 @@ function CreateModal({ initialPatient, onClose, doctorId }: {
   doctorId?: string;
 }) {
   const qc = useQueryClient();
+  const { t } = useLang();
   const [patientQuery, setPatientQuery] = useState(initialPatient?.fullName || "");
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(initialPatient || null);
   const [showDrop, setShowDrop] = useState(false);
@@ -339,7 +353,7 @@ function CreateModal({ initialPatient, onClose, doctorId }: {
             <div className="w-8 h-8 rounded-xl gradient-primary flex items-center justify-center">
               <FileText className="w-4 h-4 text-white" />
             </div>
-            <h2 className="text-base font-bold text-foreground">Nouvelle ordonnance</h2>
+            <h2 className="text-base font-bold text-foreground">{t("prescriptions.newPrescriptionTitle")}</h2>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent">
             <X className="w-4 h-4 text-muted-foreground" />
@@ -349,7 +363,7 @@ function CreateModal({ initialPatient, onClose, doctorId }: {
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
           {/* Patient */}
           <div ref={dropRef} className="relative">
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Patient *</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("prescriptions.patientLabel")} *</label>
             {selectedPatient ? (
               <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-primary/30 bg-primary/5">
                 <div className="flex items-center gap-2">
@@ -367,7 +381,7 @@ function CreateModal({ initialPatient, onClose, doctorId }: {
               <>
                 <input value={patientQuery} onChange={e => { setPatientQuery(e.target.value); setShowDrop(true); }}
                   onFocus={() => setShowDrop(true)}
-                  placeholder="Rechercher un patient..."
+                  placeholder={t("prescriptions.searchPatient")}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 {showDrop && suggestions.length > 0 && (
                   <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
@@ -392,9 +406,9 @@ function CreateModal({ initialPatient, onClose, doctorId }: {
 
           {/* Diagnosis */}
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Diagnostic *</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("prescriptions.diagnosisLabel")} *</label>
             <input value={diagnosis} onChange={e => setDiagnosis(e.target.value)} required
-              placeholder="Ex: Infection respiratoire, Hypertension artérielle..."
+              placeholder={t("prescriptions.diagnosisPlaceholder")}
               className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
           </div>
 
@@ -402,11 +416,11 @@ function CreateModal({ initialPatient, onClose, doctorId }: {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                <Pill className="w-3.5 h-3.5" /> Médicaments *
+                <Pill className="w-3.5 h-3.5" /> {t("prescriptions.medicationsLabel")} *
               </label>
               <button type="button" onClick={addMed}
                 className="flex items-center gap-1 text-xs text-primary hover:underline font-semibold">
-                <Plus className="w-3.5 h-3.5" /> Ajouter
+                <Plus className="w-3.5 h-3.5" /> {t("prescriptions.addMedication")}
               </button>
             </div>
             <div className="space-y-2">
@@ -418,20 +432,20 @@ function CreateModal({ initialPatient, onClose, doctorId }: {
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Notes</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("prescriptions.notesLabel")}</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              placeholder="Conseils, recommandations, contre-indications..."
+              placeholder={t("prescriptions.notesPlaceholder")}
               className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
           </div>
 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
               className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-all">
-              Annuler
+              {t("common.cancel")}
             </button>
             <button type="submit" disabled={mutation.isPending}
               className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50">
-              {mutation.isPending ? "Création..." : "Créer l'ordonnance"}
+              {mutation.isPending ? t("common.creating") : t("prescriptions.createBtn")}
             </button>
           </div>
         </form>

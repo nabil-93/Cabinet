@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { LogIn, LogOut, Plus, Edit, Trash2, UserPlus, Activity, ArrowLeft, Clock } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { cn } from "@/lib/utils";
 import api from "@/services/api";
@@ -54,35 +54,30 @@ function roleBadge(role: string, tFn: (key: string) => string) {
   return { label: role, cls: "bg-muted text-muted-foreground border border-border" };
 }
 
-function getActionMeta(action: string): { icon: React.ElementType; color: string; label: string } {
-  if (action === "login")           return { icon: LogIn,    color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40",  label: "Connexion" };
-  if (action === "logout")          return { icon: LogOut,   color: "text-slate-500 bg-muted",                               label: "Déconnexion" };
-  if (action === "create_user")     return { icon: UserPlus, color: "text-purple-500 bg-purple-50 dark:bg-purple-950/40",    label: "Création utilisateur" };
-  if (action.startsWith("create_")) return { icon: Plus,     color: "text-blue-500 bg-blue-50 dark:bg-blue-950/40",          label: "Création" };
-  if (action.startsWith("update_")) return { icon: Edit,     color: "text-amber-500 bg-amber-50 dark:bg-amber-950/40",       label: "Modification" };
-  if (action.startsWith("delete_") || action.startsWith("deactivate_")) return { icon: Trash2, color: "text-red-500 bg-red-50 dark:bg-red-950/40", label: "Suppression" };
+function getActionMeta(action: string, tFn: (k: string) => string): { icon: React.ElementType; color: string; label: string } {
+  if (action === "login")           return { icon: LogIn,    color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40",  label: tFn("teamMember.actionLabels.login") };
+  if (action === "logout")          return { icon: LogOut,   color: "text-slate-500 bg-muted",                               label: tFn("teamMember.actionLabels.logout") };
+  if (action === "create_user")     return { icon: UserPlus, color: "text-purple-500 bg-purple-50 dark:bg-purple-950/40",    label: tFn("teamMember.actionLabels.create_user") };
+  if (action.startsWith("create_")) return { icon: Plus,     color: "text-blue-500 bg-blue-50 dark:bg-blue-950/40",          label: tFn("teamMember.actionLabels.create") };
+  if (action.startsWith("update_")) return { icon: Edit,     color: "text-amber-500 bg-amber-50 dark:bg-amber-950/40",       label: tFn("teamMember.actionLabels.update") };
+  if (action.startsWith("delete_") || action.startsWith("deactivate_")) return { icon: Trash2, color: "text-red-500 bg-red-50 dark:bg-red-950/40", label: tFn("teamMember.actionLabels.delete") };
   return { icon: Activity, color: "text-muted-foreground bg-muted", label: action };
 }
 
-function actionLabel(log: ActivityLog): string {
-  const labels: Record<string, string> = {
-    login: "s'est connecté",
-    logout: "s'est déconnecté",
-    create_user: "a créé un utilisateur",
-    create_patient: "a créé un patient",
-    update_patient: "a modifié un patient",
-    delete_patient: "a supprimé un patient",
-    create_appointment: "a créé un rendez-vous",
-    update_appointment: "a modifié un rendez-vous",
-    delete_appointment: "a annulé un rendez-vous",
-    update_user: "a modifié un profil",
-    deactivate_user: "a désactivé un utilisateur",
-  };
-  return labels[log.action] ?? log.action.replace(/_/g, " ");
+function actionLabel(log: ActivityLog, tFn: (key: string) => string): string {
+  const key = `teamMember.actions.${log.action}.label`;
+  const result = tFn(key);
+  if (result !== key) return result;
+  // Fallback: try activity.actions key
+  const fallback = `activity.actions.${log.action}`;
+  const fallbackResult = tFn(fallback);
+  if (fallbackResult !== fallback) return fallbackResult;
+  return log.action.replace(/_/g, " ");
 }
 
 export default function UserActivityPage({ params }: { params: Promise<{ id: string }> }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const dateLocale = lang === "de" ? de : fr;
   const { id } = use(params);
 
   const { data: member, isLoading: memberLoading } = useQuery<TeamMember>({
@@ -145,7 +140,7 @@ export default function UserActivityPage({ params }: { params: Promise<{ id: str
           {[
             { label: t("teamMember.stats.totalActions"), value: totalActions, icon: Activity, color: "gradient-primary" },
             { label: t("teamMember.stats.connections"), value: loginCount, icon: LogIn, color: "gradient-success" },
-            { label: t("teamMember.stats.lastActivity"), value: lastSeen ? formatDistanceToNow(new Date(lastSeen), { addSuffix: true, locale: fr }) : "—", icon: Clock, color: "gradient-warning", small: true },
+            { label: t("teamMember.stats.lastActivity"), value: lastSeen ? formatDistanceToNow(new Date(lastSeen), { addSuffix: true, locale: dateLocale }) : "—", icon: Clock, color: "gradient-warning", small: true },
           ].map(({ label, value, icon: Icon, color, small }) => (
             <div key={label} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
               <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", color)}>
@@ -184,7 +179,7 @@ export default function UserActivityPage({ params }: { params: Promise<{ id: str
               <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
               <div className="space-y-0">
                 {logs.map((log, i) => {
-                  const meta = getActionMeta(log.action);
+                  const meta = getActionMeta(log.action, t);
                   const Icon = meta.icon;
                   const isLast = i === logs.length - 1;
                   return (
@@ -194,9 +189,9 @@ export default function UserActivityPage({ params }: { params: Promise<{ id: str
                       </div>
                       <div className="flex-1 min-w-0 pt-1">
                         <div className="flex items-baseline justify-between gap-2">
-                          <p className="text-sm font-medium text-foreground">{actionLabel(log)}</p>
+                          <p className="text-sm font-medium text-foreground">{actionLabel(log, t)}</p>
                           <span className="text-[11px] text-muted-foreground flex-shrink-0">
-                            {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: fr })}
+                            {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: dateLocale })}
                           </span>
                         </div>
                         {log.entity_label && (

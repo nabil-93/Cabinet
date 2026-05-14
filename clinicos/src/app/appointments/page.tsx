@@ -30,6 +30,15 @@ type PeriodFilter = "all" | "today" | "week" | "month" | "custom";
 type StatusFilter  = "all" | AppointmentStatus;
 
 const CONSULTATION_TYPES = ["Consultation", "Suivi", "Bilan", "Urgence", "Vaccination", "Contrôle", "Autre"];
+const TYPE_KEYS: Record<string, string> = {
+  "Consultation": "appointments.types.consultation",
+  "Suivi":        "appointments.types.suivi",
+  "Bilan":        "appointments.types.bilan",
+  "Urgence":      "appointments.types.urgence",
+  "Vaccination":  "appointments.types.vaccination",
+  "Contrôle":     "appointments.types.controle",
+  "Autre":        "appointments.types.autre",
+};
 
 // Navigation label selon la période
 function getPeriodLabel(period: PeriodFilter, ref: Date): string {
@@ -226,7 +235,7 @@ export default function AppointmentsPage() {
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
               className="px-3 py-2 rounded-xl border border-border bg-card text-sm text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
               <option value="all">{t("appointments.allTypes")}</option>
-              {CONSULTATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              {CONSULTATION_TYPES.map(tp => <option key={tp} value={tp}>{t(TYPE_KEYS[tp] ?? tp)}</option>)}
             </select>
             {(typeFilter !== "all" || statusFilter !== "all" || search) && (
               <button onClick={() => { setTypeFilter("all"); setStatusFilter("all"); setSearch(""); }}
@@ -371,7 +380,7 @@ export default function AppointmentsPage() {
                 <label className="block text-xs font-semibold text-foreground mb-1.5">{t("appointments.typeLabel")}</label>
                 <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
-                  {CONSULTATION_TYPES.map(tp => <option key={tp}>{tp}</option>)}
+                  {CONSULTATION_TYPES.map(tp => <option key={tp} value={tp}>{t(TYPE_KEYS[tp] ?? tp)}</option>)}
                 </select>
               </div>
               <div>

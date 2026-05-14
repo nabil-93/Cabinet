@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { cn } from "@/lib/utils";
 import api from "@/services/api";
@@ -80,7 +80,8 @@ function getUserColor(userId: string): string {
 }
 
 export default function ActivityPage() {
-  const { t } = useLang();
+  const { lang, t } = useLang();
+  const dateLocale = lang === "de" ? de : fr;
   const [userFilter,   setUserFilter]   = useState("all");
   const [actionFilter, setActionFilter] = useState("all");
 
@@ -108,6 +109,16 @@ export default function ActivityPage() {
     { value: "activate",   label: t("activity.filters.activations") },
     { value: "deactivate", label: t("activity.filters.deactivations") },
   ];
+
+  // Translate entity_labels stored in DB (French strings)
+  const ENTITY_LABEL_MAP: Record<string, string> = {
+    "Connexion":     t("activity.entityLabels.login"),
+    "Déconnexion":   t("activity.entityLabels.logout"),
+    "Session":       t("activity.entityLabels.session"),
+  };
+  function translateEntityLabel(label: string): string {
+    return ENTITY_LABEL_MAP[label] ?? label;
+  }
 
   function getActionLabel(action: string): string {
     const key = `activity.actions.${action}` as const;
@@ -181,7 +192,7 @@ export default function ActivityPage() {
 
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
-              {dataUpdatedAt ? `${t("activity.lastUpdate")} ${formatDistanceToNow(dataUpdatedAt, { addSuffix: true, locale: fr })}` : ""}
+              {dataUpdatedAt ? `${t("activity.lastUpdate")} ${formatDistanceToNow(dataUpdatedAt, { addSuffix: true, locale: dateLocale })}` : ""}
             </span>
             <button onClick={() => refetch()} disabled={isFetching}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted transition-all disabled:opacity-60">
@@ -238,18 +249,18 @@ export default function ActivityPage() {
                         {" · "}
                         <span className={cn("font-medium", meta.color)}>{getActionLabel(log.action)}</span>
                         {log.entity_label && (
-                          <span className="text-muted-foreground"> · {log.entity_label}</span>
+                          <span className="text-muted-foreground"> · {translateEntityLabel(log.entity_label)}</span>
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {roleBadge(log.user_role)}
                         {" · "}
-                        {format(new Date(log.created_at), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                        {format(new Date(log.created_at), lang === "de" ? "d MMM yyyy 'um' HH:mm" : "d MMM yyyy 'à' HH:mm", { locale: dateLocale })}
                       </p>
                     </div>
 
                     <span className="text-[11px] text-muted-foreground flex-shrink-0 hidden sm:block">
-                      {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: fr })}
+                      {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: dateLocale })}
                     </span>
                   </div>
                 );
@@ -260,7 +271,7 @@ export default function ActivityPage() {
 
         {!isLoading && filtered.length > 0 && (
           <p className="text-xs text-center text-muted-foreground">
-            {filtered.length} {filtered.length > 1 ? "entrées" : "entrée"} · {t("activity.autoRefresh")}
+            {t("activity.entries", { count: filtered.length }).replace("{s}", filtered.length > 1 ? "s" : "")} · {t("activity.autoRefresh")}
           </p>
         )}
       </div>

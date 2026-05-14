@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import { ChevronLeft, ChevronRight, Calendar, Clock } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, getDay, addMonths, subMonths } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { useAppointmentsByMonth } from "@/hooks/useAppointments";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,8 @@ const STATUS_COLORS = {
 };
 
 export default function CalendarPage() {
-  const { t } = useLang();
+  const { lang, t } = useLang();
+  const dateLocale = lang === "de" ? de : fr;
   const [currentDate, setCurrentDate] = useState(new Date());
   const monthStr = format(currentDate, "yyyy-MM");
   const { data: appointments = [] } = useAppointmentsByMonth(monthStr);
@@ -55,7 +56,7 @@ export default function CalendarPage() {
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <h2 className="text-base font-bold text-foreground capitalize">
-                  {format(currentDate, "MMMM yyyy", { locale: fr })}
+                  {format(currentDate, "MMMM yyyy", { locale: dateLocale })}
                 </h2>
                 <button
                   onClick={() => setCurrentDate(addMonths(currentDate, 1))}
@@ -76,7 +77,10 @@ export default function CalendarPage() {
 
             {/* Day headers */}
             <div className="grid grid-cols-7 mb-2">
-              {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((day) => (
+              {(lang === "de"
+                ? ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+                : ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+              ).map((day) => (
                 <div key={day} className="text-center text-[11px] font-semibold text-muted-foreground py-2">
                   {day}
                 </div>
@@ -150,7 +154,7 @@ export default function CalendarPage() {
           <div className="bg-card border border-border rounded-xl p-5">
             <div className="mb-4">
               <h3 className="font-semibold text-sm text-foreground">
-                {selectedDate ? format(selectedDate, "EEEE d MMMM", { locale: fr }) : "Sélectionnez une date"}
+                {selectedDate ? format(selectedDate, "EEEE d MMMM", { locale: dateLocale }) : "Sélectionnez une date"}
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {selectedDateApts.length === 1

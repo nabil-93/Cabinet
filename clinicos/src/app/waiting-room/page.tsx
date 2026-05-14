@@ -67,6 +67,15 @@ interface CreateForm {
 }
 
 const VISIT_TYPES = ["Consultation", "Suivi", "Bilan", "Urgence", "Vaccination", "Contrôle", "Autre"];
+const VISIT_TYPE_KEYS: Record<string, string> = {
+  "Consultation": "appointments.types.consultation",
+  "Suivi":        "appointments.types.suivi",
+  "Bilan":        "appointments.types.bilan",
+  "Urgence":      "appointments.types.urgence",
+  "Vaccination":  "appointments.types.vaccination",
+  "Contrôle":     "appointments.types.controle",
+  "Autre":        "appointments.types.autre",
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -204,7 +213,7 @@ function CreatePatientForm({ initial, onSubmit, t }: {
         <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">{t("waitingRoom.visitTypeLabel")}</label>
         <select value={f.visitType} onChange={e => setF(p => ({ ...p, visitType: e.target.value }))}
           className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground">
-          {VISIT_TYPES.map(tp => <option key={tp} value={tp}>{tp}</option>)}
+          {VISIT_TYPES.map(tp => <option key={tp} value={tp}>{t(VISIT_TYPE_KEYS[tp] ?? tp)}</option>)}
         </select>
       </div>
       <PriorityPicker
@@ -332,7 +341,7 @@ function AddModal({
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">{t("waitingRoom.addModal.visitType")}</label>
               <select value={visitType} onChange={e => setVisitType(e.target.value)}
                 className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground">
-                {VISIT_TYPES.map(tp => <option key={tp} value={tp}>{tp}</option>)}
+                {VISIT_TYPES.map(tp => <option key={tp} value={tp}>{t(VISIT_TYPE_KEYS[tp] ?? tp)}</option>)}
               </select>
             </div>
             <PriorityPicker
