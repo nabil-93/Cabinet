@@ -83,14 +83,15 @@ export default function UserActivityPage({ params }: { params: Promise<{ id: str
   const { data: member, isLoading: memberLoading } = useQuery<TeamMember>({
     queryKey: ["team-member", id],
     queryFn: async () => { const r = await api.get(`/users/${id}`); return r.data; },
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchInterval: 10_000,
   });
 
   const { data: logs = [], isLoading: logsLoading } = useQuery<ActivityLog[]>({
     queryKey: ["user-activity", id],
     queryFn: async () => { const r = await api.get(`/users/${id}/activity`); return r.data; },
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    staleTime: 0,
+    refetchInterval: 15_000,
   });
 
   const loginCount = logs.filter(l => l.action === "login").length;
@@ -194,7 +195,14 @@ export default function UserActivityPage({ params }: { params: Promise<{ id: str
                             {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: dateLocale })}
                           </span>
                         </div>
-                        {log.entity_label && (
+                        {(log.action === "login" || log.action === "logout") && (log.details as any)?.device && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted font-medium">
+                              {(log.details as any).device === "mobile" ? "📱" : "🖥"} {(log.details as any).device}
+                            </span>
+                          </p>
+                        )}
+                        {log.entity_label && log.entity_label !== "Connexion" && log.entity_label !== "Déconnexion" && (
                           <p className="text-xs text-muted-foreground mt-0.5 truncate">
                             {log.entity_label}
                           </p>

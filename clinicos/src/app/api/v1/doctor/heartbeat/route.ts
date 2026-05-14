@@ -7,39 +7,46 @@ function detectDevice(ua: string): string {
   return "desktop";
 }
 
-// Called every 30s by any authenticated staff member to maintain online presence
+// Called every 28s by any authenticated staff member to maintain online presence
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return err("Non authentifié", 401);
 
-  // Check previous online state to detect new sessions
-  const { data: prev } = await supabase
+  const { data: profile } = await supabase
     .from("profiles")
-    .select("is_online, name, role, last_login_at")
+    .select("name, role")
     .eq("id", user.id)
     .single();
 
   const now = new Date().toISOString();
-  const wasOffline = !prev?.is_online;
 
   await supabase
     .from("profiles")
     .update({ is_online: true, last_seen_at: now, last_login_at: now })
     .eq("id", user.id);
 
-  // Log new session if user was offline (new connection from any device)
-  if (wasOffline) {
+  // Log a new session only if no login was recorded in the last 20 minutes
+  // This prevents flooding from page navigation (offline→online in < 1s)
+  const twentyMinAgo = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+  const { count: recentLogins } = await supabase
+    .from("activity_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("action", "login")
+    .gte("created_at", twentyMinAgo);
+
+  if ((recentLogins ?? 1) === 0) {
     const ua = req.headers.get("user-agent") ?? "";
     const device = detectDevice(ua);
     await supabase.from("activity_logs").insert({
       user_id: user.id,
-      user_name: prev?.name ?? user.email ?? "",
-      user_role: prev?.role ?? "",
+      user_name: profile?.name ?? user.email ?? "",
+      user_role: profile?.role ?? "",
       action: "login",
       entity_type: "session",
       entity_label: "Connexion",
-      details: { device, userAgent: ua.slice(0, 200), via: "heartbeat" },
+      details: { device, userAgent: ua.slice(0, 200) },
     });
   }
 
