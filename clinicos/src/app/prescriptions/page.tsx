@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { prescriptionsService, type CreatePrescriptionDTO } from "@/services/prescriptions.service";
 import api from "@/services/api";
 import { useAuth } from "@/lib/auth-context";
+import { useLang } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -442,6 +443,7 @@ function CreateModal({ initialPatient, onClose, doctorId }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PrescriptionsPage() {
+  const { t } = useLang();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -506,7 +508,7 @@ export default function PrescriptionsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Ordonnances" subtitle={`${prescriptions.length} ordonnance${prescriptions.length !== 1 ? "s" : ""}`} />
+      <Header title={t("prescriptions.title")} subtitle={t("prescriptions.subtitle").replace("{count}", String(prescriptions.length))} />
 
       <div className="flex-1 overflow-auto custom-scroll p-6">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 h-full min-h-0">
@@ -518,12 +520,12 @@ export default function PrescriptionsPage() {
             <div className="bg-card border border-border rounded-xl p-3 flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..."
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("prescriptions.searchPlaceholder")}
                   className="w-full pl-8 pr-3 py-2 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               </div>
               <button onClick={() => { setQuickPatient(null); setShowCreate(true); }}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl gradient-primary text-white text-xs font-semibold hover:opacity-90 transition-all shadow-sm flex-shrink-0">
-                <Plus className="w-3.5 h-3.5" /> Nouvelle
+                <Plus className="w-3.5 h-3.5" /> {t("prescriptions.new")}
               </button>
             </div>
 
@@ -582,7 +584,7 @@ export default function PrescriptionsPage() {
                           <div className="flex items-center gap-1 flex-shrink-0">
                             <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
                               prx.status === "active" ? "badge-confirmed" : "badge-cancelled")}>
-                              {prx.status === "active" ? "Actif" : "Expiré"}
+                              {prx.status === "active" ? t("prescriptions.status.active") : t("prescriptions.status.expired")}
                             </span>
                             <button
                               onClick={e => openEdit(prx, e)}
@@ -605,7 +607,7 @@ export default function PrescriptionsPage() {
                           </span>
                           <span className="text-[10px] text-muted-foreground/50">·</span>
                           <span className="text-[10px] text-muted-foreground/70">
-                            {prx.medications.length} méd.
+                            {t("prescriptions.medicationCount").replace("{count}", String(prx.medications.length))}
                           </span>
                         </div>
                       </div>
@@ -715,11 +717,11 @@ export default function PrescriptionsPage() {
                 <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
                   <FileText className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <p className="font-semibold text-foreground">Aucune ordonnance sélectionnée</p>
-                <p className="text-sm text-muted-foreground">Cliquez sur une ordonnance pour la consulter,<br />ou créez-en une nouvelle.</p>
+                <p className="font-semibold text-foreground">{t("prescriptions.noneSelected")}</p>
+                <p className="text-sm text-muted-foreground">{t("prescriptions.noneSelectedDesc")}</p>
                 <button onClick={() => { setQuickPatient(null); setShowCreate(true); }}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all mt-2 shadow-sm">
-                  <Plus className="w-4 h-4" /> Nouvelle ordonnance
+                  <Plus className="w-4 h-4" /> {t("prescriptions.newPrescription")}
                 </button>
               </div>
             )}

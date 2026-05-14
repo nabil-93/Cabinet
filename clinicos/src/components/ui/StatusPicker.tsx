@@ -3,13 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppointmentStatus } from "@/types";
-
-const ALL_STATUSES: { value: AppointmentStatus; label: string; cls: string }[] = [
-  { value: "pending",   label: "En attente", cls: "badge-pending" },
-  { value: "confirmed", label: "Confirmé",   cls: "badge-confirmed" },
-  { value: "completed", label: "Terminé",    cls: "badge-completed" },
-  { value: "cancelled", label: "Annulé",     cls: "badge-cancelled" },
-];
+import { useLang } from "@/lib/i18n";
 
 interface StatusPickerProps {
   current: AppointmentStatus;
@@ -18,8 +12,16 @@ interface StatusPickerProps {
 }
 
 export default function StatusPicker({ current, onChange, disabled }: StatusPickerProps) {
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const ALL_STATUSES: { value: AppointmentStatus; label: string; cls: string }[] = [
+    { value: "pending",   label: t("appointments.statusLabels.pending"),   cls: "badge-pending" },
+    { value: "confirmed", label: t("appointments.statusLabels.confirmed"), cls: "badge-confirmed" },
+    { value: "completed", label: t("appointments.statusLabels.completed"), cls: "badge-completed" },
+    { value: "cancelled", label: t("appointments.statusLabels.cancelled"), cls: "badge-cancelled" },
+  ];
 
   const currentConfig = ALL_STATUSES.find(s => s.value === current) || ALL_STATUSES[0];
 

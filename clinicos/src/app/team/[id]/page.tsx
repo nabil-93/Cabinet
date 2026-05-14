@@ -8,6 +8,7 @@ import { fr } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { cn } from "@/lib/utils";
 import api from "@/services/api";
+import { useLang } from "@/lib/i18n";
 
 interface TeamMember {
   id: string;
@@ -46,10 +47,10 @@ function displayName(m: TeamMember) {
   return m.role === "doctor" ? `Dr. ${m.name}` : m.name;
 }
 
-function roleBadge(role: string) {
-  if (role === "doctor") return { label: "Médecin", cls: "bg-primary/10 text-primary border border-primary/20" };
-  if (role === "assistant") return { label: "Secrétaire", cls: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800" };
-  if (role === "admin") return { label: "Admin", cls: "bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800" };
+function roleBadge(role: string, tFn: (key: string) => string) {
+  if (role === "doctor") return { label: tFn("team.roles.doctor"), cls: "bg-primary/10 text-primary border border-primary/20" };
+  if (role === "assistant") return { label: tFn("team.roles.assistant"), cls: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800" };
+  if (role === "admin") return { label: tFn("team.roles.admin"), cls: "bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800" };
   return { label: role, cls: "bg-muted text-muted-foreground border border-border" };
 }
 
@@ -81,6 +82,7 @@ function actionLabel(log: ActivityLog): string {
 }
 
 export default function UserActivityPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useLang();
   const { id } = use(params);
 
   const { data: member, isLoading: memberLoading } = useQuery<TeamMember>({
@@ -100,19 +102,19 @@ export default function UserActivityPage({ params }: { params: Promise<{ id: str
   const totalActions = logs.length;
   const lastSeen = logs[0]?.created_at ?? member?.lastLoginAt;
 
-  const badge = member ? roleBadge(member.role) : null;
+  const badge = member ? roleBadge(member.role, t) : null;
 
   return (
     <div className="flex flex-col h-full">
       <Header
         title={member ? displayName(member) : "Profil"}
-        subtitle="Journal d'activité du membre"
+        subtitle={t("teamMember.subtitle")}
       />
 
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-5 max-w-3xl mx-auto w-full">
 
         <Link href="/team" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-3.5 h-3.5" /> Retour à l&apos;équipe
+          <ArrowLeft className="w-3.5 h-3.5" /> {t("teamMember.backToTeam")}
         </Link>
 
         {memberLoading ? (
@@ -141,9 +143,9 @@ export default function UserActivityPage({ params }: { params: Promise<{ id: str
 
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Actions totales", value: totalActions, icon: Activity, color: "gradient-primary" },
-            { label: "Connexions", value: loginCount, icon: LogIn, color: "gradient-success" },
-            { label: "Dernière activité", value: lastSeen ? formatDistanceToNow(new Date(lastSeen), { addSuffix: true, locale: fr }) : "—", icon: Clock, color: "gradient-warning", small: true },
+            { label: t("teamMember.stats.totalActions"), value: totalActions, icon: Activity, color: "gradient-primary" },
+            { label: t("teamMember.stats.connections"), value: loginCount, icon: LogIn, color: "gradient-success" },
+            { label: t("teamMember.stats.lastActivity"), value: lastSeen ? formatDistanceToNow(new Date(lastSeen), { addSuffix: true, locale: fr }) : "—", icon: Clock, color: "gradient-warning", small: true },
           ].map(({ label, value, icon: Icon, color, small }) => (
             <div key={label} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
               <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", color)}>
@@ -158,7 +160,7 @@ export default function UserActivityPage({ params }: { params: Promise<{ id: str
         </div>
 
         <div className="bg-card border border-border rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Historique des actions</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-4">{t("teamMember.actionHistory")}</h3>
 
           {logsLoading ? (
             <div className="space-y-3">
@@ -175,7 +177,7 @@ export default function UserActivityPage({ params }: { params: Promise<{ id: str
           ) : logs.length === 0 ? (
             <div className="py-10 text-center">
               <Activity className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Aucune activité enregistrée</p>
+              <p className="text-sm text-muted-foreground">{t("teamMember.noActivity")}</p>
             </div>
           ) : (
             <div className="relative">

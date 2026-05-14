@@ -31,6 +31,7 @@ import type { AppointmentStatus, Prescription, Medication } from "@/types";
 import { prescriptionsService } from "@/services/prescriptions.service";
 import { FileText, Pill, Download, Pencil } from "lucide-react";
 import { getToday } from "@/lib/date-utils";
+import { useLang } from "@/lib/i18n";
 
 const STATUS_MAP = {
   confirmed: { l: "Confirmé",   c: "badge-confirmed" },
@@ -50,6 +51,7 @@ function Countdown({ dateStr }: { dateStr: string }) {
 }
 
 export default function PatientProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useLang();
   const { id } = use(params);
   const qc = useQueryClient();
   const { user: authUser } = useAuth();
@@ -539,23 +541,23 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="flex flex-col h-full">
-      <Header title={patient.fullName} subtitle="Profil du patient" />
+      <Header title={patient.fullName} subtitle={t("patientProfile.subtitle")} />
 
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-5">
         {/* Header actions */}
         <div className="flex items-center justify-between flex-wrap gap-2">
           <Link href="/patients" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Retour aux patients
+            <ArrowLeft className="w-4 h-4" /> {t("patientProfile.backToPatients")}
           </Link>
           <div className="flex gap-2">
             <button onClick={openNewConsult} className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-all">
-              <ClipboardList className="w-4 h-4 text-emerald-500" /> Nouveau rapport
+              <ClipboardList className="w-4 h-4 text-emerald-500" /> {t("patientProfile.newReport")}
             </button>
             <button onClick={() => setShowAptModal(true)} className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-all">
-              <CalendarPlus className="w-4 h-4 text-primary" /> Nouveau RDV
+              <CalendarPlus className="w-4 h-4 text-primary" /> {t("patientProfile.newAppointment")}
             </button>
             <button onClick={openEdit} className="flex items-center gap-2 px-3.5 py-2 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all">
-              <Edit className="w-4 h-4" /> Modifier
+              <Edit className="w-4 h-4" /> {t("patientProfile.edit")}
             </button>
           </div>
         </div>
@@ -569,8 +571,8 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
             <div className="flex-1">
               <h2 className="text-xl font-bold text-foreground">{patient.fullName}</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
-                {patient.gender === "male" ? "Homme" : "Femme"}
-                {age !== null && ` · ${age} ans`}
+                {patient.gender === "male" ? t("patientProfile.male") : t("patientProfile.female")}
+                {age !== null && ` · ${age} ${t("patientProfile.yearsOld")}`}
                 {patient.bloodType && ` · ${patient.bloodType}`}
               </p>
               <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
@@ -581,9 +583,9 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
             </div>
             <div className="text-right space-y-1.5 flex-shrink-0">
               <span className={cn("text-xs font-semibold px-3 py-1 rounded-full", patient.status === "active" ? "badge-confirmed" : "badge-cancelled")}>
-                {patient.status === "active" ? "Actif" : "Inactif"}
+                {patient.status === "active" ? t("patientProfile.activeStatus") : t("patientProfile.inactiveStatus")}
               </span>
-              <p className="text-[10px] text-muted-foreground block">Inscrit le {format(new Date(patient.createdAt), "d MMM yyyy", { locale: fr })}</p>
+              <p className="text-[10px] text-muted-foreground block">{t("patientProfile.inscribedOn")} {format(new Date(patient.createdAt), "d MMM yyyy", { locale: fr })}</p>
             </div>
           </div>
         </div>
@@ -591,11 +593,11 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: "Rapports",    value: consultations.length,                icon: ClipboardList, color: "gradient-success" },
-            { label: "Rendez-vous", value: patientApts.length,                  icon: Calendar,      color: "gradient-primary" },
-            { label: "Fichiers",    value: patientFiles.length,                 icon: FolderOpen,    color: "bg-gradient-to-br from-violet-500 to-purple-600" },
-            { label: "Antécédents", value: (patient.medicalHistory||[]).length, icon: Activity,      color: "gradient-danger" },
-            { label: "Allergies",   value: (patient.allergies||[]).length,      icon: AlertCircle,   color: "gradient-warning" },
+            { label: t("patientProfile.stats.reports"),      value: consultations.length,                icon: ClipboardList, color: "gradient-success" },
+            { label: t("patientProfile.stats.appointments"), value: patientApts.length,                  icon: Calendar,      color: "gradient-primary" },
+            { label: t("patientProfile.stats.files"),        value: patientFiles.length,                 icon: FolderOpen,    color: "bg-gradient-to-br from-violet-500 to-purple-600" },
+            { label: t("patientProfile.stats.history"),      value: (patient.medicalHistory||[]).length, icon: Activity,      color: "gradient-danger" },
+            { label: t("patientProfile.stats.allergies"),    value: (patient.allergies||[]).length,      icon: AlertCircle,   color: "gradient-warning" },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
               <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", color)}>
@@ -610,11 +612,11 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-emerald-500" /> Rapports de consultation
+              <ClipboardList className="w-4 h-4 text-emerald-500" /> {t("patientProfile.consultationReports")}
               {consultations.length > 0 && <span className="text-xs font-normal text-muted-foreground">({consultations.length})</span>}
             </h3>
             <button onClick={openNewConsult} className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium">
-              <Plus className="w-3.5 h-3.5" /> Nouveau rapport
+              <Plus className="w-3.5 h-3.5" /> {t("patientProfile.newReport")}
             </button>
           </div>
 
@@ -623,8 +625,8 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
           ) : consultations.length === 0 ? (
             <div className="py-8 text-center">
               <ClipboardList className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Aucun rapport enregistré</p>
-              <button onClick={openNewConsult} className="mt-2 text-xs text-primary hover:underline">+ Créer le premier rapport</button>
+              <p className="text-sm text-muted-foreground">{t("patientProfile.noReports")}</p>
+              <button onClick={openNewConsult} className="mt-2 text-xs text-primary hover:underline">{t("patientProfile.createFirst")}</button>
             </div>
           ) : (
             <div className="space-y-2">
@@ -677,9 +679,9 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
         {/* Antécédents + Allergies */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-primary" /> Antécédents médicaux</h3>
+            <h3 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-primary" /> {t("patientProfile.medicalHistory")}</h3>
             <div className="space-y-2 mb-3">
-              {(patient.medicalHistory||[]).length === 0 ? <p className="text-sm text-muted-foreground italic">Aucun antécédent connu</p> :
+              {(patient.medicalHistory||[]).length === 0 ? <p className="text-sm text-muted-foreground italic">{t("patientProfile.noHistory")}</p> :
                 (patient.medicalHistory||[]).map(item => (
                   <div key={item} className="flex items-center justify-between gap-2 group">
                     <div className="flex items-center gap-2 text-sm text-foreground"><div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />{item}</div>
@@ -688,15 +690,15 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                 ))}
             </div>
             <div className="flex gap-2">
-              <input value={newAntecedent} onChange={e => setNewAntecedent(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addAntecedent())} placeholder="Ajouter un antécédent..."
+              <input value={newAntecedent} onChange={e => setNewAntecedent(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addAntecedent())} placeholder={t("patientProfile.addHistory")}
                 className="flex-1 px-3 py-2 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               <button onClick={addAntecedent} disabled={!newAntecedent.trim()} className="px-3 py-2 rounded-lg gradient-primary text-white text-xs hover:opacity-90 disabled:opacity-40 transition-all"><Plus className="w-3.5 h-3.5" /></button>
             </div>
           </div>
           <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2"><AlertCircle className="w-4 h-4 text-red-500" /> Allergies</h3>
+            <h3 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2"><AlertCircle className="w-4 h-4 text-red-500" /> {t("patientProfile.stats.allergies")}</h3>
             <div className="flex flex-wrap gap-2 mb-3 min-h-[28px]">
-              {(patient.allergies||[]).length === 0 ? <p className="text-sm text-muted-foreground italic">Aucune allergie connue</p> :
+              {(patient.allergies||[]).length === 0 ? <p className="text-sm text-muted-foreground italic">{t("patientProfile.noAllergies")}</p> :
                 (patient.allergies||[]).map(a => (
                   <span key={a} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-200 font-medium">
                     ⚠ {a}<button onClick={() => removeAllergy(a)} className="ml-0.5 hover:text-red-800"><X className="w-3 h-3" /></button>
@@ -704,7 +706,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                 ))}
             </div>
             <div className="flex gap-2">
-              <input value={newAllergy} onChange={e => setNewAllergy(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addAllergy())} placeholder="Ajouter une allergie..."
+              <input value={newAllergy} onChange={e => setNewAllergy(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addAllergy())} placeholder={t("patientProfile.addAllergy")}
                 className="flex-1 px-3 py-2 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               <button onClick={addAllergy} disabled={!newAllergy.trim()} className="px-3 py-2 rounded-lg bg-red-500 text-white text-xs hover:opacity-90 disabled:opacity-40 transition-all"><Plus className="w-3.5 h-3.5" /></button>
             </div>
@@ -715,18 +717,18 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-primary" /> Historique des rendez-vous
+              <Calendar className="w-4 h-4 text-primary" /> {t("patientProfile.appointmentHistory")}
             </h3>
             <button onClick={() => setShowAptModal(true)} className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium">
-              <Plus className="w-3.5 h-3.5" /> Nouveau RDV
+              <Plus className="w-3.5 h-3.5" /> {t("patientProfile.newAppointment")}
             </button>
           </div>
 
           {patientApts.length === 0 ? (
             <div className="py-8 text-center">
               <Calendar className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Aucun rendez-vous enregistré</p>
-              <button onClick={() => setShowAptModal(true)} className="mt-2 text-xs text-primary hover:underline">+ Créer le premier rendez-vous</button>
+              <p className="text-sm text-muted-foreground">{t("patientProfile.noAppointments")}</p>
+              <button onClick={() => setShowAptModal(true)} className="mt-2 text-xs text-primary hover:underline">+ {t("patientProfile.newAppointment")}</button>
             </div>
           ) : (
             <div className="space-y-2">

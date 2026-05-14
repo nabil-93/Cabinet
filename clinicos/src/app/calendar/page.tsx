@@ -7,6 +7,7 @@ import { fr } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { useAppointmentsByMonth } from "@/hooks/useAppointments";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 
 const STATUS_COLORS = {
   confirmed: "bg-emerald-500",
@@ -16,6 +17,7 @@ const STATUS_COLORS = {
 };
 
 export default function CalendarPage() {
+  const { t } = useLang();
   const [currentDate, setCurrentDate] = useState(new Date());
   const monthStr = format(currentDate, "yyyy-MM");
   const { data: appointments = [] } = useAppointmentsByMonth(monthStr);
@@ -37,7 +39,7 @@ export default function CalendarPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Calendrier" subtitle="Gestion des rendez-vous" />
+      <Header title={t("calendar.title")} subtitle={t("calendar.subtitle")} />
 
       <div className="flex-1 overflow-auto custom-scroll p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 h-full">
@@ -67,7 +69,7 @@ export default function CalendarPage() {
                   onClick={() => setCurrentDate(new Date())}
                   className="px-3 py-1.5 text-xs font-medium rounded-xl border border-border hover:bg-accent transition-all"
                 >
-                  Aujourd&apos;hui
+                  {t("calendar.today")}
                 </button>
               </div>
             </div>
@@ -133,7 +135,12 @@ export default function CalendarPage() {
               {Object.entries(STATUS_COLORS).map(([status, color]) => (
                 <div key={status} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <div className={cn("w-2 h-2 rounded-full", color)} />
-                  <span className="capitalize">{status === "confirmed" ? "Confirmé" : status === "pending" ? "En attente" : status === "cancelled" ? "Annulé" : "Terminé"}</span>
+                  <span className="capitalize">
+                    {status === "confirmed" ? t("calendar.legend.confirmed") :
+                     status === "pending" ? t("calendar.legend.pending") :
+                     status === "cancelled" ? t("calendar.legend.cancelled") :
+                     t("calendar.legend.completed")}
+                  </span>
                 </div>
               ))}
             </div>
@@ -146,7 +153,9 @@ export default function CalendarPage() {
                 {selectedDate ? format(selectedDate, "EEEE d MMMM", { locale: fr }) : "Sélectionnez une date"}
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {selectedDateApts.length} rendez-vous
+                {selectedDateApts.length === 1
+                  ? t("calendar.appointmentCount")
+                  : t("calendar.appointmentsCount").replace("{count}", String(selectedDateApts.length))}
               </p>
             </div>
 
@@ -155,8 +164,8 @@ export default function CalendarPage() {
                 <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
                   <Calendar className="w-6 h-6 text-muted-foreground" />
                 </div>
-                <p className="text-sm text-muted-foreground">Aucun rendez-vous</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">cette journée</p>
+                <p className="text-sm text-muted-foreground">{t("calendar.noAppointments")}</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">{t("calendar.thisDay")}</p>
               </div>
             ) : (
               <div className="space-y-3">
