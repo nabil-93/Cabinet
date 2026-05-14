@@ -46,6 +46,7 @@ import { usePatient } from "@/hooks/usePatients";
 import { cn } from "@/lib/utils";
 import { getToday } from "@/lib/date-utils";
 import { useLang } from "@/lib/i18n";
+import { DocTab } from "./DocTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -954,167 +955,13 @@ export default function DoctorDashboardPage() {
 
                 {/* ── Documentation complète ── */}
                 {activeSubTab === "doc" && effectiveSelectedId && (
-                  <div className="space-y-3">
-
-                    {/* Allergies & antécédents */}
-                    {selectedPatient && (
-                      <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4 text-red-500" />
-                          <h3 className="text-sm font-semibold text-foreground">Données médicales critiques</h3>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <p className="text-[10px] font-semibold text-red-600 dark:text-red-400 mb-1.5">Allergies</p>
-                            {selectedPatient.allergies && selectedPatient.allergies.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {(Array.isArray(selectedPatient.allergies) ? selectedPatient.allergies : [selectedPatient.allergies])
-                                  .map((a: string, i: number) => (
-                                    <span key={i} className="text-[10px] px-2 py-1 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 rounded-lg border border-red-200 dark:border-red-800 font-medium">
-                                      {a}
-                                    </span>
-                                  ))}
-                              </div>
-                            ) : (
-                              <p className="text-[11px] text-muted-foreground italic">Aucune allergie connue</p>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mb-1.5">Antécédents médicaux</p>
-                            {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {(Array.isArray(selectedPatient.medicalHistory) ? selectedPatient.medicalHistory : [selectedPatient.medicalHistory])
-                                  .map((h: string, i: number) => (
-                                    <span key={i} className="text-[10px] px-2 py-1 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 rounded-lg border border-amber-200 dark:border-amber-800 font-medium">
-                                      {h}
-                                    </span>
-                                  ))}
-                              </div>
-                            ) : (
-                              <p className="text-[11px] text-muted-foreground italic">Aucun antécédent enregistré</p>
-                            )}
-                          </div>
-                        </div>
-                        {selectedPatient.bloodType && (
-                          <div className="flex items-center gap-2 pt-1 border-t border-border/60">
-                            <span className="text-[10px] text-muted-foreground">Groupe sanguin:</span>
-                            <span className="text-sm font-bold text-red-600 dark:text-red-400">
-                              {selectedPatient.bloodType}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Consultations timeline */}
-                    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                      <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Stethoscope className="w-4 h-4 text-primary" />
-                          <h3 className="text-sm font-semibold text-foreground">Consultations</h3>
-                          <span className="text-[10px] text-muted-foreground">{consultations.length} rapports</span>
-                        </div>
-                        <Link href={`/patients/${effectiveSelectedId}`} className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline px-2.5 py-1.5 bg-primary/5 rounded-lg">
-                          <Plus className="w-3 h-3" /> Nouveau rapport
-                        </Link>
-                      </div>
-                      {consultations.length === 0 ? (
-                        <div className="py-8 text-center">
-                          <FileText className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground">Aucune consultation enregistrée</p>
-                        </div>
-                      ) : (
-                        <div className="p-4 space-y-3">
-                          {consultations.map((c, i) => (
-                            <div key={c.id} className="flex gap-3">
-                              <div className="flex flex-col items-center flex-shrink-0">
-                                <div className={cn("w-2.5 h-2.5 rounded-full mt-1", c.urgency === "urgent" ? "bg-red-500" : "bg-primary/60")} />
-                                {i < consultations.length - 1 && <div className="w-px flex-1 bg-border/60 mt-1 min-h-[20px]" />}
-                              </div>
-                              <div className="flex-1 bg-muted/30 rounded-xl p-3 mb-1">
-                                <div className="flex items-start justify-between gap-2 mb-1.5">
-                                  <p className="text-xs font-semibold text-foreground">{c.diagnosis || "Consultation"}</p>
-                                  <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                                    {c.date ? format(new Date(c.date), "d MMM yyyy", { locale: dateLocale }) : "—"}
-                                  </span>
-                                </div>
-                                {c.treatment && (
-                                  <p className="text-[10px] text-muted-foreground">
-                                    <span className="font-medium text-foreground/70">Traitement:</span> {c.treatment}
-                                  </p>
-                                )}
-                                {c.notes && <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{c.notes}</p>}
-                                {c.nextVisit && (
-                                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
-                                    <Calendar className="w-2.5 h-2.5" />
-                                    Prochain RDV: {format(new Date(c.nextVisit), "d MMM yyyy", { locale: dateLocale })}
-                                  </p>
-                                )}
-                                {c.urgency === "urgent" && (
-                                  <span className="inline-flex items-center gap-0.5 mt-1.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-1.5 py-0.5 rounded-full">
-                                    <AlertTriangle className="w-2.5 h-2.5" /> Urgent
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Ordonnances */}
-                    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                      <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Pill className="w-4 h-4 text-primary" />
-                          <h3 className="text-sm font-semibold text-foreground">Ordonnances</h3>
-                          <span className="text-[10px] text-muted-foreground">{prescriptions.length} ordonnance{prescriptions.length !== 1 ? "s" : ""}</span>
-                        </div>
-                        <Link href="/prescriptions" className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline px-2.5 py-1.5 bg-primary/5 rounded-lg">
-                          <Plus className="w-3 h-3" /> Nouvelle
-                        </Link>
-                      </div>
-                      {prescriptions.length === 0 ? (
-                        <div className="py-8 text-center">
-                          <Pill className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground">Aucune ordonnance</p>
-                        </div>
-                      ) : (
-                        <div className="divide-y divide-border/40">
-                          {prescriptions.map(rx => {
-                            const isActive = rx.status === "active";
-                            const meds = Array.isArray(rx.medications) ? rx.medications : [];
-                            return (
-                              <div key={rx.id} className="px-4 py-3 hover:bg-accent/40 transition-all">
-                                <div className="flex items-start justify-between gap-2 mb-1.5">
-                                  <div className="flex items-center gap-1.5 flex-wrap flex-1">
-                                    <Syringe className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                                    {meds.map((med, i) => (
-                                      <span key={i} className="text-xs font-semibold text-foreground">{getMedName(med)}</span>
-                                    ))}
-                                    {meds.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
-                                  </div>
-                                  <span className={cn(
-                                    "text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0",
-                                    isActive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-muted text-muted-foreground"
-                                  )}>
-                                    {isActive ? "Active" : "Expirée"}
-                                  </span>
-                                </div>
-                                {rx.diagnosis && (
-                                  <p className="text-[10px] text-muted-foreground">Motif: <span className="text-foreground/70">{rx.diagnosis}</span></p>
-                                )}
-                                {rx.notes && <p className="text-[10px] text-muted-foreground/70 italic mt-0.5 line-clamp-1">{rx.notes}</p>}
-                                <p className="text-[10px] text-muted-foreground mt-1">
-                                  Prescrit le {rx.createdAt ? format(new Date(rx.createdAt), "d MMM yyyy", { locale: dateLocale }) : "—"}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <DocTab
+                    patientId={effectiveSelectedId}
+                    patient={selectedPatient}
+                    consultations={consultations}
+                    prescriptions={prescriptions}
+                    dateLocale={dateLocale}
+                  />
                 )}
 
                 {/* ── Analyse IA (Embedded Chat) ── */}
