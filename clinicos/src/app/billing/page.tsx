@@ -11,13 +11,7 @@ import api from "@/services/api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Invoice, InvoiceItem, PaymentStatus } from "@/types";
-
-const STATUS_CONFIG = {
-  paid:     { label: "Payé",      cls: "badge-confirmed" },
-  unpaid:   { label: "Impayé",    cls: "badge-cancelled" },
-  partial:  { label: "Partiel",   cls: "badge-pending" },
-  refunded: { label: "Remboursé", cls: "badge-completed" },
-};
+import { useLang } from "@/lib/i18n";
 
 const DEFAULT_ITEMS: InvoiceItem[] = [
   { description: "Consultation médicale", quantity: 1, unitPrice: 300, total: 300 },
@@ -38,7 +32,6 @@ async function downloadPDF(inv: Invoice) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = 210, margin = 18, col2 = 120;
 
-  // ── Header bar ─────────────────────────────────────────────────────────────
   doc.setFillColor(98, 114, 245);
   doc.rect(0, 0, W, 28, "F");
   doc.setTextColor(255, 255, 255);
@@ -49,7 +42,6 @@ async function downloadPDF(inv: Invoice) {
   doc.setFontSize(22); doc.setFont("helvetica", "bold");
   doc.text("FACTURE", W - margin, 17, { align: "right" });
 
-  // ── Invoice meta ───────────────────────────────────────────────────────────
   doc.setTextColor(60, 60, 80);
   doc.setFontSize(9); doc.setFont("helvetica", "normal");
   let y = 40;
@@ -58,7 +50,6 @@ async function downloadPDF(inv: Invoice) {
   doc.text(`Date : ${formatDate(inv.date)}`, W - margin, y + 6, { align: "right" });
   doc.text(`Échéance : ${inv.dueDate ? formatDate(inv.dueDate) : "—"}`, W - margin, y + 12, { align: "right" });
 
-  // ── Parties ────────────────────────────────────────────────────────────────
   doc.setFillColor(245, 246, 255);
   doc.roundedRect(margin, y - 4, 78, 30, 3, 3, "F");
   doc.roundedRect(col2, y - 4, 72, 30, 3, 3, "F");
@@ -78,7 +69,6 @@ async function downloadPDF(inv: Invoice) {
   doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 100, 120);
   if (inv.patientPhone) doc.text(inv.patientPhone, col2 + 4, y + 17);
 
-  // ── Items table ────────────────────────────────────────────────────────────
   y += 38;
   doc.setFillColor(98, 114, 245);
   doc.rect(margin, y, W - margin * 2, 8, "F");
@@ -99,7 +89,6 @@ async function downloadPDF(inv: Invoice) {
     y += 8;
   });
 
-  // ── Totals box ─────────────────────────────────────────────────────────────
   y += 6;
   const boxX = W - margin - 75;
   doc.setFillColor(245, 246, 255); doc.roundedRect(boxX, y, 75, 36, 3, 3, "F");
@@ -117,7 +106,6 @@ async function downloadPDF(inv: Invoice) {
   doc.text("Solde :", boxX + 4, y + 30);
   doc.text(`${balance.toLocaleString("fr-MA")} MAD`, boxX + 71, y + 30, { align: "right" });
 
-  // ── Status badge ───────────────────────────────────────────────────────────
   y += 46;
   const badgeColors: Record<string, [number, number, number]> = {
     paid: [220, 252, 231], unpaid: [254, 226, 226], partial: [254, 243, 199], refunded: [219, 234, 254],
@@ -140,7 +128,6 @@ async function downloadPDF(inv: Invoice) {
     doc.text(inv.notes.slice(0, 120), margin + 3, y + 11);
   }
 
-  // ── Footer ─────────────────────────────────────────────────────────────────
   doc.setFillColor(98, 114, 245); doc.rect(0, 287, W, 10, "F");
   doc.setTextColor(255, 255, 255); doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
   doc.text(
@@ -167,21 +154,17 @@ function usePatientSearch(q: string) {
 }
 
 const DESCRIPTION_OPTIONS = [
-  "Consultation",
-  "Suivi",
-  "Bilan",
-  "Urgence",
-  "Vaccination",
-  "Contrôle",
-  "Autre",
+  "Consultation", "Suivi", "Bilan", "Urgence", "Vaccination", "Contrôle", "Autre",
 ];
 
 function ItemsTable({
   items,
   onChange,
+  addLineLabel,
 }: {
   items: InvoiceItem[];
   onChange: (items: InvoiceItem[]) => void;
+  addLineLabel: string;
 }) {
   function update(idx: number, field: keyof InvoiceItem, value: string) {
     const next = items.map((item, i) => {
@@ -215,42 +198,25 @@ function ItemsTable({
           >
             {DESCRIPTION_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
-          <input
-            type="number" min="1"
-            value={item.quantity}
-            onChange={e => update(idx, "quantity", e.target.value)}
-            className="px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs text-center focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-          <input
-            type="number" min="0"
-            value={item.unitPrice}
-            onChange={e => update(idx, "unitPrice", e.target.value)}
-            className="px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs text-right focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-          <span className="text-xs font-semibold text-foreground text-right pr-1">
-            {item.total.toLocaleString("fr-MA")}
-          </span>
-          <button
-            type="button"
-            onClick={() => removeRow(idx)}
-            className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-100 text-muted-foreground hover:text-red-500 transition-all"
-          >
+          <input type="number" min="1" value={item.quantity} onChange={e => update(idx, "quantity", e.target.value)}
+            className="px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs text-center focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+          <input type="number" min="0" value={item.unitPrice} onChange={e => update(idx, "unitPrice", e.target.value)}
+            className="px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs text-right focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+          <span className="text-xs font-semibold text-foreground text-right pr-1">{item.total.toLocaleString("fr-MA")}</span>
+          <button type="button" onClick={() => removeRow(idx)}
+            className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-100 text-muted-foreground hover:text-red-500 transition-all">
             <X className="w-3 h-3" />
           </button>
         </div>
       ))}
-      <button
-        type="button"
-        onClick={addRow}
-        className="text-xs text-primary hover:underline mt-1"
-      >
-        + Ajouter une ligne
+      <button type="button" onClick={addRow} className="text-xs text-primary hover:underline mt-1">
+        {addLineLabel}
       </button>
     </div>
   );
 }
 
-function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
+function CreateInvoiceModal({ onClose, t }: { onClose: () => void; t: (key: string, vars?: Record<string, string | number>) => string }) {
   const qc = useQueryClient();
   const [patientQuery, setPatientQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(null);
@@ -267,10 +233,10 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
     mutationFn: (payload: CreateInvoicePayload) => invoicesService.create(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
-      toast.success("Facture créée avec succès");
+      toast.success(t("billing.toastCreated"));
       onClose();
     },
-    onError: () => toast.error("Erreur lors de la création"),
+    onError: () => toast.error(t("billing.toastErrorCreate")),
   });
 
   useEffect(() => {
@@ -285,21 +251,15 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedPatient) { toast.error("Sélectionnez un patient"); return; }
-    mutation.mutate({
-      patientId: selectedPatient.id,
-      total,
-      items,
-      notes: notes || undefined,
-      dueDate: dueDate || undefined,
-    });
+    if (!selectedPatient) { toast.error(t("billing.selectPatient")); return; }
+    mutation.mutate({ patientId: selectedPatient.id, total, items, notes: notes || undefined, dueDate: dueDate || undefined });
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scroll">
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="text-base font-bold text-foreground">Nouvelle Facture</h2>
+          <h2 className="text-base font-bold text-foreground">{t("billing.createModal.title")}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent transition-all">
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -307,36 +267,26 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div ref={dropdownRef} className="relative">
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Patient</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("billing.createModal.patient")}</label>
             {selectedPatient ? (
               <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-border bg-background/50">
                 <span className="text-sm font-medium text-foreground">{selectedPatient.fullName}</span>
-                <button
-                  type="button"
-                  onClick={() => { setSelectedPatient(null); setPatientQuery(""); }}
-                  className="text-muted-foreground hover:text-red-500 transition-colors"
-                >
+                <button type="button" onClick={() => { setSelectedPatient(null); setPatientQuery(""); }}
+                  className="text-muted-foreground hover:text-red-500 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
             ) : (
               <>
-                <input
-                  value={patientQuery}
-                  onChange={e => { setPatientQuery(e.target.value); setShowDropdown(true); }}
-                  onFocus={() => setShowDropdown(true)}
-                  placeholder="Rechercher un patient..."
-                  className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                />
+                <input value={patientQuery} onChange={e => { setPatientQuery(e.target.value); setShowDropdown(true); }}
+                  onFocus={() => setShowDropdown(true)} placeholder={t("billing.createModal.searchPatient")}
+                  className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 {showDropdown && suggestions.length > 0 && (
                   <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
                     {suggestions.map(p => (
-                      <button
-                        key={p.id}
-                        type="button"
+                      <button key={p.id} type="button"
                         onClick={() => { setSelectedPatient(p); setPatientQuery(""); setShowDropdown(false); }}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-accent transition-all"
-                      >
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-accent transition-all">
                         <span className="font-medium text-foreground">{p.fullName}</span>
                         {p.phone && <span className="text-muted-foreground text-xs ml-2">{p.phone}</span>}
                       </button>
@@ -348,47 +298,36 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Lignes de facturation</label>
-            <ItemsTable items={items} onChange={setItems} />
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("billing.createModal.billingLines")}</label>
+            <ItemsTable items={items} onChange={setItems} addLineLabel={t("billing.editModal.addLine")} />
             <div className="mt-3 text-right">
-              <span className="text-xs text-muted-foreground">Total: </span>
+              <span className="text-xs text-muted-foreground">{t("billing.createModal.totalLabel")} </span>
               <span className="text-sm font-bold text-primary">{total.toLocaleString("fr-MA")} MAD</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Échéance</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={e => setDueDate(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              />
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("billing.createModal.dueDate")}</label>
+              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Notes</label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Notes optionnelles..."
-              className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("billing.createModal.notes")}</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              placeholder={t("common.notesPlaceholder")}
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
           </div>
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-all">
-              Annuler
+              {t("billing.createModal.cancel")}
             </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm disabled:opacity-50"
-            >
-              {mutation.isPending ? "Création..." : "Créer la facture"}
+            <button type="submit" disabled={mutation.isPending}
+              className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm disabled:opacity-50">
+              {mutation.isPending ? t("billing.createModal.creating") : t("billing.createModal.create")}
             </button>
           </div>
         </form>
@@ -397,7 +336,11 @@ function CreateInvoiceModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function EditInvoiceModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
+function EditInvoiceModal({ invoice, onClose, t }: {
+  invoice: Invoice;
+  onClose: () => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+}) {
   const qc = useQueryClient();
   const [items, setItems] = useState<InvoiceItem[]>(
     Array.isArray(invoice.items) && invoice.items.length > 0 ? invoice.items : DEFAULT_ITEMS
@@ -409,15 +352,14 @@ function EditInvoiceModal({ invoice, onClose }: { invoice: Invoice; onClose: () 
   const [status, setStatus]   = useState<string>(invoice.status || "unpaid");
   const [paidInput, setPaidInput] = useState(String(invoice.paid || 0));
 
-  const total      = items.reduce((s, i) => s + i.total, 0);
-  const paidNum    = Math.min(total, Math.max(0, Number(paidInput) || 0));
-  const restNum    = Math.max(0, total - paidNum);
+  const total   = items.reduce((s, i) => s + i.total, 0);
+  const paidNum = Math.min(total, Math.max(0, Number(paidInput) || 0));
+  const restNum = Math.max(0, total - paidNum);
 
-  // Quand le statut change, synchronise paidInput
   function handleStatusChange(s: string) {
     setStatus(s);
-    if (s === "paid")    setPaidInput(String(total));
-    if (s === "unpaid")  setPaidInput("0");
+    if (s === "paid")     setPaidInput(String(total));
+    if (s === "unpaid")   setPaidInput("0");
     if (s === "refunded") setPaidInput("0");
   }
 
@@ -425,22 +367,16 @@ function EditInvoiceModal({ invoice, onClose }: { invoice: Invoice; onClose: () 
     mutationFn: (payload: UpdateInvoicePayload) => invoicesService.update(invoice.id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
-      toast.success("Facture mise à jour");
+      toast.success(t("billing.toastUpdated"));
       onClose();
     },
-    onError: () => toast.error("Erreur lors de la mise à jour"),
+    onError: () => toast.error(t("billing.toastErrorUpdate")),
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const paid = status === "paid" ? total : status === "partial" ? paidNum : 0;
-    mutation.mutate({
-      items, total, paid, status,
-      notes: notes || undefined,
-      dueDate: dueDate || undefined,
-      date: invoiceDate || undefined,
-      paidAt: paidAt || undefined,
-    } as any);
+    mutation.mutate({ items, total, paid, status, notes: notes || undefined, dueDate: dueDate || undefined, date: invoiceDate || undefined, paidAt: paidAt || undefined } as any);
   }
 
   return (
@@ -448,7 +384,7 @@ function EditInvoiceModal({ invoice, onClose }: { invoice: Invoice; onClose: () 
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scroll">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
-            <h2 className="text-base font-bold text-foreground">Modifier la Facture</h2>
+            <h2 className="text-base font-bold text-foreground">{t("billing.editModal.title")}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{invoice.invoiceNumber} · {invoice.patientName}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent transition-all">
@@ -457,96 +393,86 @@ function EditInvoiceModal({ invoice, onClose }: { invoice: Invoice; onClose: () 
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          {/* Items */}
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Lignes de facturation</label>
-            <ItemsTable items={items} onChange={setItems} />
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("billing.editModal.lines")}</label>
+            <ItemsTable items={items} onChange={setItems} addLineLabel={t("billing.editModal.addLine")} />
             <div className="mt-3 text-right">
-              <span className="text-xs text-muted-foreground">Total: </span>
+              <span className="text-xs text-muted-foreground">{t("billing.editModal.totalLabel")} </span>
               <span className="text-sm font-bold text-primary">{total.toLocaleString("fr-MA")} MAD</span>
             </div>
           </div>
 
-          {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Date de facturation</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("billing.editModal.billingDate")}</label>
               <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Date de paiement</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("billing.editModal.paymentDate")}</label>
               <input type="date" value={paidAt} onChange={e => setPaidAt(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
             </div>
           </div>
 
-          {/* Statut + Échéance */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Statut</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("billing.editModal.status")}</label>
               <select value={status} onChange={e => handleStatusChange(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
-                <option value="unpaid">Impayé</option>
-                <option value="partial">Partiel</option>
-                <option value="paid">Payé</option>
-                <option value="refunded">Remboursé</option>
+                <option value="unpaid">{t("billing.status.unpaid")}</option>
+                <option value="partial">{t("billing.status.partial")}</option>
+                <option value="paid">{t("billing.status.paid")}</option>
+                <option value="refunded">{t("billing.status.refunded")}</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Échéance</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("billing.editModal.dueDate")}</label>
               <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
             </div>
           </div>
 
-          {/* Section paiement partiel */}
           {status === "partial" && (
             <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 space-y-3">
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Détail du paiement partiel</p>
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">{t("billing.editModal.partialDetail")}</p>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1.5">Montant payé (MAD)</label>
-                <input
-                  autoFocus
-                  type="number" min="0" step="0.01" max={total}
-                  value={paidInput}
+                <label className="block text-xs text-muted-foreground mb-1.5">{t("billing.editModal.partialAmount")}</label>
+                <input autoFocus type="number" min="0" step="0.01" max={total} value={paidInput}
                   onChange={e => setPaidInput(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400/30 transition-all"
-                  placeholder="0"
-                />
+                  className="w-full px-3 py-2.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400/30 transition-all" placeholder="0" />
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="bg-background/60 rounded-lg py-2 px-1">
-                  <p className="text-[10px] text-muted-foreground">Total</p>
+                  <p className="text-[10px] text-muted-foreground">{t("common.total")}</p>
                   <p className="text-sm font-bold text-foreground">{total.toLocaleString("fr-MA")}</p>
                 </div>
                 <div className="bg-emerald-50 dark:bg-emerald-950/50 rounded-lg py-2 px-1">
-                  <p className="text-[10px] text-emerald-600">Payé</p>
+                  <p className="text-[10px] text-emerald-600">{t("common.paid")}</p>
                   <p className="text-sm font-bold text-emerald-600">{paidNum.toLocaleString("fr-MA")}</p>
                 </div>
                 <div className="bg-red-50 dark:bg-red-950/50 rounded-lg py-2 px-1">
-                  <p className="text-[10px] text-red-500">Reste</p>
+                  <p className="text-[10px] text-red-500">{t("common.remaining")}</p>
                   <p className="text-sm font-bold text-red-500">{restNum.toLocaleString("fr-MA")}</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Notes */}
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Notes</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">{t("billing.editModal.notes")}</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              placeholder="Notes optionnelles..."
+              placeholder={t("billing.editModal.notesPlaceholder")}
               className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
           </div>
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-all">
-              Annuler
+              {t("common.cancel")}
             </button>
             <button type="submit" disabled={mutation.isPending}
               className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm disabled:opacity-50">
-              {mutation.isPending ? "Enregistrement..." : "Enregistrer"}
+              {mutation.isPending ? t("common.saving") : t("billing.editModal.save")}
             </button>
           </div>
         </form>
@@ -555,13 +481,16 @@ function EditInvoiceModal({ invoice, onClose }: { invoice: Invoice; onClose: () 
   );
 }
 
-function PayModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
+function PayModal({ invoice, onClose, t }: {
+  invoice: Invoice;
+  onClose: () => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+}) {
   const qc = useQueryClient();
   const total       = invoice.total || 0;
   const alreadyPaid = invoice.paid  || 0;
   const remaining   = Math.max(0, total - alreadyPaid);
 
-  // delta = montant reçu MAINTENANT (pas cumulatif)
   const [delta, setDelta] = useState(String(remaining));
 
   const deltaNum     = Math.max(0, Number(delta) || 0);
@@ -571,19 +500,18 @@ function PayModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void 
   const willBePartial = newTotalPaid > 0 && newRemaining > 0;
 
   const mutation = useMutation({
-    // On envoie le nouveau TOTAL payé (absolu) à l'API
     mutationFn: (newPaid: number) => invoicesService.pay(invoice.id, newPaid),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
-      toast.success(willBePaid ? "Facture soldée !" : "Paiement partiel enregistré");
+      toast.success(willBePaid ? t("billing.toastPaidFull") : t("billing.toastPaidPartial"));
       onClose();
     },
-    onError: () => toast.error("Erreur lors du paiement"),
+    onError: () => toast.error(t("billing.toastErrorPay")),
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (deltaNum <= 0) { toast.error("Montant invalide"); return; }
+    if (deltaNum <= 0) { toast.error(t("billing.invalidAmount")); return; }
     mutation.mutate(newTotalPaid);
   }
 
@@ -592,7 +520,7 @@ function PayModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void 
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
-            <h2 className="text-base font-bold text-foreground">Encaisser un paiement</h2>
+            <h2 className="text-base font-bold text-foreground">{t("billing.payModal.title")}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{invoice.patientName} · <span className="font-mono text-primary">{invoice.invoiceNumber}</span></p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent transition-all">
@@ -601,45 +529,37 @@ function PayModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void 
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-
-          {/* Recap */}
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-muted/30 rounded-xl py-3 px-2">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Total</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{t("common.total")}</p>
               <p className="text-sm font-bold text-foreground">{total.toLocaleString("fr-MA")}</p>
               <p className="text-[10px] text-muted-foreground">MAD</p>
             </div>
             <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl py-3 px-2">
-              <p className="text-[10px] text-emerald-600 uppercase tracking-wide mb-1">Déjà payé</p>
+              <p className="text-[10px] text-emerald-600 uppercase tracking-wide mb-1">{t("billing.payModal.alreadyPaid")}</p>
               <p className="text-sm font-bold text-emerald-600">{alreadyPaid.toLocaleString("fr-MA")}</p>
               <p className="text-[10px] text-emerald-600">MAD</p>
             </div>
             <div className="bg-red-50 dark:bg-red-950/30 rounded-xl py-3 px-2">
-              <p className="text-[10px] text-red-500 uppercase tracking-wide mb-1">Reste dû</p>
+              <p className="text-[10px] text-red-500 uppercase tracking-wide mb-1">{t("billing.payModal.remainingDue")}</p>
               <p className="text-sm font-bold text-red-500">{remaining.toLocaleString("fr-MA")}</p>
               <p className="text-[10px] text-red-500">MAD</p>
             </div>
           </div>
 
-          {/* Input */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Montant reçu maintenant (MAD)</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("billing.payModal.amountReceived")}</label>
               <button type="button" onClick={() => setDelta(String(remaining))}
                 className="text-[10px] font-semibold text-primary hover:underline">
-                Tout payer
+                {t("billing.payModal.payAll")}
               </button>
             </div>
-            <input
-              autoFocus
-              type="number" min="0" step="0.01" max={remaining}
-              value={delta}
+            <input autoFocus type="number" min="0" step="0.01" max={remaining} value={delta}
               onChange={e => setDelta(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold text-center text-lg"
-            />
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold text-center text-lg" />
           </div>
 
-          {/* Live calculation */}
           {deltaNum > 0 && (
             <div className={cn(
               "rounded-xl px-4 py-3 border space-y-2 transition-all",
@@ -648,22 +568,22 @@ function PayModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void 
                 : "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800"
             )}>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total payé après :</span>
+                <span className="text-muted-foreground">{t("billing.payModal.totalAfter")}</span>
                 <span className="font-bold text-foreground">{newTotalPaid.toLocaleString("fr-MA")} MAD</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Reste à payer :</span>
+                <span className="text-muted-foreground">{t("billing.payModal.remaining")}</span>
                 <span className={cn("font-bold", willBePaid ? "text-emerald-600" : "text-amber-600")}>
                   {newRemaining.toLocaleString("fr-MA")} MAD
                 </span>
               </div>
               <div className="flex justify-between text-sm border-t border-current/20 pt-2">
-                <span className="text-muted-foreground">Statut :</span>
+                <span className="text-muted-foreground">{t("billing.payModal.newStatus")}</span>
                 <span className={cn(
                   "text-xs font-bold px-2 py-0.5 rounded-full",
                   willBePaid ? "badge-confirmed" : willBePartial ? "badge-pending" : "badge-cancelled"
                 )}>
-                  {willBePaid ? "Payé ✓" : willBePartial ? "Partiel" : "Impayé"}
+                  {willBePaid ? t("billing.payModal.paidFull") : willBePartial ? t("billing.payModal.partial") : t("billing.payModal.unpaid")}
                 </span>
               </div>
             </div>
@@ -671,14 +591,11 @@ function PayModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void 
 
           <div className="flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-all">
-              Annuler
+              {t("billing.payModal.cancel")}
             </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm disabled:opacity-50"
-            >
-              {mutation.isPending ? "Traitement..." : "Confirmer"}
+            <button type="submit" disabled={mutation.isPending}
+              className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm disabled:opacity-50">
+              {mutation.isPending ? t("billing.payModal.processing") : t("billing.payModal.confirm")}
             </button>
           </div>
         </form>
@@ -689,6 +606,7 @@ function PayModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void 
 
 export default function BillingPage() {
   const qc = useQueryClient();
+  const { t } = useLang();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | PaymentStatus>("all");
   const [showCreate, setShowCreate] = useState(false);
@@ -696,14 +614,21 @@ export default function BillingPage() {
   const [payInvoice, setPayInvoice] = useState<Invoice | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const STATUS_CONFIG = {
+    paid:     { label: t("billing.status.paid"),     cls: "badge-confirmed" },
+    unpaid:   { label: t("billing.status.unpaid"),   cls: "badge-cancelled" },
+    partial:  { label: t("billing.status.partial"),  cls: "badge-pending" },
+    refunded: { label: t("billing.status.refunded"), cls: "badge-completed" },
+  };
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => invoicesService.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
-      toast.success("Facture supprimée");
+      toast.success(t("billing.toastDeleted"));
       setDeletingId(null);
     },
-    onError: () => toast.error("Erreur lors de la suppression"),
+    onError: () => toast.error(t("billing.toastErrorDelete")),
   });
 
   const { data: apiInvoices, isLoading } = useQuery({
@@ -715,10 +640,7 @@ export default function BillingPage() {
   const invoices: Invoice[] = apiInvoices || [];
 
   const filtered = invoices.filter(inv => {
-    const matchSearch =
-      search === "" ||
-      inv.patientName?.toLowerCase().includes(search.toLowerCase()) ||
-      inv.invoiceNumber?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = search === "" || inv.patientName?.toLowerCase().includes(search.toLowerCase()) || inv.invoiceNumber?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || inv.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -729,15 +651,15 @@ export default function BillingPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Facturation" subtitle="Gestion des paiements et factures" />
+      <Header title={t("billing.title")} subtitle={t("billing.subtitle")} />
 
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: "Revenus perçus", value: `${totalRevenue.toLocaleString("fr-MA")} MAD`, icon: TrendingUp, color: "gradient-success" },
-            { label: "En attente", value: `${pendingAmount.toLocaleString("fr-MA")} MAD`, icon: Clock, color: "gradient-warning" },
-            { label: "Factures payées", value: paidCount, icon: CheckCircle, color: "gradient-primary" },
-            { label: "Total factures", value: invoices.length, icon: FileText, color: "gradient-purple" },
+            { label: t("billing.stats.revenue"), value: `${totalRevenue.toLocaleString("fr-MA")} MAD`, icon: TrendingUp, color: "gradient-success" },
+            { label: t("billing.stats.pending"), value: `${pendingAmount.toLocaleString("fr-MA")} MAD`, icon: Clock, color: "gradient-warning" },
+            { label: t("billing.stats.paid"),    value: paidCount, icon: CheckCircle, color: "gradient-primary" },
+            { label: t("billing.stats.total"),   value: invoices.length, icon: FileText, color: "gradient-purple" },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
               <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", color)}>
@@ -754,29 +676,20 @@ export default function BillingPage() {
         <div className="bg-card border border-border rounded-xl p-4 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher par patient ou numéro..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("billing.searchPlaceholder")}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
           </div>
           <div className="flex gap-2">
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value as any)}
-              className="px-3 py-2 rounded-xl border border-border bg-background/50 text-sm text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            >
-              <option value="all">Tous</option>
-              <option value="paid">Payé</option>
-              <option value="unpaid">Impayé</option>
-              <option value="partial">Partiel</option>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}
+              className="px-3 py-2 rounded-xl border border-border bg-background/50 text-sm text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+              <option value="all">{t("billing.status.all")}</option>
+              <option value="paid">{t("billing.status.paid")}</option>
+              <option value="unpaid">{t("billing.status.unpaid")}</option>
+              <option value="partial">{t("billing.status.partial")}</option>
             </select>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm"
-            >
-              <Plus className="w-4 h-4" /> Nouvelle facture
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm">
+              <Plus className="w-4 h-4" /> {t("billing.newInvoice")}
             </button>
           </div>
         </div>
@@ -786,15 +699,15 @@ export default function BillingPage() {
             <table className="w-full data-table min-w-[700px]">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  <th className="text-left">Numéro</th>
-                  <th className="text-left">Patient</th>
-                  <th className="text-left hidden md:table-cell">Créé le</th>
-                  <th className="text-left hidden lg:table-cell">Payé le</th>
-                  <th className="text-right">Total</th>
-                  <th className="text-right hidden sm:table-cell">Payé</th>
-                  <th className="text-right hidden sm:table-cell">Reste</th>
-                  <th className="text-center">Statut</th>
-                  <th className="text-center">Actions</th>
+                  <th className="text-left">{t("billing.table.number")}</th>
+                  <th className="text-left">{t("billing.table.patient")}</th>
+                  <th className="text-left hidden md:table-cell">{t("billing.table.createdAt")}</th>
+                  <th className="text-left hidden lg:table-cell">{t("billing.table.paidAt")}</th>
+                  <th className="text-right">{t("billing.table.total")}</th>
+                  <th className="text-right hidden sm:table-cell">{t("billing.table.paid")}</th>
+                  <th className="text-right hidden sm:table-cell">{t("billing.table.remaining")}</th>
+                  <th className="text-center">{t("billing.table.status")}</th>
+                  <th className="text-center">{t("billing.table.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -806,9 +719,7 @@ export default function BillingPage() {
                     const balance = Math.max(0, (inv.total || 0) - (inv.paid || 0));
                     return (
                       <tr key={inv.id}>
-                        <td>
-                          <span className="text-xs font-mono font-medium text-primary">{inv.invoiceNumber}</span>
-                        </td>
+                        <td><span className="text-xs font-mono font-medium text-primary">{inv.invoiceNumber}</span></td>
                         <td>
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-lg gradient-primary flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">
@@ -827,51 +738,34 @@ export default function BillingPage() {
                             {(inv as any).paidAt ? format(new Date((inv as any).paidAt), "d MMM yyyy", { locale: fr }) : "—"}
                           </span>
                         </td>
-                        <td className="text-right">
-                          <span className="text-xs font-semibold text-foreground">{inv.total?.toLocaleString("fr-MA")} MAD</span>
-                        </td>
-                        <td className="text-right hidden sm:table-cell">
-                          <span className="text-xs font-medium text-emerald-600">{inv.paid?.toLocaleString("fr-MA")} MAD</span>
-                        </td>
+                        <td className="text-right"><span className="text-xs font-semibold text-foreground">{inv.total?.toLocaleString("fr-MA")} MAD</span></td>
+                        <td className="text-right hidden sm:table-cell"><span className="text-xs font-medium text-emerald-600">{inv.paid?.toLocaleString("fr-MA")} MAD</span></td>
                         <td className="text-right hidden sm:table-cell">
                           <span className={cn("text-xs font-medium", balance > 0 ? "text-red-500" : "text-emerald-600")}>
                             {balance.toLocaleString("fr-MA")} MAD
                           </span>
                         </td>
                         <td className="text-center">
-                          <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", sc.cls)}>
-                            {sc.label}
-                          </span>
+                          <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", sc.cls)}>{sc.label}</span>
                         </td>
                         <td className="text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => downloadPDF(inv)}
-                              title="Télécharger PDF"
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border hover:bg-accent transition-all text-muted-foreground"
-                            >
+                            <button onClick={() => downloadPDF(inv)} title={t("common.download")}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border hover:bg-accent transition-all text-muted-foreground">
                               <Download className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                              onClick={() => setEditInvoice(inv)}
-                              title="Modifier"
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border hover:bg-accent transition-all text-muted-foreground"
-                            >
+                            <button onClick={() => setEditInvoice(inv)} title={t("common.edit")}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border hover:bg-accent transition-all text-muted-foreground">
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                             {inv.status !== "paid" && (
-                              <button
-                                onClick={() => setPayInvoice(inv)}
-                                className="text-[10px] px-2 py-1 rounded-lg badge-confirmed font-semibold hover:opacity-80 transition-opacity"
-                              >
-                                Payer
+                              <button onClick={() => setPayInvoice(inv)}
+                                className="text-[10px] px-2 py-1 rounded-lg badge-confirmed font-semibold hover:opacity-80 transition-opacity">
+                                {t("billing.pay")}
                               </button>
                             )}
-                            <button
-                              onClick={() => setDeletingId(inv.id)}
-                              title="Supprimer"
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border hover:bg-red-50 hover:border-red-200 hover:text-red-500 dark:hover:bg-red-950 dark:hover:border-red-800 transition-all text-muted-foreground"
-                            >
+                            <button onClick={() => setDeletingId(inv.id)} title={t("common.delete")}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border hover:bg-red-50 hover:border-red-200 hover:text-red-500 dark:hover:bg-red-950 dark:hover:border-red-800 transition-all text-muted-foreground">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -884,14 +778,14 @@ export default function BillingPage() {
             </table>
           </div>
           {!isLoading && filtered.length === 0 && (
-            <div className="py-12 text-center text-sm text-muted-foreground">Aucune facture trouvée</div>
+            <div className="py-12 text-center text-sm text-muted-foreground">{t("billing.noInvoices")}</div>
           )}
         </div>
       </div>
 
-      {showCreate && <CreateInvoiceModal onClose={() => setShowCreate(false)} />}
-      {editInvoice && <EditInvoiceModal invoice={editInvoice} onClose={() => setEditInvoice(null)} />}
-      {payInvoice && <PayModal invoice={payInvoice} onClose={() => setPayInvoice(null)} />}
+      {showCreate && <CreateInvoiceModal onClose={() => setShowCreate(false)} t={t} />}
+      {editInvoice && <EditInvoiceModal invoice={editInvoice} onClose={() => setEditInvoice(null)} t={t} />}
+      {payInvoice && <PayModal invoice={payInvoice} onClose={() => setPayInvoice(null)} t={t} />}
 
       {deletingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -901,23 +795,18 @@ export default function BillingPage() {
                 <Trash2 className="w-5 h-5 text-red-500" />
               </div>
               <div>
-                <h3 className="font-bold text-foreground">Supprimer la facture</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Cette action est irréversible.</p>
+                <h3 className="font-bold text-foreground">{t("billing.deleteConfirm")}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("billing.deleteWarning")}</p>
               </div>
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={() => setDeletingId(null)}
-                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-all"
-              >
-                Annuler
+              <button onClick={() => setDeletingId(null)}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-all">
+                {t("common.cancel")}
               </button>
-              <button
-                onClick={() => deleteMutation.mutate(deletingId)}
-                disabled={deleteMutation.isPending}
-                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all disabled:opacity-50"
-              >
-                {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
+              <button onClick={() => deleteMutation.mutate(deletingId)} disabled={deleteMutation.isPending}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all disabled:opacity-50">
+                {deleteMutation.isPending ? t("common.deleting") : t("common.delete")}
               </button>
             </div>
           </div>

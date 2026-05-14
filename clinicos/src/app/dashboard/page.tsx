@@ -32,13 +32,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/services/api";
 import { cn } from "@/lib/utils";
 import { getToday } from "@/lib/date-utils";
-
-const STATUS_CONFIG = {
-  confirmed: { label: "Confirmé", className: "badge-confirmed" },
-  pending:   { label: "En attente", className: "badge-pending" },
-  cancelled: { label: "Annulé", className: "badge-cancelled" },
-  completed: { label: "Terminé", className: "badge-completed" },
-};
+import { useLang } from "@/lib/i18n";
 
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -59,6 +53,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { theme } = useStore();
   const { user } = useAuth();
+  const { t } = useLang();
   const [chartPeriod, setChartPeriod] = useState<"1d" | "1w" | "1m" | "6m">("1d");
   const [chartType,   setChartType]   = useState<"bar" | "area" | "line">("bar");
 
@@ -80,11 +75,24 @@ export default function DashboardPage() {
   const hasChartData = chartData && chartData.some(d => d.revenue > 0 || d.rdv > 0);
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+  const greeting = hour < 12 ? t("dashboard.welcome.morning") : hour < 18 ? t("dashboard.welcome.afternoon") : t("dashboard.welcome.evening");
+
+  const STATUS_CONFIG = {
+    confirmed: { label: t("appointments.statusLabels.confirmed"), className: "badge-confirmed" },
+    pending:   { label: t("appointments.statusLabels.pending"),   className: "badge-pending" },
+    cancelled: { label: t("appointments.statusLabels.cancelled"), className: "badge-cancelled" },
+    completed: { label: t("appointments.statusLabels.completed"), className: "badge-completed" },
+  };
+
+  const userRoleLabel = user?.role === "admin"
+    ? t("dashboard.welcome.administrateur")
+    : user?.role === "doctor"
+    ? t("dashboard.welcome.medecin")
+    : t("dashboard.welcome.secretaire");
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Tableau de bord" subtitle={format(new Date(), "EEEE d MMMM yyyy", { locale: fr })} />
+      <Header title={t("dashboard.title")} subtitle={format(new Date(), "EEEE d MMMM yyyy", { locale: fr })} />
 
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-6">
         {/* Welcome */}
@@ -94,15 +102,15 @@ export default function DashboardPage() {
             <div>
               <p className="text-xs text-muted-foreground">{greeting} 👋</p>
               <h2 className="text-xl font-bold text-foreground mt-0.5">{user?.name || "—"}</h2>
-              <p className="text-xs text-muted-foreground mt-1.5 capitalize">{user?.role === "admin" ? "Administrateur" : user?.role === "doctor" ? "Médecin" : "Secrétaire"}</p>
+              <p className="text-xs text-muted-foreground mt-1.5 capitalize">{userRoleLabel}</p>
             </div>
             {!statsLoading && stats && (stats.totalPatients > 0 || stats.todayAppointments > 0) && (
               <div className="text-right text-xs text-muted-foreground space-y-1">
                 <div className="flex items-center gap-2 justify-end">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Système opérationnel</span>
+                  <span>{t("dashboard.welcome.operational")}</span>
                 </div>
-                <p>{stats.completedToday} consultations aujourd&apos;hui</p>
+                <p>{t("dashboard.welcome.consultations", { count: stats.completedToday })}</p>
               </div>
             )}
           </div>
@@ -114,10 +122,10 @@ export default function DashboardPage() {
             Array(4).fill(null).map((_, i) => <StatCardSkeleton key={i} />)
           ) : (
             <>
-              <StatCard title="Total Patients" value={stats?.totalPatients ?? 0} icon={Users} gradient="gradient-primary" delay={0.05} />
-              <StatCard title="RDV Aujourd'hui" value={stats?.todayAppointments ?? 0} icon={Calendar} gradient="gradient-success" delay={0.1} />
-              <StatCard title="Revenus du Mois" value={stats?.monthlyRevenue ?? 0} icon={CreditCard} gradient="gradient-warning" suffix=" MAD" delay={0.15} />
-              <StatCard title="Salle d'Attente" value={stats?.waitingRoom ?? 0} icon={Clock} gradient="gradient-danger" delay={0.2} />
+              <StatCard title={t("dashboard.stats.totalPatients")} value={stats?.totalPatients ?? 0} icon={Users} gradient="gradient-primary" delay={0.05} />
+              <StatCard title={t("dashboard.stats.todayAppointments")} value={stats?.todayAppointments ?? 0} icon={Calendar} gradient="gradient-success" delay={0.1} />
+              <StatCard title={t("dashboard.stats.monthlyRevenue")} value={stats?.monthlyRevenue ?? 0} icon={CreditCard} gradient="gradient-warning" suffix=" MAD" delay={0.15} />
+              <StatCard title={t("dashboard.stats.waitingRoom")} value={stats?.waitingRoom ?? 0} icon={Clock} gradient="gradient-danger" delay={0.2} />
             </>
           )}
         </div>
@@ -125,16 +133,16 @@ export default function DashboardPage() {
         {/* Charts */}
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground text-sm">Revenus & Rendez-vous</h3>
+            <h3 className="font-semibold text-foreground text-sm">{t("dashboard.chart.title")}</h3>
             <div className="flex items-center gap-2">
               {/* Chart type switcher */}
               <div className="flex items-center gap-0.5 bg-muted/40 rounded-lg p-0.5">
                 {([
-                  { type: "bar",  Icon: BarChart2,  title: "Colonnes" },
-                  { type: "area", Icon: AreaIcon,   title: "Aires" },
-                  { type: "line", Icon: LineIcon,   title: "Lignes" },
-                ] as const).map(({ type, Icon, title }) => (
-                  <button key={type} onClick={() => setChartType(type)} title={title}
+                  { type: "bar",  Icon: BarChart2,  titleKey: "dashboard.chart.columns" },
+                  { type: "area", Icon: AreaIcon,   titleKey: "dashboard.chart.areas" },
+                  { type: "line", Icon: LineIcon,   titleKey: "dashboard.chart.lines" },
+                ] as const).map(({ type, Icon, titleKey }) => (
+                  <button key={type} onClick={() => setChartType(type)} title={t(titleKey)}
                     className={cn("w-7 h-7 flex items-center justify-center rounded-md transition-all",
                       chartType === type ? "bg-card shadow-sm text-primary" : "text-muted-foreground hover:text-foreground")}>
                     <Icon className="w-3.5 h-3.5" />
@@ -142,7 +150,7 @@ export default function DashboardPage() {
                 ))}
               </div>
               <Link href="/analytics" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
-                Analytique <ArrowUpRight className="w-3.5 h-3.5" />
+                {t("dashboard.analyticsLink")} <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
@@ -152,15 +160,15 @@ export default function DashboardPage() {
                 "flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all",
                 chartPeriod === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               )}>
-                {p === "1d" ? "Aujourd'hui" : p === "1w" ? "7 jours" : p === "1m" ? "30 jours" : "6 mois"}
+                {p === "1d" ? t("dashboard.chart.today") : p === "1w" ? t("dashboard.chart.sevenDays") : p === "1m" ? t("dashboard.chart.thirtyDays") : t("dashboard.chart.sixMonths")}
               </button>
             ))}
           </div>
 
           {/* Legend */}
           <div className="flex items-center gap-4 mb-3">
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#43e97b]" /><span className="text-xs text-muted-foreground">RDV</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#6272f5]" /><span className="text-xs text-muted-foreground">Revenus (MAD)</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#43e97b]" /><span className="text-xs text-muted-foreground">{t("dashboard.chart.rdv")}</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#6272f5]" /><span className="text-xs text-muted-foreground">{t("dashboard.chart.revenue")}</span></div>
           </div>
 
           {chartLoading ? (
@@ -169,7 +177,7 @@ export default function DashboardPage() {
             <div className="h-[200px] flex items-center justify-center border-2 border-dashed border-border/50 rounded-xl">
               <div className="text-center">
                 <TrendingUp className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground/60">Aucune donnée disponible</p>
+                <p className="text-xs text-muted-foreground/60">{t("dashboard.chart.noData")}</p>
               </div>
             </div>
           ) : chartType === "bar" ? (
@@ -180,8 +188,8 @@ export default function DashboardPage() {
                 <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
                 <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
-                <Bar yAxisId="rev" dataKey="revenue" fill="#6272f5" name="Revenus (MAD)" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                <Bar yAxisId="rdv" dataKey="rdv"     fill="#43e97b" name="RDV"           radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar yAxisId="rev" dataKey="revenue" fill="#6272f5" name={t("dashboard.chart.revenue")} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar yAxisId="rdv" dataKey="rdv"     fill="#43e97b" name={t("dashboard.chart.rdv")}     radius={[4, 4, 0, 0]} maxBarSize={28} />
               </BarChart>
             </ResponsiveContainer>
           ) : chartType === "area" ? (
@@ -202,8 +210,8 @@ export default function DashboardPage() {
                 <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
                 <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
                 <Tooltip content={<CustomTooltip />} />
-                <Area yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} fill="url(#gR)" name="Revenus (MAD)" dot={false} />
-                <Area yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   fill="url(#gA)" name="RDV"           dot={false} />
+                <Area yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} fill="url(#gR)" name={t("dashboard.chart.revenue")} dot={false} />
+                <Area yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   fill="url(#gA)" name={t("dashboard.chart.rdv")}     dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
@@ -214,8 +222,8 @@ export default function DashboardPage() {
                 <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
                 <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
                 <Tooltip content={<CustomTooltip />} />
-                <Line yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} name="Revenus (MAD)" dot={{ r: 3, fill: "#6272f5" }} activeDot={{ r: 5 }} />
-                <Line yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   name="RDV"           dot={{ r: 3, fill: "#43e97b" }} activeDot={{ r: 5 }} />
+                <Line yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} name={t("dashboard.chart.revenue")} dot={{ r: 3, fill: "#6272f5" }} activeDot={{ r: 5 }} />
+                <Line yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   name={t("dashboard.chart.rdv")}     dot={{ r: 3, fill: "#43e97b" }} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -227,11 +235,11 @@ export default function DashboardPage() {
           <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-semibold text-foreground text-sm">RDV d&apos;aujourd&apos;hui</h3>
-                <p className="text-xs text-muted-foreground">{aptsLoading ? "..." : `${todayApts.length} rendez-vous`}</p>
+                <h3 className="font-semibold text-foreground text-sm">{t("dashboard.todayAppointments")}</h3>
+                <p className="text-xs text-muted-foreground">{aptsLoading ? "..." : `${todayApts.length} ${t("common.appointmentPlural")}`}</p>
               </div>
               <Link href="/appointments" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
-                Voir tout <ChevronRight className="w-3.5 h-3.5" />
+                {t("dashboard.viewAll")} <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
 
@@ -240,9 +248,9 @@ export default function DashboardPage() {
             ) : todayApts.length === 0 ? (
               <EmptyState
                 icon={Calendar}
-                title="Aucun rendez-vous aujourd'hui"
-                description="Ajoutez votre premier rendez-vous pour commencer"
-                action={{ label: "+ Nouveau RDV", onClick: () => router.push("/appointments") }}
+                title={t("dashboard.noAppointments")}
+                description={t("dashboard.noData")}
+                action={{ label: `+ ${t("common.newAppointment")}`, onClick: () => router.push("/appointments") }}
                 className="py-8"
               />
             ) : (
@@ -271,11 +279,11 @@ export default function DashboardPage() {
           <div className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-semibold text-foreground text-sm">Patients récents</h3>
-                <p className="text-xs text-muted-foreground">{patientsLoading ? "..." : `${patients.length} inscrits`}</p>
+                <h3 className="font-semibold text-foreground text-sm">{t("dashboard.recentPatients")}</h3>
+                <p className="text-xs text-muted-foreground">{patientsLoading ? "..." : `${patients.length} ${t("common.inscribed")}`}</p>
               </div>
               <Link href="/patients" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
-                Voir tout <ChevronRight className="w-3.5 h-3.5" />
+                {t("dashboard.viewAll")} <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
 
@@ -284,9 +292,9 @@ export default function DashboardPage() {
             ) : recentPatients.length === 0 ? (
               <EmptyState
                 icon={Users}
-                title="Aucun patient enregistré"
-                description="Ajoutez votre premier patient pour commencer"
-                action={{ label: "+ Nouveau patient", onClick: () => router.push("/patients") }}
+                title={t("patients.noPatients")}
+                description={t("patients.noPatientsDesc")}
+                action={{ label: `+ ${t("patients.addPatient")}`, onClick: () => router.push("/patients") }}
                 className="py-8"
               />
             ) : (
@@ -301,7 +309,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-foreground truncate">{patient.fullName}</p>
-                        <p className="text-[10px] text-muted-foreground">{patient.gender === "male" ? "Homme" : patient.gender === "female" ? "Femme" : "—"}</p>
+                        <p className="text-[10px] text-muted-foreground">{patient.gender === "male" ? t("common.male") : patient.gender === "female" ? t("common.female") : "—"}</p>
                       </div>
                       <div className={cn("w-2 h-2 rounded-full flex-shrink-0", patient.status === "active" ? "bg-emerald-500" : "bg-muted-foreground/40")} />
                     </div>

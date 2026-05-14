@@ -12,6 +12,7 @@ import { fr } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { cn } from "@/lib/utils";
 import api from "@/services/api";
+import { useLang } from "@/lib/i18n";
 
 interface ActivityLog {
   id: string;
@@ -38,43 +39,35 @@ const AVATAR_COLORS = [
   "oklch(0.52 0.19 270)", "oklch(0.55 0.18 60)",
 ];
 
-const ACTION_MAP: Record<string, { label: string; color: string; icon: LucideIcon }> = {
-  login:                     { label: "Connexion",                  color: "text-emerald-500", icon: LogIn },
-  logout:                    { label: "Déconnexion",                color: "text-red-500",     icon: LogOut },
-  create_patient:            { label: "Patient ajouté",             color: "text-blue-500",    icon: UserPlus },
-  update_patient:            { label: "Patient modifié",            color: "text-amber-500",   icon: Edit },
-  delete_patient:            { label: "Patient supprimé",           color: "text-red-500",     icon: Trash2 },
-  create_appointment:        { label: "RDV créé",                   color: "text-blue-500",    icon: CalendarPlus },
-  update_appointment_status: { label: "Statut RDV modifié",         color: "text-amber-500",   icon: RefreshCw },
-  reschedule_appointment:    { label: "RDV reporté",                color: "text-amber-500",   icon: RotateCcw },
-  delete_appointment:        { label: "RDV supprimé",               color: "text-red-500",     icon: Trash2 },
-  create_invoice:            { label: "Facture créée",              color: "text-blue-500",    icon: FileText },
-  update_invoice:            { label: "Facture modifiée",           color: "text-amber-500",   icon: Edit },
-  pay_invoice:               { label: "Paiement enregistré",        color: "text-emerald-500", icon: CreditCard },
-  add_to_waiting_room:       { label: "Ajouté en salle d'attente",  color: "text-blue-500",    icon: UserPlus },
-  call_patient:              { label: "Patient appelé",             color: "text-emerald-500", icon: ArrowRight },
-  finish_consultation:       { label: "Consultation terminée",      color: "text-emerald-500", icon: CheckCircle },
-  remove_from_waiting_room:  { label: "Retiré de la file",          color: "text-red-400",     icon: X },
-  create_consultation:       { label: "Rapport créé",               color: "text-blue-500",    icon: ClipboardList },
-  create_prescription:       { label: "Ordonnance créée",           color: "text-blue-500",    icon: Pill },
-  update_prescription:       { label: "Ordonnance modifiée",        color: "text-amber-500",   icon: Edit },
-  delete_prescription:       { label: "Ordonnance supprimée",       color: "text-red-500",     icon: Trash2 },
-  create_user:               { label: "Compte créé",                color: "text-purple-500",  icon: UserCog },
-  update_user:               { label: "Compte modifié",             color: "text-amber-500",   icon: Edit },
-  delete_user:               { label: "Compte supprimé",            color: "text-red-500",     icon: Trash2 },
-  activate_user:             { label: "Compte activé",              color: "text-emerald-500", icon: UserCog },
-  deactivate_user:           { label: "Compte désactivé",           color: "text-gray-500",    icon: UserCog },
-  reset_password:            { label: "Mot de passe réinitialisé",  color: "text-amber-600",   icon: UserCog },
-  delete_invoice:            { label: "Facture supprimée",          color: "text-red-500",     icon: Trash2 },
+const ACTION_ICON_MAP: Record<string, { color: string; icon: LucideIcon }> = {
+  login:                     { color: "text-emerald-500", icon: LogIn },
+  logout:                    { color: "text-red-500",     icon: LogOut },
+  create_patient:            { color: "text-blue-500",    icon: UserPlus },
+  update_patient:            { color: "text-amber-500",   icon: Edit },
+  delete_patient:            { color: "text-red-500",     icon: Trash2 },
+  create_appointment:        { color: "text-blue-500",    icon: CalendarPlus },
+  update_appointment_status: { color: "text-amber-500",   icon: RefreshCw },
+  reschedule_appointment:    { color: "text-amber-500",   icon: RotateCcw },
+  delete_appointment:        { color: "text-red-500",     icon: Trash2 },
+  create_invoice:            { color: "text-blue-500",    icon: FileText },
+  update_invoice:            { color: "text-amber-500",   icon: Edit },
+  pay_invoice:               { color: "text-emerald-500", icon: CreditCard },
+  add_to_waiting_room:       { color: "text-blue-500",    icon: UserPlus },
+  call_patient:              { color: "text-emerald-500", icon: ArrowRight },
+  finish_consultation:       { color: "text-emerald-500", icon: CheckCircle },
+  remove_from_waiting_room:  { color: "text-red-400",     icon: X },
+  create_consultation:       { color: "text-blue-500",    icon: ClipboardList },
+  create_prescription:       { color: "text-blue-500",    icon: Pill },
+  update_prescription:       { color: "text-amber-500",   icon: Edit },
+  delete_prescription:       { color: "text-red-500",     icon: Trash2 },
+  create_user:               { color: "text-purple-500",  icon: UserCog },
+  update_user:               { color: "text-amber-500",   icon: Edit },
+  delete_user:               { color: "text-red-500",     icon: Trash2 },
+  activate_user:             { color: "text-emerald-500", icon: UserCog },
+  deactivate_user:           { color: "text-gray-500",    icon: UserCog },
+  reset_password:            { color: "text-amber-600",   icon: UserCog },
+  delete_invoice:            { color: "text-red-500",     icon: Trash2 },
 };
-
-function getActionMeta(action: string): { label: string; color: string; icon: LucideIcon } {
-  if (ACTION_MAP[action]) return ACTION_MAP[action];
-  if (action.startsWith("create_")) return { label: action.replace(/_/g, " "), color: "text-blue-500",    icon: UserPlus };
-  if (action.startsWith("update_")) return { label: action.replace(/_/g, " "), color: "text-amber-500",   icon: Edit };
-  if (action.startsWith("delete_")) return { label: action.replace(/_/g, " "), color: "text-red-500",     icon: Trash2 };
-  return { label: action.replace(/_/g, " "), color: "text-muted-foreground", icon: Activity };
-}
 
 function initials(name: string) {
   return name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
@@ -86,26 +79,8 @@ function getUserColor(userId: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-function roleBadge(role: string) {
-  if (role === "doctor")    return "Médecin";
-  if (role === "assistant") return "Secrétaire";
-  if (role === "admin")     return "Admin";
-  return role;
-}
-
-const ACTION_TYPE_OPTIONS = [
-  { value: "all",        label: "Toutes les actions" },
-  { value: "login",      label: "Connexions" },
-  { value: "logout",     label: "Déconnexions" },
-  { value: "create",     label: "Créations" },
-  { value: "update",     label: "Modifications" },
-  { value: "delete",     label: "Suppressions" },
-  { value: "reset",      label: "Réinitialisations" },
-  { value: "activate",   label: "Activations" },
-  { value: "deactivate", label: "Désactivations" },
-];
-
 export default function ActivityPage() {
+  const { t } = useLang();
   const [userFilter,   setUserFilter]   = useState("all");
   const [actionFilter, setActionFilter] = useState("all");
 
@@ -121,6 +96,44 @@ export default function ActivityPage() {
     queryFn: async () => { const r = await api.get("/users"); return r.data; },
     staleTime: 60_000,
   });
+
+  const ACTION_TYPE_OPTIONS = [
+    { value: "all",        label: t("activity.allActions") },
+    { value: "login",      label: t("activity.filters.logins") },
+    { value: "logout",     label: t("activity.filters.logouts") },
+    { value: "create",     label: t("activity.filters.creates") },
+    { value: "update",     label: t("activity.filters.updates") },
+    { value: "delete",     label: t("activity.filters.deletes") },
+    { value: "reset",      label: t("activity.filters.resets") },
+    { value: "activate",   label: t("activity.filters.activations") },
+    { value: "deactivate", label: t("activity.filters.deactivations") },
+  ];
+
+  function getActionLabel(action: string): string {
+    const key = `activity.actions.${action}` as const;
+    const label = t(key);
+    if (label !== key) return label;
+    // Fallback for unknown actions
+    if (action.startsWith("create_")) return t("activity.filters.creates");
+    if (action.startsWith("update_")) return t("activity.filters.updates");
+    if (action.startsWith("delete_")) return t("activity.filters.deletes");
+    return action.replace(/_/g, " ");
+  }
+
+  function getActionMeta(action: string): { color: string; icon: LucideIcon } {
+    if (ACTION_ICON_MAP[action]) return ACTION_ICON_MAP[action];
+    if (action.startsWith("create_")) return { color: "text-blue-500",    icon: UserPlus };
+    if (action.startsWith("update_")) return { color: "text-amber-500",   icon: Edit };
+    if (action.startsWith("delete_")) return { color: "text-red-500",     icon: Trash2 };
+    return { color: "text-muted-foreground", icon: Activity };
+  }
+
+  function roleBadge(role: string) {
+    if (role === "doctor")    return t("activity.roleMedecin");
+    if (role === "assistant") return t("activity.roleSecretaire");
+    if (role === "admin")     return t("activity.roleAdmin");
+    return role;
+  }
 
   const filtered = useMemo(() => {
     return logs.filter(log => {
@@ -140,7 +153,7 @@ export default function ActivityPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Journal d'activité" subtitle="Toutes les actions de l'équipe" />
+      <Header title={t("activity.journalTitle")} subtitle={t("activity.journalSubtitle")} />
 
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-5">
 
@@ -148,12 +161,9 @@ export default function ActivityPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted-foreground" />
-              <select
-                value={userFilter}
-                onChange={e => setUserFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-border bg-background/50 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              >
-                <option value="all">Tous les membres</option>
+              <select value={userFilter} onChange={e => setUserFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-border bg-background/50 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+                <option value="all">{t("activity.allMembers")}</option>
                 {members.map(m => (
                   <option key={m.id} value={m.id}>
                     {m.role === "doctor" ? `Dr. ${m.name}` : m.name}
@@ -161,11 +171,8 @@ export default function ActivityPage() {
                 ))}
               </select>
             </div>
-            <select
-              value={actionFilter}
-              onChange={e => setActionFilter(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-border bg-background/50 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            >
+            <select value={actionFilter} onChange={e => setActionFilter(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-border bg-background/50 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
               {ACTION_TYPE_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
@@ -174,15 +181,12 @@ export default function ActivityPage() {
 
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
-              {dataUpdatedAt ? `Mis à jour ${formatDistanceToNow(dataUpdatedAt, { addSuffix: true, locale: fr })}` : ""}
+              {dataUpdatedAt ? `${t("activity.lastUpdate")} ${formatDistanceToNow(dataUpdatedAt, { addSuffix: true, locale: fr })}` : ""}
             </span>
-            <button
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted transition-all disabled:opacity-60"
-            >
+            <button onClick={() => refetch()} disabled={isFetching}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted transition-all disabled:opacity-60">
               <RefreshCw className={cn("w-3.5 h-3.5", isFetching && "animate-spin")} />
-              Actualiser
+              {t("activity.refresh")}
             </button>
           </div>
         </div>
@@ -205,8 +209,8 @@ export default function ActivityPage() {
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
               <Activity className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-              <p className="font-semibold text-foreground">Aucune activité</p>
-              <p className="text-sm text-muted-foreground mt-1">Aucune action ne correspond aux filtres sélectionnés.</p>
+              <p className="font-semibold text-foreground">{t("activity.noActivity")}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("activity.noActivityDesc")}</p>
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -217,10 +221,8 @@ export default function ActivityPage() {
 
                 return (
                   <div key={log.id} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-colors">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs text-white flex-shrink-0"
-                      style={{ background: avatarColor }}
-                    >
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs text-white flex-shrink-0"
+                      style={{ background: avatarColor }}>
                       {initials(log.user_name || "?")}
                     </div>
 
@@ -234,7 +236,7 @@ export default function ActivityPage() {
                           {log.user_role === "doctor" ? `Dr. ${log.user_name}` : log.user_name}
                         </span>
                         {" · "}
-                        <span className={cn("font-medium", meta.color)}>{meta.label}</span>
+                        <span className={cn("font-medium", meta.color)}>{getActionLabel(log.action)}</span>
                         {log.entity_label && (
                           <span className="text-muted-foreground"> · {log.entity_label}</span>
                         )}
@@ -258,7 +260,7 @@ export default function ActivityPage() {
 
         {!isLoading && filtered.length > 0 && (
           <p className="text-xs text-center text-muted-foreground">
-            {filtered.length} entrée{filtered.length > 1 ? "s" : ""} · Rafraîchissement auto toutes les 60s
+            {filtered.length} {filtered.length > 1 ? "entrées" : "entrée"} · {t("activity.autoRefresh")}
           </p>
         )}
       </div>

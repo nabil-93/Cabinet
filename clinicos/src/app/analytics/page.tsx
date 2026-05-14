@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/services/api";
 import { cn } from "@/lib/utils";
 import { ChartSkeleton } from "@/components/ui/skeleton";
+import { useLang } from "@/lib/i18n";
 
 const AreaChart    = dynamic(() => import("recharts").then(m => ({ default: m.AreaChart })),    { ssr: false });
 const Area         = dynamic(() => import("recharts").then(m => ({ default: m.Area })),         { ssr: false });
@@ -73,6 +74,7 @@ function NoData({ label }: { label: string }) {
 }
 
 export default function AnalyticsPage() {
+  const { t } = useLang();
   const [period,    setPeriod]    = useState<"1d" | "1w" | "1m" | "6m">("1d");
   const [chartType, setChartType] = useState<"bar" | "area" | "line">("bar");
 
@@ -97,20 +99,20 @@ export default function AnalyticsPage() {
 
   const KPI_CARDS = [
     {
-      label: "RDV / jour moyen",
+      label: t("analytics.kpi.avgPerDay"),
       value: kpi ? (kpi.avgPerDay > 0 ? `${kpi.avgPerDay} RDV/j` : "—") : "—",
-      sub: "30 derniers jours",
+      sub: t("analytics.kpi.lastThirty"),
       icon: Calendar,
       color: "gradient-primary",
     },
-    { label: "Taux de complétion", value: kpi ? `${kpi.completionRate}%` : "—", sub: "consultations terminées", icon: CheckCircle, color: "gradient-success" },
-    { label: "Nouveaux patients", value: kpi ? `${kpi.newPatientsMonth}` : "—", sub: "ce mois", icon: Users, color: "gradient-warning" },
-    { label: "Revenus du mois", value: kpi ? (kpi.monthlyRevenue > 0 ? `${kpi.monthlyRevenue.toLocaleString("fr-MA")} MAD` : "0 MAD") : "—", sub: "total encaissé", icon: CreditCard, color: "gradient-purple" },
+    { label: t("analytics.kpi.completion"), value: kpi ? `${kpi.completionRate}%` : "—", sub: t("analytics.kpi.completed"), icon: CheckCircle, color: "gradient-success" },
+    { label: t("analytics.kpi.newPatients"), value: kpi ? `${kpi.newPatientsMonth}` : "—", sub: t("analytics.kpi.thisMonth"), icon: Users, color: "gradient-warning" },
+    { label: t("analytics.kpi.revenue"), value: kpi ? (kpi.monthlyRevenue > 0 ? `${kpi.monthlyRevenue.toLocaleString("fr-MA")} MAD` : "0 MAD") : "—", sub: t("analytics.kpi.collected"), icon: CreditCard, color: "gradient-purple" },
   ];
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Analytique" subtitle="Statistiques et tendances de votre cabinet" />
+      <Header title={t("analytics.title")} subtitle={t("analytics.subtitle")} />
 
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-5">
 
@@ -140,9 +142,9 @@ export default function AnalyticsPage() {
         {kpi && (
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: "Total patients", value: kpi.totalPatients,   color: "text-foreground",       bg: "bg-muted/30" },
-              { label: "Actifs",         value: kpi.activePatients,   color: "text-emerald-600",      bg: "bg-emerald-50 dark:bg-emerald-950/30" },
-              { label: "Inactifs",       value: kpi.inactivePatients, color: "text-muted-foreground", bg: "bg-muted/20" },
+              { label: t("analytics.patients.total"),    value: kpi.totalPatients,   color: "text-foreground",       bg: "bg-muted/30" },
+              { label: t("analytics.patients.active"),   value: kpi.activePatients,   color: "text-emerald-600",      bg: "bg-emerald-50 dark:bg-emerald-950/30" },
+              { label: t("analytics.patients.inactive"), value: kpi.inactivePatients, color: "text-muted-foreground", bg: "bg-muted/20" },
             ].map(({ label, value, color, bg }) => (
               <div key={label} className={cn("rounded-xl px-5 py-3 border border-border flex items-center gap-3", bg)}>
                 <p className={cn("text-2xl font-bold", color)}>{value}</p>
@@ -162,14 +164,14 @@ export default function AnalyticsPage() {
             <>
               <div className="bg-card border border-border rounded-xl p-5 lg:col-span-2">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-foreground">Évolution des revenus & rendez-vous</h3>
+                  <h3 className="text-sm font-semibold text-foreground">{t("analytics.revenueChart")}</h3>
                   <div className="flex items-center gap-0.5 bg-muted/40 rounded-lg p-0.5">
                     {([
-                      { type: "bar",  Icon: BarChart2, title: "Colonnes" },
-                      { type: "area", Icon: AreaIcon,  title: "Aires" },
-                      { type: "line", Icon: LineIcon,  title: "Lignes" },
-                    ] as const).map(({ type, Icon, title }) => (
-                      <button key={type} onClick={() => setChartType(type)} title={title}
+                      { type: "bar",  Icon: BarChart2, titleKey: "analytics.columns" },
+                      { type: "area", Icon: AreaIcon,  titleKey: "analytics.areas" },
+                      { type: "line", Icon: LineIcon,  titleKey: "analytics.lines" },
+                    ] as const).map(({ type, Icon, titleKey }) => (
+                      <button key={type} onClick={() => setChartType(type)} title={t(titleKey)}
                         className={cn("w-7 h-7 flex items-center justify-center rounded-md transition-all",
                           chartType === type ? "bg-card shadow-sm text-primary" : "text-muted-foreground hover:text-foreground")}>
                         <Icon className="w-3.5 h-3.5" />
@@ -183,13 +185,13 @@ export default function AnalyticsPage() {
                       "flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all",
                       period === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                     )}>
-                      {p === "1d" ? "Aujourd'hui" : p === "1w" ? "7 jours" : p === "1m" ? "30 jours" : "6 mois"}
+                      {p === "1d" ? t("analytics.chart.today") : p === "1w" ? t("analytics.chart.sevenDays") : p === "1m" ? t("analytics.chart.thirtyDays") : t("analytics.chart.sixMonths")}
                     </button>
                   ))}
                 </div>
                 <div className="flex items-center gap-4 mb-3">
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#43e97b]" /><span className="text-xs text-muted-foreground">RDV</span></div>
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#6272f5]" /><span className="text-xs text-muted-foreground">Revenus (MAD)</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#43e97b]" /><span className="text-xs text-muted-foreground">{t("analytics.rdv")}</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#6272f5]" /><span className="text-xs text-muted-foreground">{t("analytics.revenue")}</span></div>
                 </div>
                 {chartType === "bar" ? (
                   <ResponsiveContainer width="100%" height={220}>
@@ -199,8 +201,8 @@ export default function AnalyticsPage() {
                       <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
                       <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
                       <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
-                      <Bar yAxisId="rev" dataKey="revenue" fill="#6272f5" name="Revenus (MAD)" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                      <Bar yAxisId="rdv" dataKey="rdv"     fill="#43e97b" name="RDV"           radius={[4, 4, 0, 0]} maxBarSize={28} />
+                      <Bar yAxisId="rev" dataKey="revenue" fill="#6272f5" name={t("analytics.revenue")} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                      <Bar yAxisId="rdv" dataKey="rdv"     fill="#43e97b" name={t("analytics.rdv")}     radius={[4, 4, 0, 0]} maxBarSize={28} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : chartType === "area" ? (
@@ -221,8 +223,8 @@ export default function AnalyticsPage() {
                       <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
                       <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Area yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} fill="url(#gradRevenue)" name="Revenus (MAD)" dot={false} />
-                      <Area yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   fill="url(#gradAppts)"   name="RDV"           dot={false} />
+                      <Area yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} fill="url(#gradRevenue)" name={t("analytics.revenue")} dot={false} />
+                      <Area yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   fill="url(#gradAppts)"   name={t("analytics.rdv")}     dot={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
@@ -233,8 +235,8 @@ export default function AnalyticsPage() {
                       <YAxis yAxisId="rev" orientation="left"  tick={{ fontSize: 10, fill: "#6272f5" }} axisLine={false} tickLine={false} />
                       <YAxis yAxisId="rdv" orientation="right" tick={{ fontSize: 10, fill: "#43e97b" }} axisLine={false} tickLine={false} tickCount={5} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Line yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} name="Revenus (MAD)" dot={{ r: 3, fill: "#6272f5" }} activeDot={{ r: 5 }} />
-                      <Line yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   name="RDV"           dot={{ r: 3, fill: "#43e97b" }} activeDot={{ r: 5 }} />
+                      <Line yAxisId="rev" type="monotone" dataKey="revenue" stroke="#6272f5" strokeWidth={2.5} name={t("analytics.revenue")} dot={{ r: 3, fill: "#6272f5" }} activeDot={{ r: 5 }} />
+                      <Line yAxisId="rdv" type="monotone" dataKey="rdv"     stroke="#43e97b" strokeWidth={2}   name={t("analytics.rdv")}     dot={{ r: 3, fill: "#43e97b" }} activeDot={{ r: 5 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 )}
@@ -242,12 +244,12 @@ export default function AnalyticsPage() {
 
               <div className="bg-card border border-border rounded-xl p-5">
                 <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-foreground">Répartition par genre</h3>
-                  <p className="text-xs text-muted-foreground">Tous les patients</p>
+                  <h3 className="text-sm font-semibold text-foreground">{t("analytics.gender.title")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("analytics.gender.all")}</p>
                 </div>
                 {(analytics?.genderData?.length ?? 0) === 0 ? (
                   <div className="h-40 flex items-center justify-center">
-                    <NoData label="Aucune donnée" />
+                    <NoData label={t("analytics.noData")} />
                   </div>
                 ) : (
                   <GenderPieChart data={analytics!.genderData} />
@@ -260,8 +262,8 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="bg-card border border-border rounded-xl p-5">
             <div className="mb-4">
-              <h3 className="text-sm font-semibold text-foreground">Heures de pointe</h3>
-              <p className="text-xs text-muted-foreground">Rendez-vous par heure (30 derniers jours)</p>
+              <h3 className="text-sm font-semibold text-foreground">{t("analytics.peakHours.title")}</h3>
+              <p className="text-xs text-muted-foreground">{t("analytics.peakHours.subtitle")}</p>
             </div>
             {analyticsLoading ? <ChartSkeleton height={180} /> : (
               <ResponsiveContainer width="100%" height={180}>
@@ -278,8 +280,8 @@ export default function AnalyticsPage() {
 
           <div className="bg-card border border-border rounded-xl p-5">
             <div className="mb-4">
-              <h3 className="text-sm font-semibold text-foreground">Tranches d&apos;âge</h3>
-              <p className="text-xs text-muted-foreground">Distribution des patients</p>
+              <h3 className="text-sm font-semibold text-foreground">{t("analytics.age.title")}</h3>
+              <p className="text-xs text-muted-foreground">{t("analytics.age.subtitle")}</p>
             </div>
             {analyticsLoading ? <ChartSkeleton height={180} /> : (
               <ResponsiveContainer width="100%" height={180}>
@@ -297,13 +299,13 @@ export default function AnalyticsPage() {
 
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="mb-4">
-            <h3 className="text-sm font-semibold text-foreground">Types de consultation</h3>
-            <p className="text-xs text-muted-foreground">Répartition des rendez-vous (30 derniers jours)</p>
+            <h3 className="text-sm font-semibold text-foreground">{t("analytics.consultationTypes.title")}</h3>
+            <p className="text-xs text-muted-foreground">{t("analytics.consultationTypes.subtitleFull")}</p>
           </div>
           {analyticsLoading ? <ChartSkeleton height={180} /> : (
             (analytics?.consultationTypes?.length ?? 0) === 0 ? (
               <div className="h-[180px] flex items-center justify-center">
-                <NoData label="Aucun rendez-vous ces 30 derniers jours" />
+                <NoData label={t("analytics.noAppointments30")} />
               </div>
             ) : (
               <ConsultationTypesChart data={analytics!.consultationTypes} />

@@ -20,6 +20,7 @@ import type { OnlineDoctor } from "@/hooks/useDoctorPresence";
 import { useRealtimeContext } from "@/providers/RealtimeProvider";
 import { DoctorSelectModal } from "@/components/waiting-room/DoctorSelectModal";
 import { getToday } from "@/lib/date-utils";
+import { useLang } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -115,10 +116,10 @@ function StatCard({ label, value, sub, accent }: { label: string; value: number;
   );
 }
 
-function UrgentBadge() {
+function UrgentBadge({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 font-semibold dark:bg-red-950 dark:text-red-400 dark:border-red-800">
-      <AlertCircle className="w-2.5 h-2.5" /> Urgent
+      <AlertCircle className="w-2.5 h-2.5" /> {label}
     </span>
   );
 }
@@ -132,10 +133,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function PriorityPicker({ value, onChange }: { value: WRPriority; onChange: (v: WRPriority) => void }) {
+function PriorityPicker({ value, onChange, labelPriority, labelUrgent, labelNormal }: {
+  value: WRPriority;
+  onChange: (v: WRPriority) => void;
+  labelPriority: string;
+  labelUrgent: string;
+  labelNormal: string;
+}) {
   return (
     <div>
-      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Priorité</label>
+      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">{labelPriority}</label>
       <div className="flex gap-2">
         {(["normal", "urgent"] as WRPriority[]).map(p => (
           <button key={p} type="button" onClick={() => onChange(p)}
@@ -145,7 +152,7 @@ function PriorityPicker({ value, onChange }: { value: WRPriority; onChange: (v: 
                   ? "bg-red-50 border-red-300 text-red-700 dark:bg-red-950 dark:border-red-700 dark:text-red-400"
                   : "bg-primary/10 border-primary/30 text-primary"
                 : "bg-muted/30 border-border text-muted-foreground hover:bg-muted")}>
-            {p === "urgent" ? "🚨 Urgent" : "Normal"}
+            {p === "urgent" ? `🚨 ${labelUrgent}` : labelNormal}
           </button>
         ))}
       </div>
@@ -155,7 +162,11 @@ function PriorityPicker({ value, onChange }: { value: WRPriority; onChange: (v: 
 
 // ─── Create patient form ──────────────────────────────────────────────────────
 
-function CreatePatientForm({ initial, onSubmit }: { initial: Partial<CreateForm>; onSubmit: (f: CreateForm) => void }) {
+function CreatePatientForm({ initial, onSubmit, t }: {
+  initial: Partial<CreateForm>;
+  onSubmit: (f: CreateForm) => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+}) {
   const [f, setF] = useState<CreateForm>({
     fullName: initial.fullName || "", phone: "", dateOfBirth: "",
     gender: "male", priority: initial.priority || "normal", visitType: "Consultation",
@@ -165,45 +176,51 @@ function CreatePatientForm({ initial, onSubmit }: { initial: Partial<CreateForm>
   return (
     <form onSubmit={e => { e.preventDefault(); onSubmit(f); }} className="space-y-4">
       <div className="space-y-3">
-        <Field label="Nom complet *">
+        <Field label={`${t("waitingRoom.fullName")} *`}>
           <input value={f.fullName} onChange={e => set("fullName")(e.target.value)} required
             placeholder="Prénom Nom"
             className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground" />
         </Field>
-        <Field label="Téléphone *">
+        <Field label={`${t("waitingRoom.phoneLabel")} *`}>
           <input value={f.phone} onChange={e => set("phone")(e.target.value)} required
             placeholder="06 XX XX XX XX" type="tel"
             className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground" />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Date de naissance">
+          <Field label={t("waitingRoom.dobLabel")}>
             <input value={f.dateOfBirth} onChange={e => set("dateOfBirth")(e.target.value)} type="date"
               className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground" />
           </Field>
-          <Field label="Sexe">
+          <Field label={t("waitingRoom.sexLabel")}>
             <select value={f.gender} onChange={e => set("gender")(e.target.value as "male" | "female")}
               className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground">
-              <option value="male">Homme</option>
-              <option value="female">Femme</option>
+              <option value="male">{t("common.male")}</option>
+              <option value="female">{t("common.female")}</option>
             </select>
           </Field>
         </div>
       </div>
       <div>
-        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Motif de visite</label>
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">{t("waitingRoom.visitTypeLabel")}</label>
         <select value={f.visitType} onChange={e => setF(p => ({ ...p, visitType: e.target.value }))}
           className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground">
-          {VISIT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          {VISIT_TYPES.map(tp => <option key={tp} value={tp}>{tp}</option>)}
         </select>
       </div>
-      <PriorityPicker value={f.priority} onChange={v => setF(p => ({ ...p, priority: v }))} />
+      <PriorityPicker
+        value={f.priority}
+        onChange={v => setF(p => ({ ...p, priority: v }))}
+        labelPriority={t("waitingRoom.addModal.priority")}
+        labelUrgent={t("waitingRoom.urgentBadge")}
+        labelNormal={t("common.normal")}
+      />
       <div className="rounded-xl bg-primary/5 border border-primary/20 px-4 py-3 text-xs text-muted-foreground flex items-start gap-2">
         <Calendar className="w-3.5 h-3.5 mt-0.5 text-primary flex-shrink-0" />
-        <span>Un rendez-vous pour aujourd&apos;hui sera créé automatiquement.</span>
+        <span>{t("waitingRoom.autoAppointmentNote")}</span>
       </div>
       <button type="submit"
         className="w-full py-2.5 rounded-xl gradient-primary text-white font-semibold text-sm hover:opacity-90 transition-all">
-        Créer et ajouter à la file
+        {t("waitingRoom.createAndAdd")}
       </button>
     </form>
   );
@@ -215,10 +232,12 @@ function AddModal({
   onClose,
   onAddExisting,
   onCreateAndAdd,
+  t,
 }: {
   onClose: () => void;
   onAddExisting: (p: PatientOption, priority: WRPriority, visitType: string) => void;
   onCreateAndAdd: (f: CreateForm) => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   const [mode, setMode]           = useState<"search" | "create">("search");
   const [search, setSearch]       = useState("");
@@ -253,7 +272,7 @@ function AddModal({
               </button>
             )}
             <h2 className="font-bold text-lg text-foreground">
-              {mode === "search" ? "Ajouter à la file" : "Nouveau patient"}
+              {mode === "search" ? t("waitingRoom.addModal.title") : t("waitingRoom.addModal.newPatient")}
             </h2>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center">
@@ -266,7 +285,7 @@ function AddModal({
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input autoFocus value={search} onChange={e => { setSearch(e.target.value); setSelected(null); }}
-                placeholder="Nom du patient..."
+                placeholder={t("waitingRoom.addModal.searchPlaceholder")}
                 className="w-full pl-9 pr-4 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground placeholder:text-muted-foreground" />
             </div>
 
@@ -274,7 +293,7 @@ function AddModal({
               <div className="border border-border rounded-xl overflow-hidden">
                 <div className="max-h-44 overflow-y-auto custom-scroll">
                   {isFetching
-                    ? <div className="py-6 text-center text-sm text-muted-foreground">Recherche…</div>
+                    ? <div className="py-6 text-center text-sm text-muted-foreground">{t("waitingRoom.addModal.searching")}</div>
                     : patients.map(p => (
                       <button key={p.id} type="button" onClick={() => setSelected(p)}
                         className={cn("w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors",
@@ -295,8 +314,8 @@ function AddModal({
                     <Plus className="w-4 h-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-primary">Créer un nouveau patient</p>
-                    {noResults && <p className="text-xs text-muted-foreground">Aucun résultat pour « {search} »</p>}
+                    <p className="text-sm font-semibold text-primary">{t("waitingRoom.addModal.createNew")}</p>
+                    {noResults && <p className="text-xs text-muted-foreground">{t("waitingRoom.addModal.noResults", { query: search })}</p>}
                   </div>
                 </button>
               </div>
@@ -305,41 +324,38 @@ function AddModal({
             {!search.trim() && (
               <button type="button" onClick={() => setMode("create")}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all text-sm font-semibold">
-                <Plus className="w-4 h-4" /> Nouveau patient
+                <Plus className="w-4 h-4" /> {t("waitingRoom.addModal.newPatient")}
               </button>
             )}
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Motif de visite</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">{t("waitingRoom.addModal.visitType")}</label>
               <select value={visitType} onChange={e => setVisitType(e.target.value)}
                 className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground">
-                {VISIT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {VISIT_TYPES.map(tp => <option key={tp} value={tp}>{tp}</option>)}
               </select>
             </div>
-            <PriorityPicker value={priority} onChange={setPriority} />
+            <PriorityPicker
+              value={priority}
+              onChange={setPriority}
+              labelPriority={t("waitingRoom.addModal.priority")}
+              labelUrgent={t("waitingRoom.urgentBadge")}
+              labelNormal={t("common.normal")}
+            />
 
             <button type="button" disabled={!selected}
               onClick={() => selected && onAddExisting(selected, priority, visitType)}
               className="w-full py-2.5 rounded-xl gradient-primary text-white font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-all">
-              Ajouter à la file d&apos;attente
+              {t("waitingRoom.addModal.addButton")}
             </button>
           </>
         ) : (
-          <CreatePatientForm initial={{ fullName: search, priority }} onSubmit={onCreateAndAdd} />
+          <CreatePatientForm initial={{ fullName: search, priority }} onSubmit={onCreateAndAdd} t={t} />
         )}
       </div>
     </div>
   );
 }
-
-// ─── Filter tabs ──────────────────────────────────────────────────────────────
-
-const FILTER_TABS: { value: ApptFilter; label: string }[] = [
-  { value: "all",         label: "Tous" },
-  { value: "waiting",     label: "En attente" },
-  { value: "in_progress", label: "En consultation" },
-  { value: "done",        label: "Terminés" },
-];
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -347,6 +363,7 @@ export default function WaitingRoomPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const router = useRouter();
+  const { t } = useLang();
 
   const {
     onlineDoctors,
@@ -362,16 +379,13 @@ export default function WaitingRoomPage() {
   const [, setTick]                         = useState(0);
   const [assigningEntry, setAssigningEntry] = useState<WREntry | null>(null);
 
-  // Re-render every 30s for wait-time display (does NOT trigger any fetch)
   useEffect(() => {
-    const t = setInterval(() => setTick(n => n + 1), 30_000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setTick(n => n + 1), 30_000);
+    return () => clearInterval(timer);
   }, []);
 
-  // ── Singleton realtime context (ONE WebSocket for the whole app) ─────────
   const { connectionStatus, sendBroadcast } = useRealtimeContext();
 
-  // ── Queries (staleTime=0 → always use latest; refetch as safety net) ──────
   const { data: entries = [], isLoading, refetch: refetchWR, isFetching: isFetchingWR } = useQuery<WREntry[]>({
     queryKey: WR_KEY,
     queryFn:  async () => { const r = await api.get("/waiting-room"); return r.data; },
@@ -389,8 +403,6 @@ export default function WaitingRoomPage() {
   const handleManualRefresh = useCallback(async () => {
     await Promise.all([refetchWR(), refetchAppts()]);
   }, [refetchWR, refetchAppts]);
-
-  // ── Derived lists ──────────────────────────────────────────────────────────
 
   const wrByPatient = useMemo(() => {
     const map = new Map<string, WREntry>();
@@ -428,6 +440,13 @@ export default function WaitingRoomPage() {
     done:        enrichedAppts.filter(a => a.wrEntry?.status === "done").length,
   }), [enrichedAppts]);
 
+  const FILTER_TABS: { value: ApptFilter; label: string }[] = [
+    { value: "all",         label: t("common.all") },
+    { value: "waiting",     label: t("waitingRoom.stats.waiting") },
+    { value: "in_progress", label: t("waitingRoom.stats.inProgress") },
+    { value: "done",        label: t("waitingRoom.stats.done") },
+  ];
+
   // ── Mutations ──────────────────────────────────────────────────────────────
 
   const updateStatus = useMutation({
@@ -435,7 +454,6 @@ export default function WaitingRoomPage() {
       id: string; status: WRStatus; doctorId?: string; doctorName?: string; appointmentId?: string | null;
     }) => {
       const wrRes = await api.patch(`/waiting-room/${id}`, { status, doctorId, doctorName });
-      // Sync appointment status when consultation is done
       if (status === "done" && appointmentId) {
         try { await api.patch(`/appointments/${appointmentId}`, { status: "completed" }); } catch {}
       }
@@ -452,7 +470,7 @@ export default function WaitingRoomPage() {
       );
       return { prev };
     },
-    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(WR_KEY, ctx.prev); toast.error("Erreur"); },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(WR_KEY, ctx.prev); toast.error(t("common.error")); },
     onSuccess: (_, { id, status, doctorId, doctorName }) => {
       qc.invalidateQueries({ queryKey: WR_KEY });
       qc.invalidateQueries({ queryKey: ["appointments"] });
@@ -460,10 +478,10 @@ export default function WaitingRoomPage() {
       qc.invalidateQueries({ queryKey: ["dashboard", "stats"] });
       if (status === "in_progress") {
         sendBroadcast("wr:patient-called", { id, status, doctorId, doctorName });
-        toast.success("Patient appelé en consultation");
+        toast.success(t("waitingRoom.toastCalled"));
       } else if (status === "done") {
         sendBroadcast("wr:consultation-done", { id, status });
-        toast.success("Consultation terminée");
+        toast.success(t("waitingRoom.toastDone"));
       } else {
         sendBroadcast("wr:updated", { id, status });
       }
@@ -478,12 +496,12 @@ export default function WaitingRoomPage() {
       qc.setQueryData<WREntry[]>(WR_KEY, old => (old ?? []).filter(e => e.id !== id));
       return { prev };
     },
-    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(WR_KEY, ctx.prev); toast.error("Erreur"); },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(WR_KEY, ctx.prev); toast.error(t("common.error")); },
     onSuccess: (_, id) => {
       sendBroadcast("wr:updated", { removed: id });
       qc.invalidateQueries({ queryKey: WR_KEY });
       qc.invalidateQueries({ queryKey: ["dashboard", "stats"] });
-      toast.success("Patient retiré");
+      toast.success(t("waitingRoom.toastRemoved"));
     },
   });
 
@@ -496,10 +514,10 @@ export default function WaitingRoomPage() {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       qc.invalidateQueries({ queryKey: ["dashboard", "stats"] });
       sendBroadcast("wr:updated", { added: res.data });
-      toast.success("Patient ajouté à la file");
+      toast.success(t("waitingRoom.toastAdded"));
       setAddOpen(false);
     },
-    onError: (e: { response?: { data?: { error?: string } } }) => toast.error(e?.response?.data?.error || "Erreur"),
+    onError: (e: { response?: { data?: { error?: string } } }) => toast.error(e?.response?.data?.error || t("common.error")),
   });
 
   const createAndAdd = useMutation({
@@ -524,10 +542,10 @@ export default function WaitingRoomPage() {
       qc.invalidateQueries({ queryKey: APPT_KEY });
       qc.invalidateQueries({ queryKey: ["dashboard", "stats"] });
       sendBroadcast("wr:updated", { added: entry });
-      toast.success("Patient créé et ajouté à la file");
+      toast.success(t("waitingRoom.toastCreated"));
       setAddOpen(false);
     },
-    onError: (e: { response?: { data?: { error?: string } } }) => toast.error(e?.response?.data?.error || "Erreur"),
+    onError: (e: { response?: { data?: { error?: string } } }) => toast.error(e?.response?.data?.error || t("common.error")),
   });
 
   const cancelAppt = useMutation({
@@ -538,15 +556,13 @@ export default function WaitingRoomPage() {
       qc.setQueryData<Appointment[]>(APPT_KEY, old => (old ?? []).map(a => a.id === apptId ? { ...a, status: "cancelled" } : a));
       return { prev };
     },
-    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(APPT_KEY, ctx.prev); toast.error("Erreur"); },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(APPT_KEY, ctx.prev); toast.error(t("common.error")); },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: APPT_KEY });
       qc.invalidateQueries({ queryKey: ["appointments"] });
-      toast.success("Rendez-vous annulé");
+      toast.success(t("waitingRoom.toastCancelled"));
     },
   });
-
-  // ── Doctor-aware call logic ────────────────────────────────────────────────
 
   const callPatient = useCallback((entry: WREntry) => {
     if (onlineDoctors.length === 0) {
@@ -587,7 +603,6 @@ export default function WaitingRoomPage() {
 
   const finishAndCallNext = useCallback(async (entry: WREntry) => {
     await api.patch(`/waiting-room/${entry.id}`, { status: "done" });
-    // Also sync the appointment status
     if (entry.appointmentId) {
       try { await api.patch(`/appointments/${entry.appointmentId}`, { status: "completed" }); } catch {}
     }
@@ -607,11 +622,11 @@ export default function WaitingRoomPage() {
   return (
     <div className="flex flex-col h-full">
       <Header
-        title="Salle d'attente"
+        title={t("waitingRoom.title")}
         subtitle={format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
       />
 
-      {/* ── Realtime status bar ── */}
+      {/* Realtime status bar */}
       <div className="px-6 pt-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className={cn("w-2 h-2 rounded-full flex-shrink-0",
@@ -624,9 +639,9 @@ export default function WaitingRoomPage() {
             connectionStatus === "connecting" && "text-amber-600 dark:text-amber-400",
             connectionStatus === "error"      && "text-red-500"
           )}>
-            {connectionStatus === "connected"  && "Synchronisation en direct"}
-            {connectionStatus === "connecting" && "Connexion en cours…"}
-            {connectionStatus === "error"      && "Reconnexion…"}
+            {connectionStatus === "connected"  && t("waitingRoom.syncLive")}
+            {connectionStatus === "connecting" && t("waitingRoom.connecting")}
+            {connectionStatus === "error"      && t("waitingRoom.reconnecting")}
           </span>
         </div>
         <button
@@ -635,27 +650,26 @@ export default function WaitingRoomPage() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-all disabled:opacity-50"
         >
           <RefreshCw className={cn("w-3.5 h-3.5", isFetchingWR && "animate-spin")} />
-          {isFetchingWR ? "Actualisation..." : "Actualiser"}
+          {isFetchingWR ? t("waitingRoom.refreshing") : t("waitingRoom.refresh")}
         </button>
       </div>
 
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-6 max-w-3xl mx-auto w-full">
 
-        {/* ── Stats ── */}
+        {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
-          <StatCard label="En attente"      value={waiting.length}    sub="dans la file"                    accent="border-l-4 border-l-amber-400" />
-          <StatCard label="En consultation" value={inProgress.length} sub={inProgress[0]?.patientName ?? "—"} accent="border-l-4 border-l-emerald-400" />
-          <StatCard label="Terminés"        value={done.length}       sub="aujourd'hui"                     accent="border-l-4 border-l-border" />
+          <StatCard label={t("waitingRoom.stats.waiting")}    value={waiting.length}    sub={t("waitingRoom.stats.inQueue")}                       accent="border-l-4 border-l-amber-400" />
+          <StatCard label={t("waitingRoom.stats.inProgress")} value={inProgress.length} sub={inProgress[0]?.patientName ?? "—"}                    accent="border-l-4 border-l-emerald-400" />
+          <StatCard label={t("waitingRoom.stats.done")}       value={done.length}       sub={t("waitingRoom.stats.today")}                         accent="border-l-4 border-l-border" />
         </div>
 
-
-        {/* ── En consultation ── */}
+        {/* En consultation */}
         {inProgress.map(e => (
           <div key={e.id} className="bg-card border-2 border-emerald-300 dark:border-emerald-700 rounded-2xl overflow-hidden shadow-sm">
             <div className="bg-emerald-50 dark:bg-emerald-950/50 px-5 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">En consultation actuellement</span>
+                <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{t("waitingRoom.inConsultation")}</span>
               </div>
               {e.assignedDoctorName && (
                 <span className="text-xs text-emerald-600 dark:text-emerald-500 font-semibold">Dr. {e.assignedDoctorName}</span>
@@ -673,17 +687,17 @@ export default function WaitingRoomPage() {
                       className="font-bold text-foreground text-base hover:text-primary hover:underline transition-colors text-left">
                       {e.patientName}
                     </button>
-                    {e.priority === "urgent" && <UrgentBadge />}
+                    {e.priority === "urgent" && <UrgentBadge label={t("waitingRoom.urgentBadge")} />}
                   </div>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {e.appointmentTime ? `RDV à ${e.appointmentTime} · ` : ""}
-                    Arrivé il y a {formatWait(waitingMinutes(e.arrivedAt))}
+                    {e.appointmentTime ? `${t("waitingRoom.appointmentAt", { time: e.appointmentTime })} · ` : ""}
+                    {t("waitingRoom.arrivedAgo", { time: formatWait(waitingMinutes(e.arrivedAt)) })}
                   </p>
                 </div>
                 <button
                   onClick={() => removeEntry.mutate(e.id)}
                   disabled={removeEntry.isPending}
-                  title="Patient parti"
+                  title={t("waitingRoom.patientLeft")}
                   className="w-9 h-9 rounded-xl border border-border hover:bg-red-50 hover:border-red-200 hover:text-red-500 dark:hover:bg-red-950 dark:hover:border-red-800 dark:hover:text-red-400 text-muted-foreground flex items-center justify-center transition-colors disabled:opacity-50 flex-shrink-0">
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -695,14 +709,14 @@ export default function WaitingRoomPage() {
                     onClick={() => finishConsultation(e)}
                     disabled={updateStatus.isPending}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors disabled:opacity-50 flex-shrink-0">
-                    <CheckCircle className="w-3.5 h-3.5" /> Terminer
+                    <CheckCircle className="w-3.5 h-3.5" /> {t("waitingRoom.finish")}
                   </button>
                   {waiting.length > 0 && (
                     <button
                       onClick={() => finishAndCallNext(e)}
                       disabled={updateStatus.isPending}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl gradient-primary text-white text-xs font-semibold transition-colors disabled:opacity-50 flex-shrink-0">
-                      <SkipForward className="w-3.5 h-3.5" /> Terminer &amp; Suivant
+                      <SkipForward className="w-3.5 h-3.5" /> {t("waitingRoom.finishAndNext")}
                     </button>
                   )}
                 </div>
@@ -714,7 +728,7 @@ export default function WaitingRoomPage() {
                     onClick={() => updateStatus.mutate({ id: e.id, status: "done" })}
                     disabled={updateStatus.isPending}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition-colors disabled:opacity-50">
-                    <CheckCircle className="w-4 h-4" /> Terminer
+                    <CheckCircle className="w-4 h-4" /> {t("waitingRoom.finish")}
                   </button>
                 </div>
               )}
@@ -722,18 +736,18 @@ export default function WaitingRoomPage() {
           </div>
         ))}
 
-        {/* ── File d'attente ── */}
+        {/* File d'attente */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-sm text-foreground">
-              File d&apos;attente
+              {t("waitingRoom.queue")}
               <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 text-xs font-bold">
                 {waiting.length}
               </span>
             </h3>
             <button onClick={() => setAddOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all text-xs font-semibold">
-              <UserPlus className="w-3.5 h-3.5" /> Ajouter
+              <UserPlus className="w-3.5 h-3.5" /> {t("waitingRoom.addToQueue")}
             </button>
           </div>
 
@@ -744,8 +758,8 @@ export default function WaitingRoomPage() {
           ) : waiting.length === 0 ? (
             <div className="py-12 text-center bg-card border border-border rounded-2xl">
               <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-              <p className="font-semibold text-foreground">File vide</p>
-              <p className="text-sm text-muted-foreground mt-1">Aucun patient en attente</p>
+              <p className="font-semibold text-foreground">{t("waitingRoom.emptyQueue")}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("waitingRoom.noWaiting")}</p>
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -770,7 +784,7 @@ export default function WaitingRoomPage() {
                           className="text-sm font-semibold text-foreground hover:text-primary hover:underline transition-colors text-left truncate">
                           {e.patientName}
                         </button>
-                        {e.priority === "urgent" && <UrgentBadge />}
+                        {e.priority === "urgent" && <UrgentBadge label={t("waitingRoom.urgentBadge")} />}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5">
                         {e.appointmentTime && (
@@ -780,7 +794,7 @@ export default function WaitingRoomPage() {
                         )}
                         <span className={cn("text-xs font-medium",
                           mins > 30 ? "text-red-500" : mins > 15 ? "text-amber-500" : "text-muted-foreground")}>
-                          Depuis {formatWait(mins)}
+                          {t("waitingRoom.waitingSince", { time: formatWait(mins) })}
                         </span>
                       </div>
                     </div>
@@ -788,7 +802,6 @@ export default function WaitingRoomPage() {
                       <button
                         onClick={() => callPatient(e)}
                         disabled={updateStatus.isPending || noDoctor}
-                        title={noDoctor ? "Aucun médecin disponible" : undefined}
                         className={cn(
                           "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all",
                           noDoctor
@@ -798,10 +811,10 @@ export default function WaitingRoomPage() {
                               : "border border-border hover:bg-accent text-foreground disabled:opacity-50"
                         )}>
                         <Stethoscope className="w-3.5 h-3.5" />
-                        {isFirst ? "Faire entrer" : "Appeler"}
+                        {isFirst ? t("waitingRoom.callPatient") : t("waitingRoom.call")}
                       </button>
                       <button onClick={() => removeEntry.mutate(e.id)} disabled={removeEntry.isPending}
-                        title="Retirer"
+                        title={t("waitingRoom.remove")}
                         className="w-8 h-8 rounded-xl border border-border hover:bg-red-50 hover:border-red-200 hover:text-red-500 dark:hover:bg-red-950 dark:hover:border-red-800 dark:hover:text-red-400 text-muted-foreground flex items-center justify-center transition-colors disabled:opacity-50">
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -813,13 +826,13 @@ export default function WaitingRoomPage() {
           )}
         </div>
 
-        {/* ── Rendez-vous d'aujourd'hui ── */}
+        {/* Rendez-vous d'aujourd'hui */}
         {enrichedAppts.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-primary" />
-                <h3 className="font-bold text-sm text-foreground">Rendez-vous d&apos;aujourd&apos;hui</h3>
+                <h3 className="font-bold text-sm text-foreground">{t("waitingRoom.todayAppointments")}</h3>
               </div>
             </div>
 
@@ -844,7 +857,7 @@ export default function WaitingRoomPage() {
             <div className="space-y-2">
               {filteredAppts.length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground bg-card border border-border rounded-xl">
-                  Aucun résultat
+                  {t("waitingRoom.noResult")}
                 </div>
               ) : (
                 filteredAppts.map((a, i) => {
@@ -863,55 +876,48 @@ export default function WaitingRoomPage() {
                         <p className="text-xs text-muted-foreground">{a.type}</p>
                       </div>
 
-                      {/* ── Action buttons per RDV state ── */}
                       {!wr ? (
                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                          {/* Confirm arrival → add to queue */}
                           <button
                             onClick={() => addEntry.mutate({ patientId: a.patientId, priority: "normal", appointmentId: a.id })}
                             disabled={addEntry.isPending || cancelAppt.isPending}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-colors disabled:opacity-50"
-                            title="Confirmer l'arrivée et ajouter à la file d'attente"
                           >
-                            <ArrowRight className="w-3.5 h-3.5" /> Arrivé
+                            <ArrowRight className="w-3.5 h-3.5" /> {t("waitingRoom.arrived")}
                           </button>
-                          {/* Cancel appointment */}
                           <button
                             onClick={() => {
-                              if (confirm(`Annuler le RDV de ${a.patientName} ?`)) {
+                              if (confirm(`${t("waitingRoom.cancelAppt")} ${a.patientName} ?`)) {
                                 cancelAppt.mutate(a.id);
                               }
                             }}
                             disabled={addEntry.isPending || cancelAppt.isPending}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border hover:bg-red-50 hover:border-red-200 hover:text-red-500 dark:hover:bg-red-950 dark:hover:border-red-800 dark:hover:text-red-400 text-muted-foreground text-xs font-semibold transition-colors disabled:opacity-50"
-                            title="Annuler ce rendez-vous"
                           >
-                            <Ban className="w-3.5 h-3.5" /> Annuler
+                            <Ban className="w-3.5 h-3.5" /> {t("waitingRoom.cancelAppt")}
                           </button>
                         </div>
                       ) : wr.status === "waiting" ? (
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           <span className="text-[10px] px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> En file
+                            <Clock className="w-3 h-3" /> {t("waitingRoom.inQueue")}
                           </span>
-                          {/* Allow calling from appointment row too */}
                           <button
                             onClick={() => callPatient(wr)}
                             disabled={updateStatus.isPending}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-xs font-semibold transition-colors disabled:opacity-50"
-                            title="Appeler ce patient"
                           >
-                            <Stethoscope className="w-3.5 h-3.5" /> Appeler
+                            <Stethoscope className="w-3.5 h-3.5" /> {t("waitingRoom.call")}
                           </button>
                         </div>
                       ) : wr.status === "in_progress" ? (
                         <span className="text-[10px] px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 flex-shrink-0">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          En cours
+                          {t("waitingRoom.inProgress")}
                         </span>
                       ) : (
                         <span className="text-[10px] px-2.5 py-1 rounded-xl bg-muted text-muted-foreground font-semibold flex-shrink-0">
-                          Terminé ✓
+                          {t("waitingRoom.done")}
                         </span>
                       )}
                     </div>
@@ -922,13 +928,13 @@ export default function WaitingRoomPage() {
           </div>
         )}
 
-        {/* ── Terminés ── */}
+        {/* Terminés */}
         {done.length > 0 && (
           <div>
             <button type="button" onClick={() => setShowDone(v => !v)}
               className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors mb-3">
               <ChevronDown className={cn("w-4 h-4 transition-transform", showDone && "rotate-180")} />
-              Terminés depuis la file ({done.length})
+              {t("waitingRoom.doneSection", { count: done.length })}
             </button>
             {showDone && (
               <div className="space-y-2">
@@ -943,11 +949,11 @@ export default function WaitingRoomPage() {
                       </button>
                       <p className="text-xs text-muted-foreground">
                         {e.assignedDoctorName ? `Dr. ${e.assignedDoctorName} · ` : ""}
-                        Durée : {formatWait(waitingMinutes(e.arrivedAt))}
+                        {t("waitingRoom.duration", { time: formatWait(waitingMinutes(e.arrivedAt)) })}
                       </p>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-semibold">
-                      Terminé ✓
+                      {t("waitingRoom.done")}
                     </span>
                   </div>
                 ))}
@@ -963,6 +969,7 @@ export default function WaitingRoomPage() {
           onClose={() => setAddOpen(false)}
           onAddExisting={(p, priority, visitType) => addEntry.mutate({ patientId: p.id, priority, visitType })}
           onCreateAndAdd={(f) => createAndAdd.mutate(f)}
+          t={t}
         />
       )}
 
