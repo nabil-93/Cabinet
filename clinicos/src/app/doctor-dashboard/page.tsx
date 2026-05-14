@@ -48,6 +48,7 @@ type SubTab = "list" | "doc" | "ia" | "med" | "billing" | "cal";
 
 interface WaitingPatient {
   id: string;
+  patientId?: string;
   patientName: string;
   waitTime: number;
   status: string;
@@ -200,8 +201,6 @@ export default function DoctorDashboardPage() {
   const { data: todayApts = [], isLoading: aptsLoading } = useAppointmentsByDate(today);
   const { data: allApts  = [] }                           = useAppointments();
 
-  const { data: selectedPatient, isLoading: patientLoading } = usePatient(selectedId ?? "");
-
   const { data: waitingRaw } = useQuery({
     queryKey: ["waiting-room"],
     queryFn: () => api.get("/waiting-room").then(r => r.data?.data ?? r.data ?? []),
@@ -209,19 +208,25 @@ export default function DoctorDashboardPage() {
   });
   const waitingPatients: WaitingPatient[] = Array.isArray(waitingRaw) ? waitingRaw : [];
 
+  // Auto-select the patient currently in consultation
+  const inProgressWaiting = waitingPatients.find(wp => wp.status === "in_progress");
+  const effectiveSelectedId = selectedId ?? inProgressWaiting?.patientId ?? null;
+
+  const { data: selectedPatient, isLoading: patientLoading } = usePatient(effectiveSelectedId ?? "");
+
   const { data: consultationsRaw } = useQuery({
-    queryKey: ["consultations", selectedId],
+    queryKey: ["consultations", effectiveSelectedId],
     queryFn: () =>
-      api.get(selectedId ? `/consultations?patientId=${selectedId}` : "/consultations")
+      api.get(effectiveSelectedId ? `/consultations?patientId=${effectiveSelectedId}` : "/consultations")
         .then(r => r.data?.data ?? r.data ?? []),
     staleTime: 30_000,
   });
   const consultations: Consultation[] = Array.isArray(consultationsRaw) ? consultationsRaw : [];
 
   const { data: prescriptionsRaw } = useQuery({
-    queryKey: ["prescriptions", selectedId],
+    queryKey: ["prescriptions", effectiveSelectedId],
     queryFn: () =>
-      api.get(selectedId ? `/prescriptions?patientId=${selectedId}` : "/prescriptions")
+      api.get(effectiveSelectedId ? `/prescriptions?patientId=${effectiveSelectedId}` : "/prescriptions")
         .then(r => r.data?.data ?? r.data ?? []),
     staleTime: 30_000,
   });
@@ -361,7 +366,188 @@ export default function DoctorDashboardPage() {
         {/* ── LEFT RAIL ─────────────────────────────────────────────────── */}
         <div className="w-72 flex-shrink-0 flex flex-col gap-3 overflow-y-auto custom-scroll">
 
-          {/* Patients du jour */}
+          {/* 1. Dossier patient (always first — auto-populated from in-consultation) */}
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-border/60">
+              <div className="flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Dossier patient</span>
+                {inProgressWaiting && !selectedId && (
+                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                    En consultation
+                  </span>
+                )}
+              </div>
+              {effectiveSelectedId && (
+                <Link
+                  href={`/patients/${effectiveSelectedId}`}
+                  className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                >
+                  Voir <ExternalLink className="w-2.5 h-2.5" />
+                </Link>
+              )}
+            </div>
+
+            {!effectiveSelectedId ? (
+              <div className="p-4 text-center">
+                <User className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-[11px] text-muted-foreground font-medium">Aucun patient sélectionné</p>
+                <p className="text-[10px] text-muted-foreground/70 mt-1">
+                  Cliquez sur un patient pour voir son dossier
+                </p>
+              </div>
+            ) : patientLoading ? (
+              <div className="p-3 space-y-2">
+                {Array(3).fill(null).map((_, i) => <div key={i} className="h-4 rounded bg-muted/50 animate-pulse" />)}
+              </div>
+            ) : selectedPatient ? (
+              <div className="p-3 space-y-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center font-bold text-primary text-[11px]">
+                    {getInitials(selectedPatient.fullName)}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground">{selectedPatient.fullName}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {selectedPatient.gender === "male" ? "Homme" : selectedPatient.gender === "female" ? "Femme" : "—"}
+                      {selectedPatient.dateOfBirth && (() => {
+                        const dob = new Date(selectedPatient.dateOfBirth);
+                        const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 3600 * 1000));
+                        return ` · ${age} ans`;
+                      })()}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedPatient.bloodType && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground">Groupe sanguin:</span>
+                    <span className="text-[10px] font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-1.5 py-0.5 rounded-full">
+                      {selectedPatient.bloodType}
+                    </span>
+                  </div>
+                )}
+
+                {selectedPatient.allergies && selectedPatient.allergies.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1 mb-1">
+                      <AlertTriangle className="w-3 h-3 text-red-500" />
+                      <span className="text-[10px] font-semibold text-red-600 dark:text-red-400">Allergies</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {(Array.isArray(selectedPatient.allergies)
+                        ? selectedPatient.allergies
+                        : [selectedPatient.allergies]
+                      ).map((allergy: string, i: number) => (
+                        <span key={i} className="text-[9px] px-1.5 py-0.5 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 rounded-full border border-red-200 dark:border-red-800">
+                          {allergy}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground mb-1">Antécédents</p>
+                    <div className="flex flex-wrap gap-1">
+                      {(Array.isArray(selectedPatient.medicalHistory)
+                        ? selectedPatient.medicalHistory
+                        : [selectedPatient.medicalHistory]
+                      ).slice(0, 4).map((h: string, i: number) => (
+                        <span key={i} className="text-[9px] px-1.5 py-0.5 bg-muted rounded-full text-muted-foreground border border-border">
+                          {h}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedPatient.phone && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Tel: <span className="text-foreground font-medium">{selectedPatient.phone}</span>
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 text-center text-[11px] text-muted-foreground">
+                Informations non disponibles
+              </div>
+            )}
+          </div>
+
+          {/* 2. Salle d'attente */}
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-border/60">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-semibold text-foreground">Salle d&apos;attente</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                {waitingPatients.length} patient{waitingPatients.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+
+            <div className="p-2 space-y-0.5 max-h-48 overflow-y-auto custom-scroll">
+              {waitingPatients.length === 0 ? (
+                <div className="py-4 text-center text-[11px] text-muted-foreground">
+                  Salle d&apos;attente vide
+                </div>
+              ) : (
+                waitingPatients.slice(0, 6).map((wp) => {
+                  const isInProgress = wp.status === "in_progress";
+                  return (
+                    <div
+                      key={wp.id}
+                      className={cn(
+                        "flex items-center gap-2 p-2 rounded-xl transition-all",
+                        isInProgress
+                          ? "bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800"
+                          : "hover:bg-accent/60"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0",
+                        isInProgress
+                          ? "bg-emerald-100 dark:bg-emerald-900/40"
+                          : "bg-amber-50 dark:bg-amber-950/30"
+                      )}>
+                        <span className={cn(
+                          "font-bold text-[9px]",
+                          isInProgress
+                            ? "text-emerald-700 dark:text-emerald-300"
+                            : "text-amber-700 dark:text-amber-300"
+                        )}>
+                          {getInitials(wp.patientName)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-medium text-foreground flex-1 truncate">{wp.patientName}</p>
+                      {isInProgress ? (
+                        <span className="text-[9px] text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">
+                          Consultation
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">
+                          {wp.waitTime ?? 0}m
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="px-3 py-2 border-t border-border/60 flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground">
+                {waitingPatients.length} total
+              </span>
+              <Link href="/waiting-room" className="text-[10px] text-primary hover:underline flex items-center gap-0.5 font-medium">
+                Voir mes patients <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+          </div>
+
+          {/* 3. Patients actifs (today's appointments) */}
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-border/60">
               <div className="flex items-center gap-1.5">
@@ -384,7 +570,7 @@ export default function DoctorDashboardPage() {
                 </div>
               ) : (
                 filteredApts.map((apt) => {
-                  const isSelected = selectedId === apt.patientId;
+                  const isSelected = effectiveSelectedId === apt.patientId;
                   const sc = STATUS_CONFIG[apt.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
                   return (
                     <button
@@ -417,157 +603,6 @@ export default function DoctorDashboardPage() {
                   );
                 })
               )}
-            </div>
-          </div>
-
-          {/* Selected patient card */}
-          {selectedId && (
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-border/60">
-                <div className="flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-xs font-semibold text-foreground">Dossier patient</span>
-                </div>
-                <Link
-                  href={`/patients/${selectedId}`}
-                  className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
-                >
-                  Voir <ExternalLink className="w-2.5 h-2.5" />
-                </Link>
-              </div>
-
-              {patientLoading ? (
-                <div className="p-3 space-y-2">
-                  {Array(3).fill(null).map((_, i) => <div key={i} className="h-4 rounded bg-muted/50 animate-pulse" />)}
-                </div>
-              ) : selectedPatient ? (
-                <div className="p-3 space-y-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center font-bold text-primary text-[11px]">
-                      {getInitials(selectedPatient.fullName)}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground">{selectedPatient.fullName}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {selectedPatient.gender === "male" ? "Homme" : selectedPatient.gender === "female" ? "Femme" : "—"}
-                        {selectedPatient.dateOfBirth && (() => {
-                          const dob = new Date(selectedPatient.dateOfBirth);
-                          const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 3600 * 1000));
-                          return ` · ${age} ans`;
-                        })()}
-                      </p>
-                    </div>
-                  </div>
-
-                  {selectedPatient.bloodType && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-muted-foreground">Groupe sanguin:</span>
-                      <span className="text-[10px] font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-1.5 py-0.5 rounded-full">
-                        {selectedPatient.bloodType}
-                      </span>
-                    </div>
-                  )}
-
-                  {selectedPatient.allergies && selectedPatient.allergies.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-1 mb-1">
-                        <AlertTriangle className="w-3 h-3 text-red-500" />
-                        <span className="text-[10px] font-semibold text-red-600 dark:text-red-400">Allergies</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {(Array.isArray(selectedPatient.allergies)
-                          ? selectedPatient.allergies
-                          : [selectedPatient.allergies]
-                        ).map((allergy: string, i: number) => (
-                          <span key={i} className="text-[9px] px-1.5 py-0.5 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 rounded-full border border-red-200 dark:border-red-800">
-                            {allergy}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0 && (
-                    <div>
-                      <p className="text-[10px] font-semibold text-muted-foreground mb-1">Antécédents</p>
-                      <div className="flex flex-wrap gap-1">
-                        {(Array.isArray(selectedPatient.medicalHistory)
-                          ? selectedPatient.medicalHistory
-                          : [selectedPatient.medicalHistory]
-                        ).slice(0, 4).map((h: string, i: number) => (
-                          <span key={i} className="text-[9px] px-1.5 py-0.5 bg-muted rounded-full text-muted-foreground border border-border">
-                            {h}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedPatient.phone && (
-                    <p className="text-[10px] text-muted-foreground">
-                      Tel: <span className="text-foreground font-medium">{selectedPatient.phone}</span>
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="p-3 text-center text-[11px] text-muted-foreground">
-                  Informations non disponibles
-                </div>
-              )}
-            </div>
-          )}
-
-          {!selectedId && (
-            <div className="bg-card border border-dashed border-border rounded-2xl p-4 text-center">
-              <User className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-[11px] text-muted-foreground font-medium">Aucun patient sélectionné</p>
-              <p className="text-[10px] text-muted-foreground/70 mt-1">
-                Cliquez sur un patient pour voir son dossier
-              </p>
-            </div>
-          )}
-
-          {/* Salle d'attente */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-border/60">
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-xs font-semibold text-foreground">Salle d&apos;attente</span>
-              </div>
-              <span className="text-[10px] text-muted-foreground">
-                {waitingPatients.length} patient{waitingPatients.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-
-            <div className="p-2 space-y-0.5 max-h-48 overflow-y-auto custom-scroll">
-              {waitingPatients.length === 0 ? (
-                <div className="py-4 text-center text-[11px] text-muted-foreground">
-                  Salle d&apos;attente vide
-                </div>
-              ) : (
-                waitingPatients.slice(0, 6).map((wp) => (
-                  <div key={wp.id} className="flex items-center gap-2 p-2 rounded-xl hover:bg-accent/60 transition-all">
-                    <div className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center flex-shrink-0">
-                      <span className="text-amber-700 dark:text-amber-300 font-bold text-[9px]">
-                        {getInitials(wp.patientName)}
-                      </span>
-                    </div>
-                    <p className="text-[11px] font-medium text-foreground flex-1 truncate">{wp.patientName}</p>
-                    <span className="text-[9px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">
-                      {wp.waitTime ?? 0}m
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="px-3 py-2 border-t border-border/60 flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">
-                {waitingPatients.length} total
-              </span>
-              <Link href="/waiting-room" className="text-[10px] text-primary hover:underline flex items-center gap-0.5 font-medium">
-                Voir mes patients <ChevronRight className="w-3 h-3" />
-              </Link>
             </div>
           </div>
         </div>
@@ -642,7 +677,7 @@ export default function DoctorDashboardPage() {
                               key={apt.id}
                               className={cn(
                                 "flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-all",
-                                selectedId === apt.patientId && "bg-emerald-50/50 dark:bg-emerald-950/10"
+                                effectiveSelectedId === apt.patientId && "bg-emerald-50/50 dark:bg-emerald-950/10"
                               )}
                             >
                               <span className="text-xs font-mono font-semibold text-muted-foreground w-12 flex-shrink-0">
@@ -684,9 +719,9 @@ export default function DoctorDashboardPage() {
                           {selectedPatient ? `Consultations de ${selectedPatient.fullName}` : "Toutes les consultations récentes"}
                         </p>
                       </div>
-                      {selectedId && (
+                      {effectiveSelectedId && (
                         <Link
-                          href={`/patients/${selectedId}`}
+                          href={`/patients/${effectiveSelectedId}`}
                           className="flex items-center gap-1 text-[11px] font-medium text-primary hover:underline px-2.5 py-1.5 bg-primary/5 rounded-lg"
                         >
                           <Plus className="w-3 h-3" /> Nouveau rapport
@@ -698,7 +733,7 @@ export default function DoctorDashboardPage() {
                       <div className="py-12 text-center">
                         <FileText className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
                         <p className="text-sm font-medium text-muted-foreground">Aucune consultation enregistrée</p>
-                        {!selectedId && (
+                        {!effectiveSelectedId && (
                           <p className="text-xs text-muted-foreground/70 mt-1">Sélectionnez un patient pour filtrer</p>
                         )}
                       </div>
@@ -723,7 +758,7 @@ export default function DoctorDashboardPage() {
                                   {c.date ? format(new Date(c.date), "d MMM yyyy", { locale: dateLocale }) : "—"}
                                 </span>
                               </div>
-                              {c.patientName && !selectedId && (
+                              {c.patientName && !effectiveSelectedId && (
                                 <p className="text-[10px] text-primary font-medium mb-1">{c.patientName}</p>
                               )}
                               {c.treatment && (
@@ -808,7 +843,7 @@ export default function DoctorDashboardPage() {
                             Réponse en quelques secondes
                           </p>
                           <Link
-                            href={`/ai-assistant${selectedId ? `?patientId=${selectedId}` : ""}${aiQuestion ? `&q=${encodeURIComponent(aiQuestion)}` : ""}`}
+                            href={`/ai-assistant${effectiveSelectedId ? `?patientId=${effectiveSelectedId}` : ""}${aiQuestion ? `&q=${encodeURIComponent(aiQuestion)}` : ""}`}
                             className="flex items-center gap-1.5 text-[11px] font-semibold text-white bg-primary px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
                           >
                             <Send className="w-3 h-3" /> Envoyer à l&apos;IA
@@ -872,7 +907,7 @@ export default function DoctorDashboardPage() {
                                       <span key={i} className="text-xs font-semibold text-foreground">{med}</span>
                                     ))}
                                   </div>
-                                  {rx.patientName && !selectedId && (
+                                  {rx.patientName && !effectiveSelectedId && (
                                     <p className="text-[10px] text-primary mt-0.5">{rx.patientName}</p>
                                   )}
                                 </div>
@@ -1042,7 +1077,7 @@ export default function DoctorDashboardPage() {
                   </div>
                 </div>
 
-                {!selectedId ? (
+                {!effectiveSelectedId ? (
                   <div className="py-16 text-center">
                     <Heart className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
                     <p className="text-sm font-medium text-muted-foreground">Aucun patient sélectionné</p>
@@ -1061,7 +1096,7 @@ export default function DoctorDashboardPage() {
                       <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
                         <Info className="w-3 h-3 flex-shrink-0" />
                         Valeurs issues de la dernière consultation. Pour les valeurs biologiques complètes,{" "}
-                        <Link href={`/patients/${selectedId}`} className="text-primary hover:underline">
+                        <Link href={`/patients/${effectiveSelectedId}`} className="text-primary hover:underline">
                           voir le dossier complet
                         </Link>
                       </p>
