@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   if (error) return err(error.message);
 
   const patientName = data.patients?.full_name || "Inconnu";
-  await logActivity({ supabase, action: "add_to_waiting_room", entityType: "patient", entityLabel: patientName });
+  await logActivity({ supabase, action: "add_to_waiting_room", entityType: "patient", entityLabel: patientName, req });
 
   return ok(normalize(data));
 }

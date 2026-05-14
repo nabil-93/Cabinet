@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     if (error) return err(error.message);
     const patientNamePresc = (data as any).patients?.full_name || patientId;
-    await logActivity({ supabase, action: "create_prescription", entityType: "prescription", entityId: data.id, entityLabel: `${patientNamePresc} – ${diagnosis}` });
+    await logActivity({ supabase, action: "create_prescription", entityType: "prescription", entityId: data.id, entityLabel: `${patientNamePresc} – ${diagnosis}`, req });
     return ok(normalize(data), 201);
   } catch {
     return err("Erreur serveur", 500);

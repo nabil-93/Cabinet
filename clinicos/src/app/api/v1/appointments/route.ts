@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
       .select("*, patients(full_name), profiles(name)")
       .single();
     if (error) return err(error.message);
-    await logActivity({ supabase, action: "create_appointment", entityType: "appointment", entityId: data.id, entityLabel: `${data.patients?.full_name} – ${data.date} ${data.time}` });
+    await logActivity({ supabase, action: "create_appointment", entityType: "appointment", entityId: data.id, entityLabel: `${data.patients?.full_name} – ${data.date} ${data.time}`, req });
     return ok(normalize(data), 201);
   } catch {
     return err("Erreur serveur", 500);

@@ -62,10 +62,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const patientName = data.patients?.full_name || "";
   if (body.status !== undefined) {
-    await logActivity({ supabase, action: "update_appointment_status", entityType: "appointment", entityId: id, entityLabel: `${patientName} → ${body.status}` });
+    await logActivity({ supabase, action: "update_appointment_status", entityType: "appointment", entityId: id, entityLabel: `${patientName} → ${body.status}`, req });
   } else if (body.date !== undefined || body.time !== undefined) {
     const newDate = body.date || data.date;
-    await logActivity({ supabase, action: "reschedule_appointment", entityType: "appointment", entityId: id, entityLabel: `${patientName} → ${newDate}` });
+    await logActivity({ supabase, action: "reschedule_appointment", entityType: "appointment", entityId: id, entityLabel: `${patientName} → ${newDate}`, req });
   }
 
   if (body.status === "completed" && data) {
@@ -93,13 +93,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return ok(normalize(data));
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
   const { data: apt } = await supabase.from("appointments").select("date, time, patients(full_name)").eq("id", id).single();
   const { error } = await supabase.from("appointments").delete().eq("id", id);
   if (error) return err(error.message);
   const pName = (apt as any)?.patients?.full_name || "";
-  await logActivity({ supabase, action: "delete_appointment", entityType: "appointment", entityId: id, entityLabel: `${pName} – ${apt?.date || ""} ${apt?.time || ""}` });
+  await logActivity({ supabase, action: "delete_appointment", entityType: "appointment", entityId: id, entityLabel: `${pName} – ${apt?.date || ""} ${apt?.time || ""}`, req });
   return ok({ success: true });
 }

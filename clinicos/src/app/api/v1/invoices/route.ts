@@ -82,6 +82,6 @@ export async function POST(req: NextRequest) {
 
   if (error) return err(error.message);
   const patientName = (data as any).patients?.full_name || "";
-  await logActivity({ supabase, action: "create_invoice", entityType: "invoice", entityId: data.id, entityLabel: `${data.invoice_number} – ${patientName}` });
+  await logActivity({ supabase, action: "create_invoice", entityType: "invoice", entityId: data.id, entityLabel: `${data.invoice_number} – ${patientName}`, req });
   return ok(normalize(data), 201);
 }

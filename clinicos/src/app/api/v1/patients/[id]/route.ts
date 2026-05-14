@@ -4,7 +4,7 @@ import { ok, err } from "@/lib/supabase/helpers";
 import { normalize } from "../route";
 import { logActivity } from "@/lib/supabase/log-activity";
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
   const { data, error } = await supabase.from("patients").select("*").eq("id", id).single();
@@ -41,16 +41,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     .single();
 
   if (error) return err(error.message);
-  await logActivity({ supabase, action: "update_patient", entityType: "patient", entityId: id, entityLabel: data.full_name });
+  await logActivity({ supabase, action: "update_patient", entityType: "patient", entityId: id, entityLabel: data.full_name, req });
   return ok(normalize(data));
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
   const { data: patient } = await supabase.from("patients").select("full_name").eq("id", id).single();
   const { error } = await supabase.from("patients").delete().eq("id", id);
   if (error) return err(error.message);
-  await logActivity({ supabase, action: "delete_patient", entityType: "patient", entityId: id, entityLabel: patient?.full_name });
+  await logActivity({ supabase, action: "delete_patient", entityType: "patient", entityId: id, entityLabel: patient?.full_name, req });
   return ok({ success: true });
 }

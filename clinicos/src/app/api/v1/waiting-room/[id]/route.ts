@@ -67,7 +67,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const patientName = (current.patients as any)?.full_name || "";
 
   if (status === "in_progress") {
-    await logActivity({ supabase, action: "call_patient", entityType: "patient", entityLabel: patientName });
+    await logActivity({ supabase, action: "call_patient", entityType: "patient", entityLabel: patientName, req });
     // Update doctor availability to BUSY
     if (doctorId) {
       await supabase.from("profiles").update({ is_available: false }).eq("id", doctorId);
@@ -75,7 +75,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (status === "done") {
-    await logActivity({ supabase, action: "finish_consultation", entityType: "patient", entityLabel: patientName });
+    await logActivity({ supabase, action: "finish_consultation", entityType: "patient", entityLabel: patientName, req });
     // Mark linked appointment as completed
     if (data.appointment_id) {
       await supabase.from("appointments")
@@ -125,7 +125,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return ok(normalize(data));
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
   const { data: entry } = await supabase
@@ -137,7 +137,7 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   if (error) return err(error.message);
 
   const patientName = (entry as any)?.patients?.full_name || "";
-  await logActivity({ supabase, action: "remove_from_waiting_room", entityType: "patient", entityLabel: patientName });
+  await logActivity({ supabase, action: "remove_from_waiting_room", entityType: "patient", entityLabel: patientName, req });
 
   // If patient was in consultation, free the doctor
   const doctorId = (entry as any)?.assigned_doctor_id;

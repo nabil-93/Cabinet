@@ -23,14 +23,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .single();
 
     if (error) return err(error.message);
-    await logActivity({ supabase, action: "update_prescription", entityType: "prescription", entityId: id, entityLabel: (data as any).diagnosis || "" });
+    await logActivity({ supabase, action: "update_prescription", entityType: "prescription", entityId: id, entityLabel: (data as any).diagnosis || "", req });
     return ok(normalize(data));
   } catch {
     return err("Erreur serveur", 500);
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const supabase = await createClient();
@@ -38,7 +38,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { error } = await supabase.from("prescriptions").delete().eq("id", id);
     if (error) return err(error.message);
     const patientNameDel = (presc as any)?.patients?.full_name || "";
-    await logActivity({ supabase, action: "delete_prescription", entityType: "prescription", entityId: id, entityLabel: `${patientNameDel} – ${presc?.diagnosis || ""}` });
+    await logActivity({ supabase, action: "delete_prescription", entityType: "prescription", entityId: id, entityLabel: `${patientNameDel} – ${presc?.diagnosis || ""}`, req });
     return ok({ success: true });
   } catch {
     return err("Erreur serveur", 500);
