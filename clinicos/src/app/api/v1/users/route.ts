@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       specialty: p.specialty ?? null,
       isActive: p.is_active ?? true,
       mustChangePassword: p.must_change_password ?? false,
-      lastLoginAt: p.last_login_at ?? null,
+      lastLoginAt: p.last_seen_at ?? p.last_login_at ?? null,
       createdAt: p.created_at,
       avatarUrl: p.avatar_url ?? null,
     }));
