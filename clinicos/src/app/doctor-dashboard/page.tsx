@@ -681,8 +681,18 @@ export default function DoctorDashboardPage() {
               {waitingPatients.length === 0 ? (
                 <div className="py-4 text-center text-[11px] text-muted-foreground">Salle d&apos;attente vide</div>
               ) : (
-                waitingPatients.map(wp => {
+                [...waitingPatients]
+                  .sort((a, b) => {
+                    // in_progress always first, then urgent, then by arrival
+                    if (a.status === "in_progress") return -1;
+                    if (b.status === "in_progress") return 1;
+                    if (a.priority === "urgent" && b.priority !== "urgent") return -1;
+                    if (b.priority === "urgent" && a.priority !== "urgent") return 1;
+                    return (a.arrivedAt ?? "").localeCompare(b.arrivedAt ?? "");
+                  })
+                  .map(wp => {
                   const isInProgress = wp.status === "in_progress";
+                  const isUrgent = wp.priority === "urgent";
                   const elapsedMins = wp.arrivedAt
                     ? Math.max(0, Math.floor((nowMs - new Date(wp.arrivedAt).getTime()) / 60_000))
                     : (wp.estimatedWait ?? 0);
@@ -692,21 +702,44 @@ export default function DoctorDashboardPage() {
                       "rounded-xl border transition-all",
                       isInProgress
                         ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
-                        : "bg-muted/30 border-border/60"
+                        : isUrgent
+                          ? "bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-700"
+                          : "bg-muted/30 border-border/60"
                     )}>
                       {/* Patient row */}
                       <div className="flex items-center gap-2 p-2">
                         <div className={cn(
-                          "w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0",
-                          isInProgress ? "bg-emerald-100 dark:bg-emerald-900/40" : "bg-amber-50 dark:bg-amber-950/30"
+                          "w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 relative",
+                          isInProgress ? "bg-emerald-100 dark:bg-emerald-900/40"
+                            : isUrgent ? "bg-red-100 dark:bg-red-900/40"
+                            : "bg-amber-50 dark:bg-amber-950/30"
                         )}>
-                          <span className={cn("font-bold text-[9px]", isInProgress ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300")}>
+                          <span className={cn("font-bold text-[9px]",
+                            isInProgress ? "text-emerald-700 dark:text-emerald-300"
+                              : isUrgent ? "text-red-700 dark:text-red-300"
+                              : "text-amber-700 dark:text-amber-300"
+                          )}>
                             {getInitials(wp.patientName)}
                           </span>
+                          {/* Pulsing dot for urgent */}
+                          {isUrgent && !isInProgress && (
+                            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-semibold text-foreground truncate">{wp.patientName}</p>
-                          <p className={cn("text-[9px] flex items-center gap-1", isInProgress ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-[11px] font-semibold text-foreground truncate">{wp.patientName}</p>
+                            {isUrgent && !isInProgress && (
+                              <span className="animate-pulse inline-flex items-center gap-0.5 text-[8px] font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded-full border border-red-300 dark:border-red-700 flex-shrink-0">
+                                <AlertTriangle className="w-2 h-2" /> URGENT
+                              </span>
+                            )}
+                          </div>
+                          <p className={cn("text-[9px] flex items-center gap-1",
+                            isInProgress ? "text-emerald-600 dark:text-emerald-400"
+                              : isUrgent ? "text-red-600 dark:text-red-400"
+                              : "text-amber-600 dark:text-amber-400"
+                          )}>
                             <Timer className="w-2.5 h-2.5 flex-shrink-0" />
                             {isInProgress ? `En consultation depuis ${elapsedMins}min` : `Attend depuis ${elapsedMins}min`}
                           </p>
@@ -727,10 +760,15 @@ export default function DoctorDashboardPage() {
                           <button
                             onClick={() => callPatient(wp.id)}
                             disabled={isActing || waitingPatients.some(w => w.status === "in_progress")}
-                            className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-white bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg py-1.5 transition-colors"
+                            className={cn(
+                              "flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed rounded-lg py-1.5 transition-colors",
+                              isUrgent
+                                ? "bg-red-600 hover:bg-red-700 animate-pulse"
+                                : "bg-primary hover:bg-primary/90"
+                            )}
                           >
                             {isActing ? <Loader2 className="w-3 h-3 animate-spin" /> : <PhoneCall className="w-3 h-3" />}
-                            Appeler ce patient
+                            {isUrgent ? "⚡ Appeler — URGENT" : "Appeler ce patient"}
                           </button>
                         )}
                       </div>
