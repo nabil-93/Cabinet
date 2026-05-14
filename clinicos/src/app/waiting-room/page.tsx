@@ -127,8 +127,9 @@ function StatCard({ label, value, sub, accent }: { label: string; value: number;
 
 function UrgentBadge({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 font-semibold dark:bg-red-950 dark:text-red-400 dark:border-red-800">
-      <AlertCircle className="w-2.5 h-2.5" /> {label}
+    <span className="animate-pulse inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-400 font-bold dark:bg-red-950 dark:text-red-400 dark:border-red-700 shadow-sm shadow-red-200/50 dark:shadow-red-900/30">
+      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping flex-shrink-0" />
+      <AlertCircle className="w-2.5 h-2.5 flex-shrink-0" /> {label}
     </span>
   );
 }
@@ -420,7 +421,16 @@ export default function WaitingRoomPage() {
     return map;
   }, [entries]);
 
-  const waiting    = useMemo(() => entries.filter(e => e.status === "waiting"), [entries]);
+  const waiting = useMemo(() =>
+    entries
+      .filter(e => e.status === "waiting")
+      .sort((a, b) => {
+        // Urgent always first, then FIFO by arrival
+        if (a.priority === "urgent" && b.priority !== "urgent") return -1;
+        if (b.priority === "urgent" && a.priority !== "urgent") return 1;
+        return new Date(a.arrivedAt).getTime() - new Date(b.arrivedAt).getTime();
+      }),
+  [entries]);
   const inProgress = useMemo(() => entries.filter(e => e.status === "in_progress"), [entries]);
   const done       = useMemo(() =>
     entries
@@ -776,17 +786,31 @@ export default function WaitingRoomPage() {
               {waiting.map((e, i) => {
                 const mins = waitingMinutes(e.arrivedAt);
                 const isFirst = i === 0;
+                const isUrgent = e.priority === "urgent";
                 const noDoctor = false;
                 return (
                   <div key={e.id} className={cn(
-                    "bg-card border border-border rounded-2xl p-4 flex items-center gap-3 transition-all",
-                    isFirst && "ring-2 ring-primary/20 border-primary/30"
+                    "bg-card border rounded-2xl p-4 flex items-center gap-3 transition-all",
+                    isUrgent
+                      ? "border-red-400 dark:border-red-700 bg-red-50/60 dark:bg-red-950/20 ring-2 ring-red-300/40 dark:ring-red-800/40"
+                      : isFirst
+                        ? "border-primary/30 ring-2 ring-primary/20"
+                        : "border-border"
                   )}>
-                    <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0",
-                      isFirst ? "gradient-primary text-white shadow-sm" : "bg-muted text-muted-foreground")}>
+                    {/* Position number with pulsing ring for urgent */}
+                    <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 relative",
+                      isUrgent
+                        ? "bg-red-600 text-white shadow-md shadow-red-300/50 dark:shadow-red-900/50"
+                        : isFirst
+                          ? "gradient-primary text-white shadow-sm"
+                          : "bg-muted text-muted-foreground"
+                    )}>
                       {i + 1}
+                      {isUrgent && (
+                        <span className="absolute inset-0 rounded-xl bg-red-500 animate-ping opacity-40" />
+                      )}
                     </div>
-                    <Avatar name={e.patientName} idx={i} />
+                    <Avatar name={e.patientName} idx={isUrgent ? 99 : i} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <button
@@ -794,7 +818,7 @@ export default function WaitingRoomPage() {
                           className="text-sm font-semibold text-foreground hover:text-primary hover:underline transition-colors text-left truncate">
                           {e.patientName}
                         </button>
-                        {e.priority === "urgent" && <UrgentBadge label={t("waitingRoom.urgentBadge")} />}
+                        {isUrgent && <UrgentBadge label={t("waitingRoom.urgentBadge")} />}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5">
                         {e.appointmentTime && (
@@ -803,7 +827,8 @@ export default function WaitingRoomPage() {
                           </span>
                         )}
                         <span className={cn("text-xs font-medium",
-                          mins > 30 ? "text-red-500" : mins > 15 ? "text-amber-500" : "text-muted-foreground")}>
+                          isUrgent ? "text-red-600 dark:text-red-400 font-semibold"
+                          : mins > 30 ? "text-red-500" : mins > 15 ? "text-amber-500" : "text-muted-foreground")}>
                           {t("waitingRoom.waitingSince", { time: formatWait(mins) })}
                         </span>
                       </div>
@@ -816,12 +841,14 @@ export default function WaitingRoomPage() {
                           "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all",
                           noDoctor
                             ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground"
-                            : isFirst
-                              ? "gradient-primary text-white hover:opacity-90 shadow-sm disabled:opacity-50"
-                              : "border border-border hover:bg-accent text-foreground disabled:opacity-50"
+                            : isUrgent
+                              ? "bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-300/40 animate-pulse disabled:opacity-50"
+                              : isFirst
+                                ? "gradient-primary text-white hover:opacity-90 shadow-sm disabled:opacity-50"
+                                : "border border-border hover:bg-accent text-foreground disabled:opacity-50"
                         )}>
                         <Stethoscope className="w-3.5 h-3.5" />
-                        {isFirst ? t("waitingRoom.callPatient") : t("waitingRoom.call")}
+                        {isUrgent ? `⚡ ${t("waitingRoom.callPatient")}` : isFirst ? t("waitingRoom.callPatient") : t("waitingRoom.call")}
                       </button>
                       <button onClick={() => removeEntry.mutate(e.id)} disabled={removeEntry.isPending}
                         title={t("waitingRoom.remove")}
