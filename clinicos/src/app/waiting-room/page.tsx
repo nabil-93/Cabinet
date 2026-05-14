@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useRouter } from "next/navigation";
 import {
   Clock, CheckCircle, ArrowRight, X, UserPlus, LogOut,
@@ -255,15 +256,18 @@ function AddModal({
   const [visitType, setVisitType] = useState("Consultation");
   const [selected, setSelected]   = useState<PatientOption | null>(null);
 
+  // Debounce search to avoid API call on every keystroke
+  const debouncedSearch = useDebounce(search, 350);
+
   const { data: patients = [], isFetching } = useQuery<PatientOption[]>({
-    queryKey: ["patients-search-wr", search],
+    queryKey: ["patients-search-wr", debouncedSearch],
     queryFn: async () => {
-      if (!search.trim()) return [];
-      const r = await api.get(`/patients/search?q=${encodeURIComponent(search)}&limit=8`);
+      if (!debouncedSearch.trim()) return [];
+      const r = await api.get(`/patients/search?q=${encodeURIComponent(debouncedSearch)}&limit=8`);
       return r.data.map((p: { id: string; fullName: string; phone: string }) => ({ id: p.id, fullName: p.fullName, phone: p.phone }));
     },
-    enabled: search.trim().length >= 1,
-    staleTime: 10_000,
+    enabled: debouncedSearch.trim().length >= 1,
+    staleTime: 30_000,
   });
 
   const noResults = search.trim().length >= 1 && !isFetching && patients.length === 0;
