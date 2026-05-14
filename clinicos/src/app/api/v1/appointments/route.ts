@@ -23,9 +23,10 @@ function normalize(a: any, patientName?: string, doctorName?: string) {
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const date = req.nextUrl.searchParams.get("date");
-  const month = req.nextUrl.searchParams.get("month");
-  const supabase = await createClient();
+  const date      = req.nextUrl.searchParams.get("date");
+  const month     = req.nextUrl.searchParams.get("month");
+  const patientId = req.nextUrl.searchParams.get("patientId");
+  const supabase  = await createClient();
 
   let query = supabase
     .from("appointments")
@@ -33,7 +34,9 @@ export async function GET(req: NextRequest) {
     .order("date", { ascending: false })
     .order("time", { ascending: true });
 
-  if (date) {
+  if (patientId) {
+    query = query.eq("patient_id", patientId);
+  } else if (date) {
     query = query.eq("date", date);
   } else if (month) {
     query = query.gte("date", `${month}-01`).lte("date", `${month}-31`);
