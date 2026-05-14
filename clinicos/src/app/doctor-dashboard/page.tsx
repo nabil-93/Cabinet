@@ -472,8 +472,21 @@ export default function DoctorDashboardPage() {
     setChatImageB64(null);
     setChatImageName("");
 
+    // Include extracted lab values from localStorage so AI can reason about them
+    const savedLab = effectiveSelectedId && typeof window !== "undefined"
+      ? (() => { try { return JSON.parse(localStorage.getItem(`clinicos-lab-values-${effectiveSelectedId}`) ?? "null"); } catch { return null; } })()
+      : null;
+
+    const labCtx = savedLab?.values?.length
+      ? `\n\n[RÉSULTATS BIOLOGIQUES DU PATIENT (rapport du ${savedLab.reportDate ?? "date inconnue"}) — tu as accès direct à ces valeurs:\n${
+          (savedLab.values as Array<{ label: string; value: string; unit: string; status: string; refMin: number | null; refMax: number | null; category: string }>)
+            .map(v => `- ${v.label}: ${v.value} ${v.unit} (${v.status === "danger" ? "⚠ CRITIQUE" : v.status === "warn" ? "⚠ ATTENTION" : "✓ Normal"}, norme: ${v.refMin ?? "?"}-${v.refMax ?? "?"} ${v.unit}) [${v.category}]`)
+            .join("\n")
+        }${savedLab.summary ? `\nRésumé labo: ${savedLab.summary}` : ""}]`
+      : "";
+
     const patientCtx = selectedPatient
-      ? `[Patient sélectionné: ${selectedPatient.fullName}, ID: ${effectiveSelectedId}. Réponds en te concentrant sur ce patient.]\n\n`
+      ? `[Patient sélectionné: ${selectedPatient.fullName}, ID: ${effectiveSelectedId}. Réponds en te concentrant sur ce patient.${labCtx}]\n\n`
       : "";
 
     const history = chatMessages.map(m => ({ role: m.role, content: m.content }));

@@ -412,13 +412,21 @@ Ce que le patient doit faire concrètement (alimentation, activité, médicament
 
 Réponse claire, professionnelle, en français. Sois précis et utile.`;
 
-      const res = await fetch("/api/ai", {
+      // Use lab-extract endpoint for direct GPT-4o without function-calling
+      const res = await fetch("/api/v1/medical-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [{ role: "user", content: prompt }], language: "fr" }),
+        body: JSON.stringify({
+          values: [v],
+          patientName,
+          summary: `Analyse détaillée de: ${v.label} = ${v.value} ${v.unit}`,
+          reportDate: null,
+          mode: "single_value",
+          customPrompt: prompt,
+        }),
       });
       const data = await res.json();
-      const explanation = data.message ?? "Analyse non disponible.";
+      const explanation = data.report ?? "Analyse non disponible.";
       explanationCache.current[cacheKey] = explanation;
       setValueExplanation(explanation);
     } catch {
@@ -481,15 +489,22 @@ Urgence immédiate / Semi-urgent (< 48h) / Consultation programmée. Justificati
 
 Réponse professionnelle, structurée, en français. Sois précis et cliniquement utile.`;
 
-      const res = await fetch("/api/ai", {
+      // Use dedicated endpoint — direct GPT-4o, no function-calling, no patient ID lookup
+      const res = await fetch("/api/v1/medical-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [{ role: "user", content: prompt }], language: "fr" }),
+        body: JSON.stringify({
+          values: result.values,
+          patientName,
+          summary: result.summary,
+          reportDate: result.reportDate,
+        }),
       });
       const data = await res.json();
-      setGeneralReport(data.message ?? "Rapport non disponible.");
-    } catch {
-      setGeneralReport("Erreur lors de la génération du rapport.");
+      if (!res.ok || data.error) throw new Error(data.error ?? "Erreur serveur");
+      setGeneralReport(data.report ?? "Rapport non disponible.");
+    } catch (err: any) {
+      setGeneralReport(`Erreur: ${err.message}`);
     } finally {
       setGeneralReportLoading(false);
     }
