@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import type { Locale } from "date-fns";
@@ -49,7 +49,7 @@ interface Prescription {
   medications: (Medication | string)[];
   notes?: string;
   status: "active" | "expired";
-  createdAt: string;
+  createdAt?: string;
   date?: string;
 }
 
@@ -310,7 +310,7 @@ function PrescriptionForm({ onSubmit, onCancel, loading }: {
 export function DocTab({ patientId, patient, consultations, prescriptions, dateLocale }: DocTabProps) {
   const qc = useQueryClient();
 
-  // Patient edit state
+  // Patient edit state — reset when patient changes
   const [allergies, setAllergies] = useState<string[]>(
     Array.isArray(patient?.allergies) ? patient.allergies : []
   );
@@ -319,6 +319,12 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
   );
   const [patientSaving, setPatientSaving] = useState(false);
   const [patientDirty, setPatientDirty] = useState(false);
+
+  useEffect(() => {
+    setAllergies(Array.isArray(patient?.allergies) ? patient.allergies : []);
+    setAntecedents(Array.isArray(patient?.medicalHistory) ? patient.medicalHistory : []);
+    setPatientDirty(false);
+  }, [patientId, patient?.allergies, patient?.medicalHistory]);
 
   // Consultation state
   const [showNewConsult, setShowNewConsult] = useState(false);
@@ -649,7 +655,9 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
                         ))}
                         <span className={cn(
                           "text-[9px] font-bold px-1.5 py-0.5 rounded-full",
-                          isActive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-muted text-muted-foreground"
+                          isActive
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                            : "bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400"
                         )}>
                           {isActive ? "Active" : "Expirée"}
                         </span>
@@ -665,7 +673,10 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
                       )}
                       {rx.notes && <p className="text-[10px] text-muted-foreground/70 italic mt-0.5">{rx.notes}</p>}
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        Prescrit le {rx.createdAt ? format(new Date(rx.createdAt), "d MMM yyyy", { locale: dateLocale }) : "—"}
+                        Prescrit le{" "}
+                        {(rx.date || rx.createdAt)
+                          ? format(new Date(rx.date ?? rx.createdAt!), "d MMM yyyy", { locale: dateLocale })
+                          : "—"}
                       </p>
                     </div>
                     <button

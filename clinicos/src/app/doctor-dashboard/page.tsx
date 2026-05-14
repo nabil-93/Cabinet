@@ -94,7 +94,8 @@ interface Prescription {
   diagnosis?: string;
   notes?: string;
   status: "active" | "expired";
-  createdAt: string;
+  createdAt?: string;
+  date?: string;
 }
 
 interface Invoice {
@@ -270,6 +271,11 @@ export default function DoctorDashboardPage() {
   const [chatInput, setChatInput]       = useState("");
   const [chatLoading, setChatLoading]   = useState(false);
   const chatEndRef                      = useRef<HTMLDivElement>(null);
+
+  // Historique filters + expanded visit
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<string>("all");
+  const [historyTypeFilter, setHistoryTypeFilter]     = useState<string>("all");
+  const [expandedAptId, setExpandedAptId]             = useState<string | null>(null);
 
   // New appointment form state (Calendar tab)
   const [showNewApt, setShowNewApt]   = useState(false);
@@ -882,76 +888,225 @@ export default function DoctorDashboardPage() {
                 )}
 
                 {/* ── Historique des visites ── */}
-                {activeSubTab === "history" && effectiveSelectedId && (
-                  <div className="space-y-3">
-                    {/* Upcoming appointments */}
-                    {upcomingApts.length > 0 && (
-                      <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                        <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-primary" />
-                          <h3 className="text-sm font-semibold text-foreground">Prochains rendez-vous</h3>
-                          <span className="text-[10px] text-muted-foreground ml-auto">{upcomingApts.length} à venir</span>
-                        </div>
-                        <div className="divide-y divide-border/40">
-                          {upcomingApts.map(apt => {
-                            const sc = STATUS_CONFIG[apt.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
-                            const d = new Date(apt.date);
-                            const dayLabel = isToday(d) ? "Aujourd'hui" : isTomorrow(d) ? "Demain" : format(d, "EEEE d MMMM", { locale: dateLocale });
-                            return (
-                              <div key={apt.id} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-all">
-                                <div className="w-9 h-9 rounded-xl bg-primary/10 flex flex-col items-center justify-center flex-shrink-0">
-                                  <span className="text-primary font-bold text-[9px] leading-none">{format(d, "d")}</span>
-                                  <span className="text-primary/60 text-[8px] leading-none capitalize">{format(d, "MMM", { locale: dateLocale })}</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-semibold text-foreground capitalize">{dayLabel}</p>
-                                  <p className="text-[10px] text-muted-foreground">{apt.time} · {apt.type}</p>
-                                </div>
-                                <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0", sc.className)}>{sc.label}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                {activeSubTab === "history" && effectiveSelectedId && (() => {
+                  // Unique appointment types for filter
+                  const aptTypes = Array.from(new Set(patientApts.map(a => a.type))).filter(Boolean);
 
-                    {/* Past visits */}
-                    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                      <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
-                        <History className="w-4 h-4 text-muted-foreground" />
-                        <h3 className="text-sm font-semibold text-foreground">Historique des visites</h3>
-                        <span className="text-[10px] text-muted-foreground ml-auto">{pastApts.length} visite{pastApts.length !== 1 ? "s" : ""}</span>
-                      </div>
-                      {pastApts.length === 0 ? (
-                        <div className="py-10 text-center">
-                          <History className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground">Aucune visite précédente</p>
-                        </div>
-                      ) : (
-                        <div className="divide-y divide-border/40">
-                          {pastApts.map(apt => {
-                            const sc = STATUS_CONFIG[apt.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.completed;
-                            const d = new Date(apt.date);
-                            return (
-                              <div key={apt.id} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-all">
-                                <div className="w-9 h-9 rounded-xl bg-muted/50 flex flex-col items-center justify-center flex-shrink-0">
-                                  <span className="text-muted-foreground font-bold text-[9px] leading-none">{format(d, "d")}</span>
-                                  <span className="text-muted-foreground/60 text-[8px] leading-none capitalize">{format(d, "MMM", { locale: dateLocale })}</span>
+                  // Apply filters to past appointments
+                  const filteredPast = pastApts.filter(a => {
+                    if (historyStatusFilter !== "all" && a.status !== historyStatusFilter) return false;
+                    if (historyTypeFilter !== "all" && a.type !== historyTypeFilter) return false;
+                    return true;
+                  });
+
+                  return (
+                    <div className="space-y-3">
+                      {/* Upcoming */}
+                      {upcomingApts.length > 0 && (
+                        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                          <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-primary" />
+                            <h3 className="text-sm font-semibold text-foreground">Prochains rendez-vous</h3>
+                            <span className="text-[10px] text-muted-foreground ml-auto">{upcomingApts.length} à venir</span>
+                          </div>
+                          <div className="divide-y divide-border/40">
+                            {upcomingApts.map(apt => {
+                              const sc = STATUS_CONFIG[apt.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
+                              const d = new Date(apt.date);
+                              const dayLabel = isToday(d) ? "Aujourd'hui" : isTomorrow(d) ? "Demain" : format(d, "EEEE d MMMM", { locale: dateLocale });
+                              return (
+                                <div key={apt.id} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-all">
+                                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex flex-col items-center justify-center flex-shrink-0">
+                                    <span className="text-primary font-bold text-[9px] leading-none">{format(d, "d")}</span>
+                                    <span className="text-primary/60 text-[8px] leading-none capitalize">{format(d, "MMM", { locale: dateLocale })}</span>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-semibold text-foreground capitalize">{dayLabel}</p>
+                                    <p className="text-[10px] text-muted-foreground">{apt.time} · {apt.type}</p>
+                                  </div>
+                                  <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0", sc.className)}>{sc.label}</span>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-semibold text-foreground">{format(d, "EEEE d MMMM yyyy", { locale: dateLocale })}</p>
-                                  <p className="text-[10px] text-muted-foreground">{apt.time} · {apt.type}</p>
-                                  {apt.notes && <p className="text-[10px] text-muted-foreground/70 italic truncate mt-0.5">{apt.notes}</p>}
-                                </div>
-                                <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0", sc.className)}>{sc.label}</span>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
+
+                      {/* Past visits with filters */}
+                      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                        <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
+                          <History className="w-4 h-4 text-muted-foreground" />
+                          <h3 className="text-sm font-semibold text-foreground">Historique des visites</h3>
+                          <span className="text-[10px] text-muted-foreground ml-auto">
+                            {filteredPast.length}/{pastApts.length} visite{pastApts.length !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+
+                        {/* Filter bar */}
+                        <div className="px-4 py-2 border-b border-border/40 flex flex-wrap gap-1.5">
+                          {/* Status filters */}
+                          {([
+                            { value: "all", label: "Tous" },
+                            { value: "completed", label: "Terminés" },
+                            { value: "confirmed", label: "Confirmés" },
+                            { value: "cancelled", label: "Annulés" },
+                          ]).map(f => (
+                            <button
+                              key={f.value}
+                              onClick={() => setHistoryStatusFilter(f.value)}
+                              className={cn(
+                                "text-[10px] px-2 py-1 rounded-lg font-semibold transition-colors",
+                                historyStatusFilter === f.value
+                                  ? "bg-foreground text-background"
+                                  : "bg-muted/40 text-muted-foreground hover:text-foreground"
+                              )}>
+                              {f.label}
+                            </button>
+                          ))}
+                          {aptTypes.length > 0 && <div className="w-px bg-border/60 self-stretch mx-0.5" />}
+                          {aptTypes.map(type => (
+                            <button
+                              key={type}
+                              onClick={() => setHistoryTypeFilter(prev => prev === type ? "all" : type)}
+                              className={cn(
+                                "text-[10px] px-2 py-1 rounded-lg font-semibold transition-colors",
+                                historyTypeFilter === type
+                                  ? "bg-primary/20 text-primary border border-primary/30"
+                                  : "bg-muted/40 text-muted-foreground hover:text-foreground"
+                              )}>
+                              {type}
+                            </button>
+                          ))}
+                          {(historyStatusFilter !== "all" || historyTypeFilter !== "all") && (
+                            <button
+                              onClick={() => { setHistoryStatusFilter("all"); setHistoryTypeFilter("all"); }}
+                              className="text-[10px] px-2 py-1 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors flex items-center gap-0.5">
+                              <XCircle className="w-3 h-3" /> Réinitialiser
+                            </button>
+                          )}
+                        </div>
+
+                        {filteredPast.length === 0 ? (
+                          <div className="py-10 text-center">
+                            <History className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">
+                              {pastApts.length === 0 ? "Aucune visite précédente" : "Aucun résultat pour ces filtres"}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-border/40">
+                            {filteredPast.map(apt => {
+                              const sc = STATUS_CONFIG[apt.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.completed;
+                              const d = new Date(apt.date);
+                              const isExpanded = expandedAptId === apt.id;
+
+                              // Find consultation and prescriptions from this date
+                              const aptConsultations = consultations.filter(c => c.date === apt.date);
+                              const aptPrescriptions = prescriptions.filter(rx =>
+                                (rx.date ?? rx.createdAt ?? "").startsWith(apt.date)
+                              );
+                              const hasDetails = aptConsultations.length > 0 || aptPrescriptions.length > 0;
+
+                              return (
+                                <div key={apt.id}>
+                                  {/* Visit row — clickable */}
+                                  <button
+                                    onClick={() => setExpandedAptId(prev => prev === apt.id ? null : apt.id)}
+                                    className={cn(
+                                      "w-full flex items-center gap-3 px-4 py-3 text-left transition-all",
+                                      isExpanded ? "bg-primary/5 dark:bg-primary/10" : "hover:bg-accent/40"
+                                    )}>
+                                    <div className={cn(
+                                      "w-9 h-9 rounded-xl flex flex-col items-center justify-center flex-shrink-0 transition-colors",
+                                      isExpanded ? "bg-primary/20" : "bg-muted/50"
+                                    )}>
+                                      <span className={cn("font-bold text-[9px] leading-none", isExpanded ? "text-primary" : "text-muted-foreground")}>{format(d, "d")}</span>
+                                      <span className={cn("text-[8px] leading-none capitalize", isExpanded ? "text-primary/60" : "text-muted-foreground/60")}>{format(d, "MMM", { locale: dateLocale })}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-foreground capitalize">{format(d, "EEEE d MMMM yyyy", { locale: dateLocale })}</p>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <p className="text-[10px] text-muted-foreground">{apt.time} · {apt.type}</p>
+                                        {hasDetails && (
+                                          <span className="text-[9px] text-primary font-medium">
+                                            {aptConsultations.length > 0 && "• Rapport"}
+                                            {aptPrescriptions.length > 0 && " • Ordonnance"}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full", sc.className)}>{sc.label}</span>
+                                      <ChevronRight className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
+                                    </div>
+                                  </button>
+
+                                  {/* Expanded detail */}
+                                  {isExpanded && (
+                                    <div className="px-4 pb-4 pt-2 bg-muted/20 space-y-3 border-t border-border/40">
+                                      {!hasDetails && (
+                                        <p className="text-xs text-muted-foreground italic py-2 text-center">Aucun rapport ou ordonnance enregistré pour cette visite</p>
+                                      )}
+
+                                      {/* Consultations from this date */}
+                                      {aptConsultations.map(c => (
+                                        <div key={c.id} className="bg-card rounded-xl border border-border p-3 space-y-1.5">
+                                          <div className="flex items-center gap-1.5">
+                                            <Stethoscope className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                                            <p className="text-xs font-semibold text-foreground">{c.diagnosis}</p>
+                                          </div>
+                                          {c.treatment && (
+                                            <p className="text-[10px] text-muted-foreground">
+                                              <span className="font-medium">Traitement:</span> {c.treatment}
+                                            </p>
+                                          )}
+                                          {c.notes && <p className="text-[10px] text-muted-foreground/70 italic">{c.notes}</p>}
+                                          {c.nextVisit && (
+                                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                              <Calendar className="w-2.5 h-2.5" />
+                                              Prochain RDV: {format(new Date(c.nextVisit), "d MMM yyyy", { locale: dateLocale })}
+                                            </p>
+                                          )}
+                                        </div>
+                                      ))}
+
+                                      {/* Prescriptions from this date */}
+                                      {aptPrescriptions.map(rx => {
+                                        const meds = Array.isArray(rx.medications) ? rx.medications : [];
+                                        return (
+                                          <div key={rx.id} className="bg-card rounded-xl border border-border p-3 space-y-1">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <Pill className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                                              {meds.map((m, i) => (
+                                                <span key={i} className="text-xs font-semibold text-foreground">
+                                                  {typeof m === "string" ? m : m.name}
+                                                </span>
+                                              ))}
+                                            </div>
+                                            {rx.diagnosis && (
+                                              <p className="text-[10px] text-muted-foreground">Motif: {rx.diagnosis}</p>
+                                            )}
+                                            {meds.filter(m => typeof m !== "string").map((m, i) => {
+                                              const med = m as { name: string; dosage?: string; duration?: string; instructions?: string };
+                                              const detail = [med.dosage, med.duration, med.instructions].filter(Boolean).join(" · ");
+                                              return detail ? (
+                                                <p key={i} className="text-[10px] text-muted-foreground">{med.name}: {detail}</p>
+                                              ) : null;
+                                            })}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* ── Documentation complète ── */}
                 {activeSubTab === "doc" && effectiveSelectedId && (
