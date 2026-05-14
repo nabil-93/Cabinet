@@ -33,25 +33,29 @@ import { FileText, Pill, Download, Pencil } from "lucide-react";
 import { getToday } from "@/lib/date-utils";
 import { useLang } from "@/lib/i18n";
 
-const STATUS_MAP = {
-  confirmed: { l: "Confirmé",   c: "badge-confirmed" },
-  pending:   { l: "En attente", c: "badge-pending" },
-  cancelled: { l: "Annulé",     c: "badge-cancelled" },
-  completed: { l: "Terminé",    c: "badge-completed" },
-} as const;
+// STATUS_MAP is defined inside the component to access t()
 
 const CONSULTATION_TYPES = ["Consultation", "Suivi", "Bilan", "Urgence", "Vaccination", "Contrôle", "Autre"];
 
 function Countdown({ dateStr }: { dateStr: string }) {
+  const { t } = useLang();
   const days = differenceInCalendarDays(new Date(dateStr), new Date());
-  if (isToday(new Date(dateStr))) return <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Aujourd&apos;hui</span>;
-  if (days > 0)  return <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Dans {days} j</span>;
-  if (days === -1) return <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Hier</span>;
-  return <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Il y a {Math.abs(days)} j</span>;
+  if (isToday(new Date(dateStr))) return <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{t("patientProfile.countdown.today")}</span>;
+  if (days > 0)  return <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{t("patientProfile.countdown.inDays", { n: days })}</span>;
+  if (days === -1) return <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{t("patientProfile.countdown.yesterday")}</span>;
+  return <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{t("patientProfile.countdown.daysAgo", { n: Math.abs(days) })}</span>;
 }
 
 export default function PatientProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { t } = useLang();
+
+  const STATUS_MAP = {
+    confirmed: { l: t("appointments.statusLabels.confirmed"), c: "badge-confirmed" },
+    pending:   { l: t("appointments.statusLabels.pending"),   c: "badge-pending" },
+    cancelled: { l: t("appointments.statusLabels.cancelled"), c: "badge-cancelled" },
+    completed: { l: t("appointments.statusLabels.completed"), c: "badge-completed" },
+  } as const;
+
   const { id } = use(params);
   const qc = useQueryClient();
   const { user: authUser } = useAuth();
@@ -123,7 +127,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       setRecordedUrl(null);
       timerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
     } catch {
-      toast.error("Impossible d'accéder au microphone");
+      toast.error(t("patientProfile.micError"));
     }
   }, []);
 
@@ -290,11 +294,11 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
 
   function fileCategoryLabel(category: string) {
     switch (category) {
-      case "image": return "Image";
-      case "pdf": return "PDF";
-      case "audio": return "Audio";
-      case "document": return "Document";
-      default: return "Autre";
+      case "image": return t("patients.files.image");
+      case "pdf": return t("patients.files.pdf");
+      case "audio": return t("patients.files.audio");
+      case "document": return t("patients.files.document");
+      default: return t("patients.files.other");
     }
   }
 
@@ -387,7 +391,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
         treatment: consultForm.treatment || null, nextVisit: consultForm.nextVisit || null,
       });
       qc.invalidateQueries({ queryKey: ["consultations", id] });
-      toast.success("Rapport modifié !");
+      toast.success(t("patientProfile.editReport") + " ✓");
     } else {
       // Create new consultation
       await createConsultMutation.mutateAsync({
@@ -434,12 +438,12 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["prescriptions"] });
-      toast.success("Ordonnance créée !");
+      toast.success(t("prescriptions.newPrescriptionModal") + " ✓");
       setShowPrescModal(false);
       setPrescDiagnosis(""); setPrescNotes("");
       setPrescMeds([{ name: "", dosage: "", frequency: "1×/jour", duration: "7 jours", instructions: "" }]);
     },
-    onError: () => toast.error("Erreur lors de la création"),
+    onError: () => toast.error(t("common.error")),
   });
 
   const [editingPresc,     setEditingPresc]     = useState<Prescription | null>(null);
@@ -462,19 +466,19 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["prescriptions"] });
-      toast.success("Ordonnance modifiée !");
+      toast.success(t("prescriptions.editPrescription") + " ✓");
       setEditingPresc(null);
     },
-    onError: () => toast.error("Erreur lors de la modification"),
+    onError: () => toast.error(t("common.error")),
   });
 
   const deletePrescMutation = useMutation({
     mutationFn: (prxId: string) => prescriptionsService.deletePrescription(prxId),
     onSuccess: (_data, prxId) => {
       qc.setQueryData<Prescription[]>(["prescriptions"], old => (old || []).filter(p => p.id !== prxId));
-      toast.success("Ordonnance supprimée");
+      toast.success(t("prescriptions.deletePrescription") + " ✓");
     },
-    onError: () => toast.error("Erreur lors de la suppression"),
+    onError: () => toast.error(t("common.error")),
   });
 
   async function downloadPrxPDF(prx: Prescription) {
@@ -520,18 +524,18 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
   // ── Loading / Not found ───────────────────────────────────
   if (isLoading) return (
     <div className="flex flex-col h-full">
-      <Header title="Chargement..." />
+      <Header title={t("patientProfile.loading")} />
       <div className="flex-1 p-6 space-y-4">{Array(4).fill(0).map((_, i) => <div key={i} className="h-24 bg-card border border-border rounded-xl animate-pulse" />)}</div>
     </div>
   );
 
   if (!patient) return (
     <div className="flex flex-col h-full">
-      <Header title="Patient introuvable" />
+      <Header title={t("patientProfile.notFound")} />
       <div className="flex-1 flex items-center justify-center text-center">
         <div>
-          <p className="text-muted-foreground mb-4">Ce patient n&apos;existe pas.</p>
-          <Link href="/patients" className="inline-flex items-center gap-2 text-primary text-sm hover:underline"><ArrowLeft className="w-4 h-4" /> Retour</Link>
+          <p className="text-muted-foreground mb-4">{t("patientProfile.notFoundDesc")}</p>
+          <Link href="/patients" className="inline-flex items-center gap-2 text-primary text-sm hover:underline"><ArrowLeft className="w-4 h-4" /> {t("common.back")}</Link>
         </div>
       </div>
     </div>
@@ -647,10 +651,10 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                       </div>
                       {/* Actions */}
                       <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => openEditConsult(c)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all" title="Modifier">
+                        <button onClick={() => openEditConsult(c)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all" title={t("common.edit")}>
                           <Edit className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => { if (confirm("Supprimer ce rapport ?")) deleteConsultMutation.mutate(c.id); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-all" title="Supprimer">
+                        <button onClick={() => { if (confirm(t("patientProfile.deleteReportConfirm"))) deleteConsultMutation.mutate(c.id); }} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-all" title={t("common.delete")}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                         {isExp ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
@@ -658,12 +662,12 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                     </div>
                     {isExp && (
                       <div className="px-4 pb-4 pt-2 border-t border-border/50 bg-muted/10 space-y-3">
-                        {c.notes && <div><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Notes cliniques</p><p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{c.notes}</p></div>}
-                        {c.treatment && <div><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Traitement prescrit</p><p className="text-sm text-foreground whitespace-pre-wrap">{c.treatment}</p></div>}
+                        {c.notes && <div><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{t("patientProfile.clinicalNotes")}</p><p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{c.notes}</p></div>}
+                        {c.treatment && <div><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{t("patientProfile.prescribedTreatment")}</p><p className="text-sm text-foreground whitespace-pre-wrap">{c.treatment}</p></div>}
                         {c.nextVisit && (
                           <div className="flex items-center gap-2 text-xs text-primary font-medium">
                             <Calendar className="w-3.5 h-3.5" />
-                            Prochain RDV : {format(new Date(c.nextVisit), "d MMMM yyyy", { locale: fr })}
+                            {t("patientProfile.nextRdv")} : {format(new Date(c.nextVisit), "d MMMM yyyy", { locale: fr })}
                             <Countdown dateStr={c.nextVisit} />
                           </div>
                         )}
@@ -757,12 +761,12 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                       />
                       {/* Reporter */}
                       <button onClick={() => { setReportingApt({ id: apt.id, date: apt.date, time: apt.time }); setReportDate(apt.date); setReportTime(apt.time); }}
-                        className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-amber-50 hover:text-amber-600 transition-all" title="Reporter">
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-amber-50 hover:text-amber-600 transition-all" title={t("appointments.reschedule")}>
                         <RotateCcw className="w-3 h-3" />
                       </button>
                       {/* Supprimer */}
-                      <button onClick={() => { if (confirm('Supprimer ce RDV ?')) deleteAptMutation.mutate(apt.id); }}
-                        className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-all" title="Supprimer">
+                      <button onClick={() => { if (confirm(t("patientProfile.deleteRdvConfirm"))) deleteAptMutation.mutate(apt.id); }}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-all" title={t("common.delete")}>
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
@@ -777,19 +781,19 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" /> Ordonnances
+              <FileText className="w-4 h-4 text-primary" /> {t("prescriptions.title")}
               {patientPrescriptions.length > 0 && <span className="text-xs font-normal text-muted-foreground">({patientPrescriptions.length})</span>}
             </h3>
             <button onClick={() => setShowPrescModal(true)} className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium">
-              <Plus className="w-3.5 h-3.5" /> Nouvelle ordonnance
+              <Plus className="w-3.5 h-3.5" /> {t("prescriptions.newPrescription")}
             </button>
           </div>
 
           {patientPrescriptions.length === 0 ? (
             <div className="py-8 text-center">
               <FileText className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Aucune ordonnance enregistrée</p>
-              <button onClick={() => setShowPrescModal(true)} className="mt-2 text-xs text-primary hover:underline">+ Créer la première ordonnance</button>
+              <p className="text-sm text-muted-foreground">{t("prescriptions.noRecords")}</p>
+              <button onClick={() => setShowPrescModal(true)} className="mt-2 text-xs text-primary hover:underline">+ {t("prescriptions.createFirstPresc")}</button>
             </div>
           ) : (
             <div className="space-y-2">
@@ -801,22 +805,22 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">{prx.diagnosis}</p>
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(prx.date), "d MMM yyyy", { locale: fr })} · {prx.medications.length} médicament{prx.medications.length > 1 ? "s" : ""}
+                      {format(new Date(prx.date), "d MMM yyyy", { locale: fr })} · {prx.medications.length === 1 ? t("prescriptions.medicationSingular", { count: prx.medications.length }) : t("prescriptions.medicationPlural", { count: prx.medications.length })}
                     </p>
                   </div>
                   <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0",
                     prx.status === "active" ? "badge-confirmed" : "badge-cancelled")}>
-                    {prx.status === "active" ? "Active" : "Expirée"}
+                    {prx.status === "active" ? t("prescriptions.statusActive") : t("prescriptions.statusExpired")}
                   </span>
-                  <button onClick={() => openEditPresc(prx)} title="Modifier"
+                  <button onClick={() => openEditPresc(prx)} title={t("common.edit")}
                     className="w-7 h-7 flex items-center justify-center rounded-lg border border-border hover:bg-amber-50 hover:text-amber-600 text-muted-foreground transition-all flex-shrink-0">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => { if (confirm("Supprimer cette ordonnance ?")) deletePrescMutation.mutate(prx.id); }} title="Supprimer"
+                  <button onClick={() => { if (confirm(t("prescriptions.deleteOneConfirm"))) deletePrescMutation.mutate(prx.id); }} title={t("common.delete")}
                     className="w-7 h-7 flex items-center justify-center rounded-lg border border-border hover:bg-red-50 hover:text-red-500 text-muted-foreground transition-all flex-shrink-0">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => downloadPrxPDF(prx)} title="Télécharger PDF"
+                  <button onClick={() => downloadPrxPDF(prx)} title={t("common.download")}
                     className="w-7 h-7 flex items-center justify-center rounded-lg border border-border hover:bg-primary/10 hover:text-primary text-muted-foreground transition-all flex-shrink-0">
                     <Download className="w-3.5 h-3.5" />
                   </button>
@@ -830,11 +834,11 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
-              <FolderOpen className="w-4 h-4 text-violet-500" /> Fichiers
+              <FolderOpen className="w-4 h-4 text-violet-500" /> {t("patientProfile.files")}
               {patientFiles.length > 0 && <span className="text-xs font-normal text-muted-foreground">({patientFiles.length})</span>}
             </h3>
             <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium">
-              <Upload className="w-3.5 h-3.5" /> Ajouter un fichier
+              <Upload className="w-3.5 h-3.5" /> {t("patientProfile.addFile")}
             </button>
           </div>
 
@@ -852,7 +856,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                         ? "bg-card text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     )}>
-                    {cat === "all" ? "Tous" : fileCategoryLabel(cat)}
+                    {cat === "all" ? t("patientProfile.allFiles") : fileCategoryLabel(cat)}
                     <span className={cn("ml-1 font-bold", fileFilter === cat ? "text-primary" : "text-muted-foreground")}>({count})</span>
                   </button>
                 );
@@ -867,10 +871,10 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
               <div className="w-16 h-16 rounded-2xl bg-violet-50 dark:bg-violet-950 flex items-center justify-center mx-auto mb-3">
                 <FolderOpen className="w-7 h-7 text-violet-300" />
               </div>
-              <p className="text-sm text-muted-foreground mb-1">Aucun fichier enregistré</p>
-              <p className="text-xs text-muted-foreground/70 mb-3">Photos, rapports scanner, analyses, ordonnances...</p>
+              <p className="text-sm text-muted-foreground mb-1">{t("patientProfile.noFiles")}</p>
+              <p className="text-xs text-muted-foreground/70 mb-3">{t("patientProfile.noFilesDesc")}</p>
               <button onClick={() => setShowUploadModal(true)} className="text-xs text-primary hover:underline font-medium inline-flex items-center gap-1">
-                <Upload className="w-3 h-3" /> Ajouter le premier fichier
+                <Upload className="w-3 h-3" /> {t("patientProfile.addFirstFile")}
               </button>
             </div>
           ) : (
@@ -924,26 +928,26 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                       )}>{fileCategoryLabel(f.category)}</span>
                       <span className="text-[10px] text-muted-foreground">{formatFileSize(f.size)}</span>
                       <span className="text-[10px] text-muted-foreground">{format(new Date(f.createdAt), "d MMM yyyy", { locale: fr })}</span>
-                      {f.audioUrl && <span className="text-[10px] font-semibold text-amber-500 flex items-center gap-0.5"><Mic className="w-2.5 h-2.5" /> Audio</span>}
+                      {f.audioUrl && <span className="text-[10px] font-semibold text-amber-500 flex items-center gap-0.5"><Mic className="w-2.5 h-2.5" /> {t("patients.files.audio")}</span>}
                     </div>
                   </div>
                   {/* Actions */}
                   <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openEditModal(f)} title="Modifier"
+                    <button onClick={() => openEditModal(f)} title={t("common.edit")}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-950 transition-all">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     {f.category === "image" && (
-                      <button onClick={() => setPreviewFile(f)} title="Aperçu"
+                      <button onClick={() => setPreviewFile(f)} title={t("common.close")}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-violet-50 hover:text-violet-500 dark:hover:bg-violet-950 transition-all">
                         <Eye className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <a href={f.url} download={f.originalName} target="_blank" rel="noopener noreferrer" title="Télécharger"
+                    <a href={f.url} download={f.originalName} target="_blank" rel="noopener noreferrer" title={t("common.download")}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all">
                       <Download className="w-3.5 h-3.5" />
                     </a>
-                    <button onClick={() => { if (confirm(`Supprimer ${f.originalName} ?`)) deleteFileMutation.mutate(f.id); }} title="Supprimer"
+                    <button onClick={() => { if (confirm(`${t("common.delete")} ${f.originalName} ?`)) deleteFileMutation.mutate(f.id); }} title={t("common.delete")}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950 transition-all">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -963,8 +967,8 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
           <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-lg font-bold text-foreground">Ajouter des fichiers</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Patient : {patient.fullName}</p>
+                <h2 className="text-lg font-bold text-foreground">{t("patientProfile.addFiles")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("patientProfile.patient", { name: patient.fullName })}</p>
               </div>
               <button onClick={() => { setShowUploadModal(false); setSelectedFiles([]); }} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
             </div>
@@ -983,9 +987,9 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
               )}
             >
               <Upload className={cn("w-8 h-8 mx-auto mb-3", isDragging ? "text-primary" : "text-muted-foreground/50")} />
-              <p className="text-sm font-medium text-foreground">Glissez vos fichiers ici</p>
-              <p className="text-xs text-muted-foreground mt-1">ou cliquez pour parcourir</p>
-              <p className="text-[10px] text-muted-foreground/60 mt-2">Images, PDF, Word, Audio · Max 10 Mo</p>
+              <p className="text-sm font-medium text-foreground">{t("patientProfile.dropFiles")}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("patientProfile.dropFilesBrowse")}</p>
+              <p className="text-[10px] text-muted-foreground/60 mt-2">{t("patientProfile.dropFilesHint")}</p>
               <input ref={fileInputRef} type="file" multiple onChange={handleFileSelect} className="hidden"
                 accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,audio/*" />
             </div>
@@ -994,13 +998,13 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-1 h-4 rounded-full bg-gradient-to-b from-amber-400 to-red-500" />
-                <p className="text-xs font-semibold text-foreground">Enregistrement vocal</p>
+                <p className="text-xs font-semibold text-foreground">{t("patientProfile.voiceRecording")}</p>
               </div>
 
               {!isRecording && !recordedBlob && (
                 <button onClick={startRecording}
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-sm font-semibold transition-all">
-                  <Mic className="w-4 h-4" /> Enregistrer un audio
+                  <Mic className="w-4 h-4" /> {t("patientProfile.recordAudio")}
                 </button>
               )}
 
@@ -1008,7 +1012,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 animate-pulse">
                   <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
                   <span className="text-sm font-mono font-bold text-red-600 dark:text-red-400 flex-1">{formatRecordingTime(recordingTime)}</span>
-                  <span className="text-xs text-red-500 font-medium">Enregistrement...</span>
+                  <span className="text-xs text-red-500 font-medium">{t("patientProfile.recording")}</span>
                   <button onClick={stopRecording}
                     className="w-8 h-8 rounded-lg bg-red-500 hover:bg-red-600 flex items-center justify-center text-white transition-all flex-shrink-0">
                     <Square className="w-3.5 h-3.5" />
@@ -1024,10 +1028,10 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                       {isPlayingRecording ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
                     </button>
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-foreground">Enregistrement</p>
+                      <p className="text-sm font-semibold text-foreground">{t("patientProfile.recording2")}</p>
                       <p className="text-xs text-muted-foreground">{formatRecordingTime(recordingTime)}</p>
                     </div>
-                    <button onClick={discardRecording} title="Supprimer"
+                    <button onClick={discardRecording} title={t("common.delete")}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950 transition-all">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1037,7 +1041,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                     className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                     {uploadFileMutation.isPending
                       ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      : <><Upload className="w-3.5 h-3.5" /> Sauvegarder l&apos;enregistrement</>}
+                      : <><Upload className="w-3.5 h-3.5" /> {t("patientProfile.saveRecording")}</>}
                   </button>
                 </div>
               )}
@@ -1061,28 +1065,28 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
             {/* Label + notes */}
             <div className="space-y-3 mb-4">
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1">Étiquette</label>
+                <label className="block text-xs font-semibold text-foreground mb-1">{t("patientProfile.fileLabel")}</label>
                 <input value={uploadLabel} onChange={e => setUploadLabel(e.target.value)}
-                  placeholder="Ex: Radio panoramique, Analyse sanguine..."
+                  placeholder={t("patientProfile.fileLabelPlaceholder")}
                   className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1">Notes</label>
+                <label className="block text-xs font-semibold text-foreground mb-1">{t("patientProfile.fileNotes")}</label>
                 <textarea value={uploadNotes} onChange={e => setUploadNotes(e.target.value)} rows={2}
-                  placeholder="Remarques optionnelles..."
+                  placeholder={t("patientProfile.fileNotesPlaceholder")}
                   className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               </div>
             </div>
 
             <div className="flex gap-3">
               <button onClick={() => { setShowUploadModal(false); setSelectedFiles([]); discardRecording(); }}
-                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">Annuler</button>
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">{t("common.cancel")}</button>
               <button onClick={handleUploadSubmit}
                 disabled={(selectedFiles.length === 0 && !recordedBlob) || uploadFileMutation.isPending}
                 className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                 {uploadFileMutation.isPending
                   ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  : <><Upload className="w-3.5 h-3.5" /> Envoyer{selectedFiles.length > 0 && recordedBlob ? ` (${selectedFiles.length} + 🎤)` : selectedFiles.length > 0 ? ` (${selectedFiles.length})` : recordedBlob ? " (🎤)" : ""}</>}
+                  : <><Upload className="w-3.5 h-3.5" /> {t("patientProfile.sendFiles")}{selectedFiles.length > 0 && recordedBlob ? ` (${selectedFiles.length} + 🎤)` : selectedFiles.length > 0 ? ` (${selectedFiles.length})` : recordedBlob ? " (🎤)" : ""}</>}
               </button>
             </div>
           </div>
@@ -1096,7 +1100,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
           <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-xl p-6 overflow-y-auto max-h-[90vh] custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-lg font-bold text-foreground">Modifier le fichier</h2>
+                <h2 className="text-lg font-bold text-foreground">{t("patientProfile.editFile")}</h2>
                 <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[250px]">{editingFile.originalName}</p>
               </div>
               <button onClick={() => { setShowEditFileModal(false); discardRecording(); }} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
@@ -1104,7 +1108,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
 
             {/* Replace file zone */}
             <div className="mb-4">
-              <label className="block text-xs font-semibold text-foreground mb-1">Remplacer le fichier (Optionnel)</label>
+              <label className="block text-xs font-semibold text-foreground mb-1">{t("patientProfile.replaceFile")}</label>
               <div
                 onClick={() => fileInputRef.current?.click()}
                 className={cn(
@@ -1116,7 +1120,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                 {editSelectedFile ? (
                   <p className="text-sm font-medium text-primary truncate px-2">{editSelectedFile.name}</p>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Cliquez pour choisir un nouveau fichier</p>
+                  <p className="text-xs text-muted-foreground">{t("patientProfile.chooseNewFile")}</p>
                 )}
                 <input ref={fileInputRef} type="file" onChange={e => { if (e.target.files?.[0]) setEditSelectedFile(e.target.files[0]); }} className="hidden"
                   accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,audio/*" />
@@ -1127,7 +1131,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-1 h-4 rounded-full bg-gradient-to-b from-amber-400 to-red-500" />
-                <p className="text-xs font-semibold text-foreground">Enregistrement vocal</p>
+                <p className="text-xs font-semibold text-foreground">{t("patientProfile.voiceRecording")}</p>
               </div>
 
               {editingFile.audioUrl && !editRemoveAudio && !recordedBlob && (
@@ -1137,9 +1141,9 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                     {playingAudioId === editingFile.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
                   </button>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-foreground">Audio actuel</p>
+                    <p className="text-sm font-semibold text-foreground">{t("patientProfile.currentAudio")}</p>
                   </div>
-                  <button onClick={() => setEditRemoveAudio(true)} title="Supprimer l'audio actuel"
+                  <button onClick={() => setEditRemoveAudio(true)} title={t("common.delete")}
                     className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950 transition-all">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -1148,15 +1152,15 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
 
               {editRemoveAudio && (
                 <p className="text-xs text-red-500 font-medium mb-2 bg-red-50 p-2 rounded flex items-center gap-2">
-                  <Trash2 className="w-3.5 h-3.5" /> L'audio actuel sera supprimé.
-                  <button onClick={() => setEditRemoveAudio(false)} className="underline text-red-600 hover:text-red-700 ml-auto">Annuler</button>
+                  <Trash2 className="w-3.5 h-3.5" /> {t("patientProfile.audioWillBeDeleted")}
+                  <button onClick={() => setEditRemoveAudio(false)} className="underline text-red-600 hover:text-red-700 ml-auto">{t("common.cancel")}</button>
                 </p>
               )}
 
               {!isRecording && !recordedBlob && (
                 <button onClick={startRecording}
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-sm font-semibold transition-all">
-                  <Mic className="w-4 h-4" /> Enregistrer un {editingFile.audioUrl ? "nouvel " : ""}audio
+                  <Mic className="w-4 h-4" /> {editingFile.audioUrl ? t("patientProfile.recordNewAudio") : t("patientProfile.recordAudio")}
                 </button>
               )}
 
@@ -1164,7 +1168,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 animate-pulse">
                   <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
                   <span className="text-sm font-mono font-bold text-red-600 dark:text-red-400 flex-1">{formatRecordingTime(recordingTime)}</span>
-                  <span className="text-xs text-red-500 font-medium">Enregistrement...</span>
+                  <span className="text-xs text-red-500 font-medium">{t("patientProfile.recording")}</span>
                   <button onClick={stopRecording}
                     className="w-8 h-8 rounded-lg bg-red-500 hover:bg-red-600 flex items-center justify-center text-white transition-all flex-shrink-0">
                     <Square className="w-3.5 h-3.5" />
@@ -1180,10 +1184,10 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                       {isPlayingRecording ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
                     </button>
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-foreground">Nouvel enregistrement</p>
+                      <p className="text-sm font-semibold text-foreground">{t("patientProfile.newRecording")}</p>
                       <p className="text-xs text-muted-foreground">{formatRecordingTime(recordingTime)}</p>
                     </div>
-                    <button onClick={discardRecording} title="Supprimer"
+                    <button onClick={discardRecording} title={t("common.delete")}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950 transition-all">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1195,27 +1199,27 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
             {/* Label + notes */}
             <div className="space-y-3 mb-5">
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1">Étiquette</label>
+                <label className="block text-xs font-semibold text-foreground mb-1">{t("patientProfile.fileLabel")}</label>
                 <input value={editLabel} onChange={e => setEditLabel(e.target.value)}
-                  placeholder="Ex: Radio panoramique..."
+                  placeholder={t("patientProfile.fileLabelPlaceholder2")}
                   className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1">Notes</label>
+                <label className="block text-xs font-semibold text-foreground mb-1">{t("patientProfile.fileNotes")}</label>
                 <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2}
-                  placeholder="Remarques..."
+                  placeholder={t("patientProfile.fileNotesPlaceholder2")}
                   className="w-full px-3 py-2 rounded-xl border border-border bg-background/50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               </div>
             </div>
 
             <div className="flex gap-3">
               <button onClick={() => { setShowEditFileModal(false); discardRecording(); }}
-                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">Annuler</button>
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">{t("common.cancel")}</button>
               <button onClick={handleEditFileSubmit} disabled={updateFileMutation.isPending}
                 className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                 {updateFileMutation.isPending
                   ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  : "Sauvegarder"}
+                  : t("patientProfile.saveFile")}
               </button>
             </div>
           </div>
@@ -1247,15 +1251,15 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
           <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-lg font-bold text-foreground">Nouvelle ordonnance</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Patient : {patient.fullName}</p>
+                <h2 className="text-lg font-bold text-foreground">{t("prescriptions.newPrescriptionModal")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("patientProfile.patient", { name: patient.fullName })}</p>
               </div>
               <button onClick={() => setShowPrescModal(false)} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">Diagnostic *</label>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">{t("prescriptions.diagnosisLabel")}</label>
                 <input value={prescDiagnosis} onChange={e => setPrescDiagnosis(e.target.value)}
                   placeholder="Ex: Infection respiratoire, Hypertension..."
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
@@ -1263,10 +1267,10 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Pill className="w-3.5 h-3.5 text-primary" /> Médicaments *</label>
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Pill className="w-3.5 h-3.5 text-primary" /> {t("prescriptions.medicationsLabel")}</label>
                   <button type="button" onClick={() => setPrescMeds(m => [...m, { name: "", dosage: "", frequency: "1×/jour", duration: "7 jours", instructions: "" }])}
                     className="text-xs text-primary hover:underline font-semibold flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> Ajouter
+                    <Plus className="w-3 h-3" /> {t("prescriptions.addMed")}
                   </button>
                 </div>
                 <div className="space-y-2">
@@ -1275,7 +1279,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                       <div className="flex items-center gap-2">
                         <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">{idx + 1}</div>
                         <input value={med.name} onChange={e => setPrescMeds(m => m.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
-                          placeholder="Médicament *" className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 font-semibold" />
+                          placeholder={t("prescriptions.medPlaceholder")} className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 font-semibold" />
                         <input value={med.dosage} onChange={e => setPrescMeds(m => m.map((x, i) => i === idx ? { ...x, dosage: e.target.value } : x))}
                           placeholder="500mg" className="w-20 px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20" />
                         {prescMeds.length > 1 && (
@@ -1287,14 +1291,14 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">Fréquence</label>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t("prescriptions.frequencyLabel")}</label>
                           <select value={med.frequency} onChange={e => setPrescMeds(m => m.map((x, i) => i === idx ? { ...x, frequency: e.target.value } : x))}
                             className="w-full px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20">
                             {["1×/jour","2×/jour","3×/jour","Matin-Soir","Matin-Midi-Soir","Si besoin","Le soir","À jeun"].map(f => <option key={f} value={f}>{f}</option>)}
                           </select>
                         </div>
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">Durée</label>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t("prescriptions.durationLabel")}</label>
                           <select value={med.duration} onChange={e => setPrescMeds(m => m.map((x, i) => i === idx ? { ...x, duration: e.target.value } : x))}
                             className="w-full px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20">
                             {["3 jours","5 jours","7 jours","10 jours","14 jours","1 mois","3 mois","À vie"].map(d => <option key={d} value={d}>{d}</option>)}
@@ -1307,19 +1311,19 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">Notes</label>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">{t("prescriptions.notesLabel")}</label>
                 <textarea value={prescNotes} onChange={e => setPrescNotes(e.target.value)} rows={2}
-                  placeholder="Conseils, contre-indications..."
+                  placeholder={t("prescriptions.notesPlaceholder")}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               </div>
 
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setShowPrescModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">Annuler</button>
+                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">{t("common.cancel")}</button>
                 <button type="button" disabled={createPrescMutation.isPending || !prescDiagnosis.trim()}
-                  onClick={() => { if (!prescDiagnosis.trim()) { toast.error("Diagnostic requis"); return; } if (!prescMeds.some(m => m.name.trim())) { toast.error("Au moins un médicament requis"); return; } createPrescMutation.mutate(); }}
+                  onClick={() => { if (!prescDiagnosis.trim()) { toast.error(t("prescriptions.diagnosisRequired")); return; } if (!prescMeds.some(m => m.name.trim())) { toast.error(t("prescriptions.medRequired")); return; } createPrescMutation.mutate(); }}
                   className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50">
-                  {createPrescMutation.isPending ? "Création..." : "Créer l'ordonnance"}
+                  {createPrescMutation.isPending ? t("common.creating") : t("prescriptions.createBtn")}
                 </button>
               </div>
             </div>
@@ -1334,63 +1338,63 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
           <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-lg font-bold text-foreground">{editingConsultation ? "Modifier le rapport" : "Nouveau rapport"}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Patient : {patient.fullName}</p>
+                <h2 className="text-lg font-bold text-foreground">{editingConsultation ? t("patientProfile.editReport") : t("patientProfile.newReport")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("patientProfile.patient", { name: patient.fullName })}</p>
               </div>
               <button onClick={() => { setShowConsultModal(false); setEditingConsultation(null); }} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
             </div>
             <form onSubmit={handleConsultSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Date *</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("common.date")} *</label>
                   <input type="date" required value={consultForm.date} onChange={e => setConsultForm(f => ({ ...f, date: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Heure *</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.hour")} *</label>
                   <input type="time" required value={consultForm.time} onChange={e => setConsultForm(f => ({ ...f, time: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">Type</label>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.type")}</label>
                 <select value={consultForm.type} onChange={e => setConsultForm(f => ({ ...f, type: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
                   {CONSULTATION_TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">Diagnostic</label>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.diagnosis")}</label>
                 <input value={consultForm.diagnosis} onChange={e => setConsultForm(f => ({ ...f, diagnosis: e.target.value }))}
-                  placeholder="Ex: Hypertension artérielle..."
+                  placeholder={t("patientProfile.diagnosisPlaceholder")}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">Notes cliniques</label>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.clinicalNotes")}</label>
                 <textarea rows={3} value={consultForm.notes} onChange={e => setConsultForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="Observations, symptômes..."
+                  placeholder={t("patientProfile.notesPlaceholder")}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">Traitement prescrit</label>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.prescribedTreatment")}</label>
                 <textarea rows={2} value={consultForm.treatment} onChange={e => setConsultForm(f => ({ ...f, treatment: e.target.value }))}
-                  placeholder="Médicaments, posologie..."
+                  placeholder={t("patientProfile.treatmentPlaceholder")}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1.5">
-                  Prochain rendez-vous
-                  {!editingConsultation && <span className="text-muted-foreground font-normal ml-1">(crée automatiquement un RDV de suivi)</span>}
+                  {t("patientProfile.nextVisit")}
+                  {!editingConsultation && <span className="text-muted-foreground font-normal ml-1">({t("patientProfile.nextVisitAuto")})</span>}
                 </label>
                 <input type="date" value={consultForm.nextVisit} onChange={e => setConsultForm(f => ({ ...f, nextVisit: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => { setShowConsultModal(false); setEditingConsultation(null); }}
-                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-all">Annuler</button>
+                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-all">{t("common.cancel")}</button>
                 <button type="submit" disabled={createConsultMutation.isPending}
                   className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-60 flex items-center justify-center gap-2">
-                  {createConsultMutation.isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : editingConsultation ? "Enregistrer" : "Créer le rapport"}
+                  {createConsultMutation.isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : editingConsultation ? t("patientProfile.saveReport") : t("patientProfile.createReport")}
                 </button>
               </div>
             </form>
@@ -1404,63 +1408,63 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowEditModal(false)} />
           <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-foreground">Modifier le patient</h2>
+              <h2 className="text-lg font-bold text-foreground">{t("patientProfile.editPatientModal")}</h2>
               <button onClick={() => setShowEditModal(false)} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
             </div>
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Nom complet *</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.fullName")}</label>
                   <input required value={editForm.fullName} onChange={e => setEditForm(f => ({ ...f, fullName: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Téléphone *</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.phone")}</label>
                   <input required value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Genre</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.genre")}</label>
                   <select value={editForm.gender} onChange={e => setEditForm(f => ({ ...f, gender: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
-                    <option value="male">Homme</option><option value="female">Femme</option>
+                    <option value="male">{t("common.male")}</option><option value="female">{t("common.female")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Email</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.email")}</label>
                   <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Date de naissance</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.dob")}</label>
                   <input type="date" value={editForm.dateOfBirth} onChange={e => setEditForm(f => ({ ...f, dateOfBirth: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Groupe sanguin</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.bloodGroup")}</label>
                   <select value={editForm.bloodType} onChange={e => setEditForm(f => ({ ...f, bloodType: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
-                    <option value="">Inconnu</option>
+                    <option value="">{t("patients.unknown")}</option>
                     {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Adresse</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.address")}</label>
                   <input value={editForm.address} onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Statut</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.statusLabel")}</label>
                   <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
-                    <option value="active">Actif</option><option value="inactive">Inactif</option>
+                    <option value="active">{t("patientProfile.activeStatus")}</option><option value="inactive">{t("patientProfile.inactiveStatus")}</option>
                   </select>
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-all">Annuler</button>
+                <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-all">{t("common.cancel")}</button>
                 <button type="submit" disabled={updateMutation.isPending} className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-60 flex items-center justify-center gap-2">
-                  {updateMutation.isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Enregistrer"}
+                  {updateMutation.isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : t("common.save")}
                 </button>
               </div>
             </form>
@@ -1475,40 +1479,40 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
           <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-lg font-bold text-foreground">Nouveau rendez-vous</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Pour : {patient.fullName}</p>
+                <h2 className="text-lg font-bold text-foreground">{t("patientProfile.newRdvModal")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("patientProfile.forPatient", { name: patient.fullName })}</p>
               </div>
               <button onClick={() => setShowAptModal(false)} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
             </div>
             <form onSubmit={handleAptSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Date *</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("common.date")} *</label>
                   <input type="date" required value={aptForm.date} onChange={e => setAptForm(f => ({ ...f, date: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Heure *</label>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.hour")} *</label>
                   <input type="time" required value={aptForm.time} onChange={e => setAptForm(f => ({ ...f, time: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">Type</label>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.type")}</label>
                 <select value={aptForm.type} onChange={e => setAptForm(f => ({ ...f, type: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
                   {CONSULTATION_TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">Notes</label>
-                <textarea rows={2} value={aptForm.notes} onChange={e => setAptForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes optionnelles..."
+                <label className="block text-xs font-semibold text-foreground mb-1.5">{t("common.notes")}</label>
+                <textarea rows={2} value={aptForm.notes} onChange={e => setAptForm(f => ({ ...f, notes: e.target.value }))} placeholder={t("common.notesPlaceholder")}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none" />
               </div>
               <div className="flex gap-3">
-                <button type="button" onClick={() => setShowAptModal(false)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-all">Annuler</button>
+                <button type="button" onClick={() => setShowAptModal(false)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-all">{t("common.cancel")}</button>
                 <button type="submit" disabled={createAptMutation.isPending} className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-60 flex items-center justify-center gap-2">
-                  {createAptMutation.isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Créer le RDV"}
+                  {createAptMutation.isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : t("appointments.createRdv")}
                 </button>
               </div>
             </form>
@@ -1523,8 +1527,8 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
           <div className='relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-xl p-6'>
             <div className='flex items-center justify-between mb-5'>
               <div>
-                <h2 className='text-lg font-bold text-foreground'>Reporter le RDV</h2>
-                <p className='text-xs text-muted-foreground mt-0.5'>Choisir une nouvelle date</p>
+                <h2 className='text-lg font-bold text-foreground'>{t("patientProfile.rescheduleRdv")}</h2>
+                <p className='text-xs text-muted-foreground mt-0.5'>{t("patientProfile.chooseNewDate")}</p>
               </div>
               <button onClick={() => setReportingApt(null)} className='w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted'>
                 <X className='w-4 h-4' />
@@ -1532,20 +1536,20 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
             </div>
             <form onSubmit={async (e) => { e.preventDefault(); if (!reportingApt || !reportDate) return; await rescheduleMutation.mutateAsync({ id: reportingApt.id, date: reportDate, time: reportTime }); setReportingApt(null); }} className='space-y-4'>
               <div>
-                <label className='block text-xs font-semibold text-foreground mb-1.5'>Nouvelle date *</label>
+                <label className='block text-xs font-semibold text-foreground mb-1.5'>{t("patientProfile.newDate")}</label>
                 <input type='date' required value={reportDate} onChange={e => setReportDate(e.target.value)} min={new Date().toISOString().split('T')[0]}
                   className='w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all' />
               </div>
               <div>
-                <label className='block text-xs font-semibold text-foreground mb-1.5'>Nouvelle heure</label>
+                <label className='block text-xs font-semibold text-foreground mb-1.5'>{t("patientProfile.newHour")}</label>
                 <input type='time' value={reportTime} onChange={e => setReportTime(e.target.value)}
                   className='w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all' />
               </div>
               <div className='flex gap-3'>
-                <button type='button' onClick={() => setReportingApt(null)} className='flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-all'>Annuler</button>
+                <button type='button' onClick={() => setReportingApt(null)} className='flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-all'>{t("common.cancel")}</button>
                 <button type='submit' disabled={rescheduleMutation.isPending || !reportDate}
                   className='flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-60 flex items-center justify-center gap-2'>
-                  {rescheduleMutation.isPending ? <div className='w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin' /> : 'Reporter'}
+                  {rescheduleMutation.isPending ? <div className='w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin' /> : t("patientProfile.rescheduleBtn")}
                 </button>
               </div>
             </form>
@@ -1559,15 +1563,15 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
           <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-lg font-bold text-foreground">Modifier l&apos;ordonnance</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Patient : {patient.fullName}</p>
+                <h2 className="text-lg font-bold text-foreground">{t("prescriptions.editPrescriptionModal")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("patientProfile.patient", { name: patient.fullName })}</p>
               </div>
               <button onClick={() => setEditingPresc(null)} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">Diagnostic *</label>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">{t("prescriptions.diagnosisLabel")}</label>
                 <input value={editPrescDiag} onChange={e => setEditPrescDiag(e.target.value)}
                   placeholder="Ex: Infection respiratoire, Hypertension..."
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
@@ -1575,10 +1579,10 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Pill className="w-3.5 h-3.5 text-primary" /> Médicaments *</label>
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Pill className="w-3.5 h-3.5 text-primary" /> {t("prescriptions.medicationsLabel")}</label>
                   <button type="button" onClick={() => setEditPrescMeds(m => [...m, { name: "", dosage: "", frequency: "1×/jour", duration: "7 jours", instructions: "" }])}
                     className="text-xs text-primary hover:underline font-semibold flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> Ajouter
+                    <Plus className="w-3 h-3" /> {t("prescriptions.addMed")}
                   </button>
                 </div>
                 <div className="space-y-2">
@@ -1587,7 +1591,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                       <div className="flex items-center gap-2">
                         <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">{idx + 1}</div>
                         <input value={med.name} onChange={e => setEditPrescMeds(m => m.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
-                          placeholder="Médicament *" className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 font-semibold" />
+                          placeholder={t("prescriptions.medPlaceholder")} className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 font-semibold" />
                         <input value={med.dosage} onChange={e => setEditPrescMeds(m => m.map((x, i) => i === idx ? { ...x, dosage: e.target.value } : x))}
                           placeholder="500mg" className="w-20 px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20" />
                         {editPrescMeds.length > 1 && (
@@ -1599,14 +1603,14 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">Fréquence</label>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t("prescriptions.frequencyLabel")}</label>
                           <select value={med.frequency} onChange={e => setEditPrescMeds(m => m.map((x, i) => i === idx ? { ...x, frequency: e.target.value } : x))}
                             className="w-full px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20">
                             {["1×/jour","2×/jour","3×/jour","Matin-Soir","Matin-Midi-Soir","Si besoin","Le soir","À jeun"].map(f => <option key={f} value={f}>{f}</option>)}
                           </select>
                         </div>
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">Durée</label>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t("prescriptions.durationLabel")}</label>
                           <select value={med.duration} onChange={e => setEditPrescMeds(m => m.map((x, i) => i === idx ? { ...x, duration: e.target.value } : x))}
                             className="w-full px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20">
                             {["3 jours","5 jours","7 jours","10 jours","14 jours","1 mois","3 mois","À vie"].map(d => <option key={d} value={d}>{d}</option>)}
@@ -1619,19 +1623,19 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">Notes</label>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">{t("prescriptions.notesLabel")}</label>
                 <textarea value={editPrescNotes} onChange={e => setEditPrescNotes(e.target.value)} rows={2}
-                  placeholder="Conseils, contre-indications..."
+                  placeholder={t("prescriptions.notesPlaceholder")}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
               </div>
 
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setEditingPresc(null)}
-                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">Annuler</button>
+                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-all">{t("common.cancel")}</button>
                 <button type="button" disabled={updatePrescMutation.isPending || !editPrescDiag.trim()}
-                  onClick={() => { if (!editPrescDiag.trim()) { toast.error("Diagnostic requis"); return; } updatePrescMutation.mutate(editingPresc.id); }}
+                  onClick={() => { if (!editPrescDiag.trim()) { toast.error(t("prescriptions.diagnosisRequired")); return; } updatePrescMutation.mutate(editingPresc.id); }}
                   className="flex-1 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50">
-                  {updatePrescMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+                  {updatePrescMutation.isPending ? t("common.saving") : t("common.save")}
                 </button>
               </div>
             </div>
