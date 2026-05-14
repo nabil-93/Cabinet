@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { UserCog, Plus, Users, Stethoscope, X, Mail, Phone, Clock, Edit, ChevronRight, ToggleLeft, ToggleRight, Shield, Trash2, KeyRound } from "lucide-react";
@@ -315,7 +315,7 @@ export default function TeamPage() {
       {/* Reset password modal */}
       {resetMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setResetMember(null)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setResetMember(null)} />
           <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-xl p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center flex-shrink-0">
@@ -356,7 +356,7 @@ export default function TeamPage() {
       {/* Delete modal */}
       {deletingMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeletingMember(null)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDeletingMember(null)} />
           <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-xl p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950 flex items-center justify-center flex-shrink-0">
@@ -389,7 +389,7 @@ export default function TeamPage() {
       {/* Add / Edit modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowModal(false)} />
           <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-foreground">

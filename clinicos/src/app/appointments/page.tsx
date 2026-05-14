@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -358,7 +358,7 @@ export default function AppointmentsPage() {
       {/* Modal: Nouveau RDV */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddModal(false)} />
           <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-foreground">{t("appointments.newRdv")}</h2>
@@ -412,7 +412,7 @@ export default function AppointmentsPage() {
       {/* Modal: Reporter */}
       {reportingApt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setReportingApt(null)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setReportingApt(null)} />
           <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-between mb-5">
               <div>

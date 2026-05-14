@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useCallback, useEffect } from "react";
 import api from "@/services/api";
 import { Search, Plus, Users, Phone, Mail, ChevronRight, UserCheck, UserX, Trash2, Edit, X } from "lucide-react";
@@ -259,7 +259,7 @@ export default function PatientsPage() {
       {/* Add / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowModal(false)} />
           <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-foreground">

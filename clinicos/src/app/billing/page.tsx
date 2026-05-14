@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useRef, useEffect } from "react";
 import { FileText, Plus, Search, TrendingUp, Clock, CheckCircle, Pencil, X, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -265,7 +265,7 @@ function CreateInvoiceModal({ onClose, t }: { onClose: () => void; t: (key: stri
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scroll">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <h2 className="text-base font-bold text-foreground">{t("billing.createModal.title")}</h2>
@@ -389,7 +389,7 @@ function EditInvoiceModal({ invoice, onClose, t }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scroll">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
@@ -525,7 +525,7 @@ function PayModal({ invoice, onClose, t }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
@@ -798,7 +798,7 @@ export default function BillingPage() {
       {payInvoice && <PayModal invoice={payInvoice} onClose={() => setPayInvoice(null)} t={t} />}
 
       {deletingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950 flex items-center justify-center flex-shrink-0">

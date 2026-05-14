@@ -1043,7 +1043,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       {/* ── Modal: Upload fichier ── */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowUploadModal(false); setSelectedFiles([]); }} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setShowUploadModal(false); setSelectedFiles([]); }} />
           <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -1176,7 +1176,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       {/* ── Modal: Modifier fichier ── */}
       {showEditFileModal && editingFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowEditFileModal(false); discardRecording(); }} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setShowEditFileModal(false); discardRecording(); }} />
           <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-xl p-6 overflow-y-auto max-h-[90vh] custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -1309,7 +1309,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       {/* ── Modal: Preview image ── */}
       {previewFile && previewFile.category === "image" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setPreviewFile(null)}>
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+          <div className="absolute inset-0 bg-black/70" />
           <div className="relative max-w-3xl max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
             <button onClick={() => setPreviewFile(null)}
               className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-all">
@@ -1327,7 +1327,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       {/* ── Modal: Nouvelle ordonnance ── */}
       {showPrescModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowPrescModal(false)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowPrescModal(false)} />
           <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -1414,7 +1414,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       {/* ── Modal: Rapport de consultation (create + edit) ── */}
       {showConsultModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowConsultModal(false); setEditingConsultation(null); }} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setShowConsultModal(false); setEditingConsultation(null); }} />
           <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -1485,7 +1485,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       {/* ── Modal: Modifier patient ────────────────────────── */}
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowEditModal(false)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowEditModal(false)} />
           <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-foreground">{t("patientProfile.editPatientModal")}</h2>
@@ -1555,7 +1555,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       {/* ── Modal: Nouveau RDV ──────────────────────────────── */}
       {showAptModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAptModal(false)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAptModal(false)} />
           <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-xl p-6">
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -1603,7 +1603,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       {/* ── Modal: Reporter un RDV ──────────────────────── */}
       {reportingApt && (
         <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
-          <div className='absolute inset-0 bg-black/40 backdrop-blur-sm' onClick={() => setReportingApt(null)} />
+          <div className='absolute inset-0 bg-black/50' onClick={() => setReportingApt(null)} />
           <div className='relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-xl p-6'>
             <div className='flex items-center justify-between mb-5'>
               <div>
@@ -1639,7 +1639,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       {/* ── Modal: Modifier une ordonnance ───────────────── */}
       {editingPresc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setEditingPresc(null)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setEditingPresc(null)} />
           <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto custom-scroll">
             <div className="flex items-center justify-between mb-5">
               <div>

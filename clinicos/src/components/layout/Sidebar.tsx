@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -162,7 +162,7 @@ export default function Sidebar() {
       {/* ── Mobile Overlay ── */}
       {sidebarMobileOpen && (
         <div
-          className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 z-40 bg-black/50"
           onClick={closeMobileSidebar}
         />
       )}

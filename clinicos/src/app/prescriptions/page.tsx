@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useRef, useEffect } from "react";
 import {
   FileText, Plus, Search, Download, Pill, X, Stethoscope,
@@ -226,7 +226,7 @@ function EditPrescriptionModal({ prescription, onClose }: {
   const addMed = () => setMeds(prev => [...prev, emptyMed()]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scroll">
         <div className="flex items-center justify-between p-5 border-b border-border sticky top-0 bg-card z-10">
           <div className="flex items-center gap-2">
@@ -346,7 +346,7 @@ function CreateModal({ initialPatient, onClose, doctorId }: {
   const addMed = () => setMeds(prev => [...prev, emptyMed()]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scroll">
         <div className="flex items-center justify-between p-5 border-b border-border sticky top-0 bg-card z-10">
           <div className="flex items-center gap-2">
