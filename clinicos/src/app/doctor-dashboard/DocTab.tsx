@@ -357,11 +357,12 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
   const savePatient = async () => {
     setPatientSaving(true);
     try {
-      await api.patch(`/patients/${patientId}`, {
+      await api.put(`/patients/${patientId}`, {
         allergies,
         medicalHistory: antecedents,
       });
       await qc.invalidateQueries({ queryKey: ["patient", patientId] });
+      await qc.invalidateQueries({ queryKey: ["patients"] });
       setPatientDirty(false);
     } finally {
       setPatientSaving(false);
