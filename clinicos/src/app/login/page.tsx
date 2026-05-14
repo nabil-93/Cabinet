@@ -30,6 +30,7 @@ export default function LoginPage() {
         email: userData.email,
         role: userData.role as any,
         mustChangePassword: userData.mustChangePassword,
+        avatarUrl: userData.avatarUrl ?? undefined,
       });
       toast.success("Connexion réussie !");
       if (userData.mustChangePassword) {
