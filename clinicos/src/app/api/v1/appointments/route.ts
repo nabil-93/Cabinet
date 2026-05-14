@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
 
   if (patientId) {
     query = query.eq("patient_id", patientId);
+    if (date) query = query.eq("date", date); // allow combined patientId + date
   } else if (date) {
     query = query.eq("date", date);
   } else if (month) {

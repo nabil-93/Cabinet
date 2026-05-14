@@ -404,7 +404,49 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
   const updateConsult = async (id: string, data: Partial<Consultation>) => {
     setConsultLoading(true);
     try {
+      // Find old consultation to detect nextVisit change
+      const oldConsult = consultations.find(c => c.id === id);
+      const oldNextVisit = oldConsult?.nextVisit ?? null;
+      const newNextVisit = data.nextVisit ?? null;
+
       await api.put(`/consultations/${id}`, data);
+
+      // If nextVisit changed, update or create the linked appointment
+      if (newNextVisit && newNextVisit !== oldNextVisit) {
+        if (oldNextVisit) {
+          // Try to find existing Suivi appointment on the old date for this patient
+          try {
+            const res = await api.get(`/appointments?patientId=${patientId}&date=${oldNextVisit}`);
+            const apts: Array<{ id: string; type: string; notes?: string }> = res.data?.data ?? res.data ?? [];
+            const suiviApt = apts.find(a => a.type === "Suivi" || a.notes?.includes("Suivi"));
+            if (suiviApt) {
+              // Update existing appointment to the new date
+              await api.patch(`/appointments/${suiviApt.id}`, { date: newNextVisit });
+            } else {
+              // No linked appointment found, create a new one
+              await api.post("/appointments", {
+                patientId, date: newNextVisit, time: "09:00", type: "Suivi", status: "pending",
+                notes: `Suivi — consultation du ${data.date ?? getToday()}`,
+              });
+            }
+          } catch {
+            // Fallback: create new
+            await api.post("/appointments", {
+              patientId, date: newNextVisit, time: "09:00", type: "Suivi", status: "pending",
+              notes: `Suivi — consultation du ${data.date ?? getToday()}`,
+            });
+          }
+        } else {
+          // Was no nextVisit before — create appointment
+          await api.post("/appointments", {
+            patientId, date: newNextVisit, time: "09:00", type: "Suivi", status: "pending",
+            notes: `Suivi — consultation du ${data.date ?? getToday()}`,
+          });
+        }
+        await qc.invalidateQueries({ queryKey: ["appointments"] });
+        await qc.invalidateQueries({ queryKey: ["appointments-patient", patientId] });
+      }
+
       await qc.invalidateQueries({ queryKey: ["consultations", patientId] });
       setEditingConsult(null);
     } finally {
