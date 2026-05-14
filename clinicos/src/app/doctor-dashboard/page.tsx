@@ -37,6 +37,7 @@ import {
   PhoneCall,
   StopCircle,
   Timer,
+  Paperclip,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
@@ -47,6 +48,7 @@ import { cn } from "@/lib/utils";
 import { getToday } from "@/lib/date-utils";
 import { useLang } from "@/lib/i18n";
 import { DocTab } from "./DocTab";
+import { BillingTab } from "./BillingTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -271,6 +273,12 @@ export default function DoctorDashboardPage() {
   const [chatInput, setChatInput]       = useState("");
   const [chatLoading, setChatLoading]   = useState(false);
   const chatEndRef                      = useRef<HTMLDivElement>(null);
+  const chatFileRef                     = useRef<HTMLInputElement>(null);
+  const [chatImageB64, setChatImageB64] = useState<string | null>(null);
+  const [chatImageName, setChatImageName] = useState<string>("");
+
+  // Appointment status change state
+  const [changingAptStatus, setChangingAptStatus] = useState<string | null>(null);
 
   // Historique filters + expanded visit
   const [historyStatusFilter, setHistoryStatusFilter] = useState<string>("all");
@@ -429,18 +437,22 @@ export default function DoctorDashboardPage() {
   }, [chatMessages]);
 
   const sendChatMessage = async () => {
-    if (!chatInput.trim() || chatLoading) return;
-    const userText = chatInput.trim();
+    if ((!chatInput.trim() && !chatImageB64) || chatLoading) return;
+    const userText = chatInput.trim() || (chatImageB64 ? "Analyse cette image." : "");
     setChatInput("");
+    const imageB64 = chatImageB64;
+    const imageName = chatImageName;
+    setChatImageB64(null);
+    setChatImageName("");
 
-    // Patient context injected into first message only
     const patientCtx = selectedPatient
       ? `[Patient sélectionné: ${selectedPatient.fullName}, ID: ${effectiveSelectedId}. Réponds en te concentrant sur ce patient.]\n\n`
       : "";
 
     const history = chatMessages.map(m => ({ role: m.role, content: m.content }));
     const isFirst = history.length === 0;
-    const newUserMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: userText };
+    const displayContent = imageName ? `📎 ${imageName}\n${userText}` : userText;
+    const newUserMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: displayContent };
     const loadingMsg: ChatMessage = { id: "loading", role: "assistant", content: "", loading: true };
 
     setChatMessages(prev => [...prev, newUserMsg, loadingMsg]);
@@ -455,7 +467,11 @@ export default function DoctorDashboardPage() {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: sendMessages, language: lang }),
+        body: JSON.stringify({
+          messages: sendMessages,
+          language: lang,
+          ...(imageB64 ? { imageBase64: imageB64 } : {}),
+        }),
       });
       const data = await res.json();
 
@@ -470,6 +486,18 @@ export default function DoctorDashboardPage() {
       ]);
     } finally {
       setChatLoading(false);
+    }
+  };
+
+  // Appointment status change
+  const changeAptStatus = async (aptId: string, newStatus: string) => {
+    setChangingAptStatus(aptId);
+    try {
+      await api.patch(`/appointments/${aptId}`, { status: newStatus });
+      await queryClient.invalidateQueries({ queryKey: ["appointments-patient", effectiveSelectedId] });
+      await queryClient.invalidateQueries({ queryKey: ["appointments-today"] });
+    } finally {
+      setChangingAptStatus(null);
     }
   };
 
@@ -924,7 +952,19 @@ export default function DoctorDashboardPage() {
                                     <p className="text-xs font-semibold text-foreground capitalize">{dayLabel}</p>
                                     <p className="text-[10px] text-muted-foreground">{apt.time} · {apt.type}</p>
                                   </div>
-                                  <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0", sc.className)}>{sc.label}</span>
+                                  <select
+                                    value={apt.status}
+                                    onChange={e => changeAptStatus(apt.id, e.target.value)}
+                                    disabled={changingAptStatus === apt.id}
+                                    className={cn(
+                                      "text-[9px] font-semibold px-1.5 py-0.5 rounded-lg border cursor-pointer focus:outline-none transition-colors flex-shrink-0",
+                                      sc.className
+                                    )}>
+                                    <option value="pending">En attente</option>
+                                    <option value="confirmed">Confirmé</option>
+                                    <option value="completed">Terminé</option>
+                                    <option value="cancelled">Annulé</option>
+                                  </select>
                                 </div>
                               );
                             })}
@@ -1211,8 +1251,45 @@ export default function DoctorDashboardPage() {
                     </div>
 
                     {/* Input area */}
-                    <div className="flex-shrink-0 px-4 py-3 border-t border-border/60">
+                    <div className="flex-shrink-0 px-4 py-3 border-t border-border/60 space-y-2">
+                      {/* Image preview */}
+                      {chatImageB64 && (
+                        <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-xl px-3 py-2">
+                          <img src={`data:image/jpeg;base64,${chatImageB64}`} alt="preview" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                          <p className="text-[10px] text-foreground flex-1 truncate">{chatImageName}</p>
+                          <button onClick={() => { setChatImageB64(null); setChatImageName(""); }} className="text-muted-foreground hover:text-red-500 transition-colors flex-shrink-0">
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                       <div className="flex items-end gap-2">
+                        {/* File upload button */}
+                        <button
+                          onClick={() => chatFileRef.current?.click()}
+                          className="w-9 h-9 rounded-xl bg-muted/50 border border-border text-muted-foreground hover:text-primary hover:border-primary/40 flex items-center justify-center transition-colors flex-shrink-0"
+                          title="Joindre une image"
+                        >
+                          <Paperclip className="w-4 h-4" />
+                        </button>
+                        <input
+                          ref={chatFileRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setChatImageName(file.name);
+                            const reader = new FileReader();
+                            reader.onload = ev => {
+                              const result = ev.target?.result as string;
+                              // Strip data URL prefix to get raw base64
+                              setChatImageB64(result.split(",")[1] ?? null);
+                            };
+                            reader.readAsDataURL(file);
+                            e.target.value = "";
+                          }}
+                        />
                         <textarea
                           value={chatInput}
                           onChange={e => setChatInput(e.target.value)}
@@ -1225,84 +1302,25 @@ export default function DoctorDashboardPage() {
                         />
                         <button
                           onClick={sendChatMessage}
-                          disabled={!chatInput.trim() || chatLoading}
+                          disabled={(!chatInput.trim() && !chatImageB64) || chatLoading}
                           className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
                         >
                           {chatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                         </button>
                       </div>
-                      <p className="text-[9px] text-muted-foreground mt-1.5">Entrée pour envoyer · Maj+Entrée pour nouvelle ligne</p>
+                      <p className="text-[9px] text-muted-foreground">Entrée pour envoyer · Maj+Entrée nouvelle ligne · 📎 pour joindre une image</p>
                     </div>
                   </div>
                 )}
 
                 {/* ── Facturation patient ── */}
                 {activeSubTab === "billing" && effectiveSelectedId && (
-                  <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                    <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground">Facturation</h3>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {selectedPatient ? `Factures de ${selectedPatient.fullName}` : "Factures du patient"}
-                          {" · "}{invoices.length} facture{invoices.length !== 1 ? "s" : ""}
-                        </p>
-                      </div>
-                      <Link href="/billing" className="text-[11px] text-primary hover:underline flex items-center gap-0.5 font-medium">
-                        Gérer <ChevronRight className="w-3.5 h-3.5" />
-                      </Link>
-                    </div>
-
-                    {/* Summary row */}
-                    {invoices.length > 0 && (
-                      <div className="px-4 py-3 bg-muted/20 border-b border-border/60 flex items-center gap-4">
-                        {[
-                          { label: "Total facturé", value: invoices.reduce((s, i) => s + (i.total ?? i.amount ?? 0), 0), color: "text-foreground" },
-                          { label: "Payé", value: invoices.filter(i => i.status === "paid").reduce((s, i) => s + (i.total ?? i.amount ?? 0), 0), color: "text-emerald-600 dark:text-emerald-400" },
-                          { label: "Restant dû", value: invoices.filter(i => i.status !== "paid").reduce((s, i) => s + (i.total ?? i.amount ?? 0), 0), color: "text-amber-600 dark:text-amber-400" },
-                        ].map(({ label, value, color }) => (
-                          <div key={label} className="flex-1 text-center">
-                            <p className={cn("text-base font-bold", color)}>{value.toLocaleString()} MAD</p>
-                            <p className="text-[9px] text-muted-foreground">{label}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {invoices.length === 0 ? (
-                      <div className="py-12 text-center">
-                        <CreditCard className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                        <p className="text-sm font-medium text-muted-foreground">Aucune facture pour ce patient</p>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-border/40">
-                        {invoices.map(inv => {
-                          const istatus = INVOICE_STATUS[inv.status] ?? INVOICE_STATUS.pending;
-                          const dateStr = inv.date || inv.createdAt;
-                          return (
-                            <div key={inv.id} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-all">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-[11px] font-semibold text-foreground truncate">{inv.patientName || selectedPatient?.fullName}</p>
-                                  {inv.invoiceNumber && (
-                                    <span className="text-[9px] text-muted-foreground font-mono flex-shrink-0">#{inv.invoiceNumber}</span>
-                                  )}
-                                </div>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                  {dateStr ? format(new Date(dateStr), "d MMM yyyy", { locale: dateLocale }) : "—"}
-                                </p>
-                              </div>
-                              <p className="text-xs font-bold text-foreground flex-shrink-0">
-                                {(inv.total ?? inv.amount ?? 0).toLocaleString()} MAD
-                              </p>
-                              <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0", istatus.className)}>
-                                {istatus.label}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <BillingTab
+                    patientId={effectiveSelectedId}
+                    patientName={selectedPatient?.fullName}
+                    invoices={invoices}
+                    dateLocale={dateLocale}
+                  />
                 )}
 
                 {/* ── Calendrier patient ── */}

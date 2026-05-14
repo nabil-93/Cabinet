@@ -380,6 +380,19 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
     setConsultLoading(true);
     try {
       await api.post("/consultations", { patientId, ...data });
+      // Auto-create a follow-up appointment if nextVisit is specified
+      if (data.nextVisit) {
+        await api.post("/appointments", {
+          patientId,
+          date: data.nextVisit,
+          time: "09:00",
+          type: "Suivi",
+          status: "pending",
+          notes: `Suivi — consultation du ${data.date ?? getToday()}`,
+        });
+        await qc.invalidateQueries({ queryKey: ["appointments-patient", patientId] });
+        await qc.invalidateQueries({ queryKey: ["appointments-today"] });
+      }
       await qc.invalidateQueries({ queryKey: ["consultations", patientId] });
       setShowNewConsult(false);
     } finally {
