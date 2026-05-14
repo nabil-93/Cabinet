@@ -36,6 +36,15 @@ import { useLang } from "@/lib/i18n";
 // STATUS_MAP is defined inside the component to access t()
 
 const CONSULTATION_TYPES = ["Consultation", "Suivi", "Bilan", "Urgence", "Vaccination", "Contrôle", "Autre"];
+const CONSULT_TYPE_KEYS: Record<string, string> = {
+  "Consultation": "appointments.types.consultation",
+  "Suivi":        "appointments.types.suivi",
+  "Bilan":        "appointments.types.bilan",
+  "Urgence":      "appointments.types.urgence",
+  "Vaccination":  "appointments.types.vaccination",
+  "Contrôle":     "appointments.types.controle",
+  "Autre":        "appointments.types.autre",
+};
 
 function Countdown({ dateStr }: { dateStr: string }) {
   const { t } = useLang();
@@ -1360,7 +1369,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                 <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.type")}</label>
                 <select value={consultForm.type} onChange={e => setConsultForm(f => ({ ...f, type: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
-                  {CONSULTATION_TYPES.map(t => <option key={t}>{t}</option>)}
+                  {CONSULTATION_TYPES.map(tp => <option key={tp} value={tp}>{t(CONSULT_TYPE_KEYS[tp] ?? tp)}</option>)}
                 </select>
               </div>
               <div>
@@ -1501,7 +1510,7 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                 <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patientProfile.type")}</label>
                 <select value={aptForm.type} onChange={e => setAptForm(f => ({ ...f, type: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
-                  {CONSULTATION_TYPES.map(t => <option key={t}>{t}</option>)}
+                  {CONSULTATION_TYPES.map(tp => <option key={tp} value={tp}>{t(CONSULT_TYPE_KEYS[tp] ?? tp)}</option>)}
                 </select>
               </div>
               <div>

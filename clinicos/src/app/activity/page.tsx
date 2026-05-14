@@ -248,7 +248,7 @@ export default function ActivityPage() {
                         </span>
                         {" · "}
                         <span className={cn("font-medium", meta.color)}>{getActionLabel(log.action)}</span>
-                        {log.entity_label && (
+                        {log.entity_label && translateEntityLabel(log.entity_label) !== getActionLabel(log.action) && (
                           <span className="text-muted-foreground"> · {translateEntityLabel(log.entity_label)}</span>
                         )}
                       </p>

@@ -134,6 +134,7 @@ export const de = {
     noResultsDesc: "Kein Patient entspricht Ihrer Suche.",
     addFirst: "+ Patient hinzufügen",
     name: "Vollständiger Name",
+    namePlaceholder: "Vorname Nachname",
     dob: "Geburtsdatum",
     gender: "Geschlecht",
     genre: "Geschlecht",

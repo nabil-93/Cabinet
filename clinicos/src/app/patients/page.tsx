@@ -252,7 +252,7 @@ export default function PatientsPage() {
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-foreground mb-1.5">{t("patients.name")} *</label>
                   <input required value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
-                    placeholder="Prénom Nom"
+                    placeholder={t("patients.namePlaceholder")}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
                 </div>
                 <div>
