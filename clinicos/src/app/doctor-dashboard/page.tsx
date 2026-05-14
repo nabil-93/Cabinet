@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, isToday, isTomorrow, isPast } from "date-fns";
@@ -53,8 +53,10 @@ interface WaitingPatient {
   id: string;
   patientId?: string;
   patientName: string;
-  waitTime: number;
+  arrivedAt?: string;
+  estimatedWait?: number;
   status: string;
+  priority?: string;
 }
 
 interface Appointment {
@@ -94,9 +96,11 @@ interface Prescription {
 interface Invoice {
   id: string;
   invoiceNumber: string;
+  patientId?: string;
   patientName: string;
-  amount: number;
+  amount?: number;
   total?: number;
+  paid?: number;
   status: "paid" | "pending" | "overdue" | "unpaid";
   date: string;
   createdAt?: string;
@@ -250,6 +254,12 @@ export default function DoctorDashboardPage() {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("history");
   const [selectedId, setSelectedId]     = useState<string | null>(null);
   const [searchQuery, setSearchQuery]   = useState("");
+  // Tick every minute to update live wait times
+  const [nowMs, setNowMs] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
 
   // Chat state (AI tab)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -272,10 +282,16 @@ export default function DoctorDashboardPage() {
   const { data: waitingRaw } = useQuery({
     queryKey: ["waiting-room"],
     queryFn: () => api.get("/waiting-room").then(r => r.data?.data ?? r.data ?? []),
-    staleTime: 30_000,
+    staleTime: 10_000,
     refetchInterval: 15_000,
   });
-  const waitingPatients: WaitingPatient[] = Array.isArray(waitingRaw) ? waitingRaw : [];
+  // Only show patients actively waiting or in consultation (exclude done)
+  const waitingPatients: WaitingPatient[] = useMemo(
+    () => (Array.isArray(waitingRaw) ? waitingRaw : []).filter(
+      (w: WaitingPatient) => w.status === "waiting" || w.status === "in_progress"
+    ),
+    [waitingRaw]
+  );
 
   // Auto-select the patient currently in consultation
   const inProgressWaiting = waitingPatients.find(wp => wp.status === "in_progress");
@@ -314,15 +330,17 @@ export default function DoctorDashboardPage() {
   });
   const prescriptions: Prescription[] = Array.isArray(prescriptionsRaw) ? prescriptionsRaw : [];
 
-  // Patient-specific invoices
+  // All invoices — filtered client-side by selected patient
   const { data: invoicesRaw } = useQuery({
-    queryKey: ["invoices-patient", effectiveSelectedId],
-    queryFn: () =>
-      api.get(effectiveSelectedId ? `/invoices?patientId=${effectiveSelectedId}` : "/invoices?limit=20")
-        .then(r => r.data?.data ?? r.data ?? []),
+    queryKey: ["invoices-all"],
+    queryFn: () => api.get("/invoices").then(r => r.data?.data ?? r.data ?? []),
     staleTime: 30_000,
   });
-  const invoices: Invoice[] = Array.isArray(invoicesRaw) ? invoicesRaw : [];
+  const invoices: Invoice[] = useMemo(() => {
+    const all: Invoice[] = Array.isArray(invoicesRaw) ? invoicesRaw : [];
+    if (!effectiveSelectedId) return [];
+    return all.filter(inv => inv.patientId === effectiveSelectedId);
+  }, [invoicesRaw, effectiveSelectedId]);
 
   // Global stats
   const { data: stats } = useQuery<DashboardStats>({
@@ -333,9 +351,8 @@ export default function DoctorDashboardPage() {
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
-  const filteredApts = todayApts.filter(a =>
-    !searchQuery || a.patientName?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Search only filters the header — the patients list always shows all
+  const filteredApts = todayApts;
 
   const pastApts = patientApts
     .filter(a => isPast(new Date(`${a.date}T${a.time}`)) || a.status === "completed")
@@ -358,10 +375,9 @@ export default function DoctorDashboardPage() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleSelectPatient = useCallback((id: string, name?: string) => {
+  const handleSelectPatient = useCallback((id: string) => {
     setSelectedId(prev => prev === id ? null : id);
-    if (name) setSearchQuery(name);
-    setChatMessages([]); // reset chat when switching patient
+    setChatMessages([]);
   }, []);
 
   const role = user?.role === "doctor" ? "Médecin" : user?.role === "admin" ? "Admin Médecin" : user?.role ?? "";
@@ -623,7 +639,10 @@ export default function DoctorDashboardPage() {
                 <Clock className="w-3.5 h-3.5 text-amber-500" />
                 <span className="text-xs font-semibold text-foreground">Salle d&apos;attente</span>
               </div>
-              <span className="text-[10px] text-muted-foreground">{waitingPatients.length} patient{waitingPatients.length !== 1 ? "s" : ""}</span>
+              <span className="text-[10px] text-muted-foreground">
+                {waitingPatients.filter(w => w.status === "waiting").length} en attente
+                {waitingPatients.some(w => w.status === "in_progress") ? " · 1 en cours" : ""}
+              </span>
             </div>
             <div className="p-2 space-y-0.5 max-h-48 overflow-y-auto custom-scroll">
               {waitingPatients.length === 0 ? (
@@ -631,6 +650,9 @@ export default function DoctorDashboardPage() {
               ) : (
                 waitingPatients.slice(0, 6).map(wp => {
                   const isInProgress = wp.status === "in_progress";
+                  const waitMins = wp.arrivedAt
+                    ? Math.max(0, Math.floor((nowMs - new Date(wp.arrivedAt).getTime()) / 60_000))
+                    : (wp.estimatedWait ?? 0);
                   return (
                     <div key={wp.id} className={cn(
                       "flex items-center gap-2 p-2 rounded-xl transition-all",
@@ -646,8 +668,8 @@ export default function DoctorDashboardPage() {
                       </div>
                       <p className="text-[11px] font-medium text-foreground flex-1 truncate">{wp.patientName}</p>
                       {isInProgress
-                        ? <span className="text-[9px] text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">Consultation</span>
-                        : <span className="text-[9px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">{wp.waitTime ?? 0}m</span>
+                        ? <span className="text-[9px] text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">En consultation</span>
+                        : <span className="text-[9px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">{waitMins}m</span>
                       }
                     </div>
                   );
@@ -685,7 +707,7 @@ export default function DoctorDashboardPage() {
                   return (
                     <button
                       key={apt.id}
-                      onClick={() => handleSelectPatient(apt.patientId, apt.patientName)}
+                      onClick={() => handleSelectPatient(apt.patientId)}
                       className={cn(
                         "w-full flex items-center gap-2 p-2 rounded-xl text-left transition-all",
                         isSelected ? "bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700" : "hover:bg-accent/60 border border-transparent"
