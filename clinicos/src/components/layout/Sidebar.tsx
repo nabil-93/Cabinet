@@ -14,8 +14,9 @@ import { usePathname as usePN } from "next/navigation";
 import { useLang } from "@/lib/i18n";
 
 const NAV_ITEMS = [
-  { href: "/dashboard",    labelKey: "sidebar.dashboard",    icon: LayoutDashboard, roles: ["admin","doctor","assistant"] },
-  { href: "/patients",     labelKey: "sidebar.patients",     icon: Users,           roles: ["admin","doctor","assistant"] },
+  { href: "/dashboard",        labelKey: "sidebar.dashboard",        icon: LayoutDashboard, roles: ["admin","doctor","assistant"] },
+  { href: "/doctor-dashboard", labelKey: "sidebar.doctorDashboard",  icon: Stethoscope,     roles: ["admin","doctor"] },
+  { href: "/patients",         labelKey: "sidebar.patients",         icon: Users,           roles: ["admin","doctor","assistant"] },
   { href: "/appointments", labelKey: "sidebar.appointments", icon: Calendar,        roles: ["admin","doctor","assistant"] },
   { href: "/calendar",     labelKey: "sidebar.calendar",     icon: ClipboardList,   roles: ["admin","doctor","assistant"] },
   { href: "/waiting-room", labelKey: "sidebar.waitingRoom",  icon: Clock,           roles: ["admin","doctor","assistant"] },
