@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { TrendingUp, Users, Calendar, CreditCard, CheckCircle, BarChart2, AreaChart as AreaIcon, LineChart as LineIcon } from "lucide-react";
+import { TrendingUp, Users, Calendar, CreditCard, CheckCircle, BarChart2, AreaChart as AreaIcon, LineChart as LineIcon, Stethoscope, FileText, Clock, Activity } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/services/api";
@@ -23,6 +23,21 @@ const ResponsiveContainer = dynamic(() => import("recharts").then(m => ({ defaul
 
 const GenderPieChart = dynamic(() => import("@/components/charts/GenderPieChart"), { ssr: false });
 const ConsultationTypesChart = dynamic(() => import("@/components/charts/ConsultationTypesChart"), { ssr: false });
+
+type StatPeriod = "day" | "week" | "month";
+
+interface SummaryData {
+  period: string;
+  consultations: number;
+  patients: number;
+  prescriptions: number;
+  invoices: number;
+  revenue: number;
+  totalAppointments: number;
+  byStatus: { confirmed: number; completed: number; pending: number; cancelled: number };
+  todayByStatus: { confirmed: number; completed: number; pending: number; cancelled: number };
+  waitingRoom: number;
+}
 
 interface AnalyticsData {
   kpi: {
@@ -73,10 +88,43 @@ function NoData({ label }: { label: string }) {
   );
 }
 
+function StatCard({ label, value, max, icon: Icon, color, isDE }: {
+  label: string; value: number; max: number; icon: any; color: string; isDE: boolean;
+}) {
+  const pct = Math.min(Math.round((value / max) * 100), 100);
+  return (
+    <div className="bg-card border border-border rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", color)}>
+          <Icon className="w-4 h-4 text-white" />
+        </div>
+        <span className="text-2xl font-bold text-foreground">{value}</span>
+      </div>
+      <p className="text-xs font-semibold text-foreground mb-2">{label}</p>
+      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className={cn("h-full rounded-full transition-all duration-500", color)} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-1">{pct}% {isDE ? "des Monatsziels" : "de l'objectif mensuel"}</p>
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
-  const { t } = useLang();
+  const { lang, t } = useLang();
+  const isDE = lang === "de";
+  const [statPeriod, setStatPeriod] = useState<StatPeriod>("month");
   const [period,    setPeriod]    = useState<"1d" | "1w" | "1m" | "6m">("1d");
   const [chartType, setChartType] = useState<"bar" | "area" | "line">("bar");
+
+  const { data: summary, isLoading: summaryLoading } = useQuery<SummaryData>({
+    queryKey: ["analytics-summary", statPeriod],
+    queryFn: async () => {
+      const r = await api.get(`/analytics/summary?period=${statPeriod}`);
+      return r.data.data ?? r.data;
+    },
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
     queryKey: ["analytics-chart", period],
@@ -97,6 +145,19 @@ export default function AnalyticsPage() {
 
   const kpi = analytics?.kpi;
 
+  const STAT_PERIODS: { key: StatPeriod; label: string; labelDE: string }[] = [
+    { key: "day",   label: "Aujourd'hui",   labelDE: "Heute" },
+    { key: "week",  label: "Cette semaine", labelDE: "Diese Woche" },
+    { key: "month", label: "Ce mois",       labelDE: "Dieser Monat" },
+  ];
+
+  const BY_STATUS_BARS = [
+    { key: "confirmed", label: isDE ? "Bestätigt"     : "Confirmé",  color: "#10b981" },
+    { key: "completed", label: isDE ? "Abgeschlossen" : "Terminé",   color: "#6272f5" },
+    { key: "pending",   label: isDE ? "Ausstehend"    : "En attente",color: "#f59e0b" },
+    { key: "cancelled", label: isDE ? "Abgesagt"      : "Annulé",    color: "#ef4444" },
+  ];
+
   const KPI_CARDS = [
     {
       label: t("analytics.kpi.avgPerDay"),
@@ -115,6 +176,80 @@ export default function AnalyticsPage() {
       <Header title={t("analytics.title")} subtitle={t("analytics.subtitle")} />
 
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-5">
+
+        {/* ── Stats section with period filter ── */}
+        <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+          {/* Period tabs */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-bold text-foreground">
+                {isDE ? "Statistiken" : "Statistiques"}
+              </h2>
+            </div>
+            <div className="flex gap-1 bg-muted/50 rounded-xl p-1">
+              {STAT_PERIODS.map(p => (
+                <button key={p.key} onClick={() => setStatPeriod(p.key)}
+                  className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    statPeriod === p.key ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                  {isDE ? p.labelDE : p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 4 stat cards */}
+          {summaryLoading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {Array(4).fill(null).map((_, i) => <KpiSkeleton key={i} />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <StatCard label={isDE ? "Konsultationen" : "Consultations"} value={summary?.consultations ?? 0} max={statPeriod === "day" ? 30 : statPeriod === "week" ? 150 : 500} icon={Stethoscope} color="bg-primary" isDE={isDE} />
+              <StatCard label={isDE ? "Behandelte Patienten" : "Patients traités"} value={summary?.patients ?? 0} max={statPeriod === "day" ? 30 : statPeriod === "week" ? 150 : 500} icon={Users} color="bg-emerald-500" isDE={isDE} />
+              <StatCard label={isDE ? "Rezepte" : "Ordonnances"} value={summary?.prescriptions ?? 0} max={statPeriod === "day" ? 20 : statPeriod === "week" ? 100 : 300} icon={FileText} color="bg-amber-500" isDE={isDE} />
+              <StatCard label={isDE ? "Rechnungen" : "Factures"} value={summary?.invoices ?? 0} max={statPeriod === "day" ? 20 : statPeriod === "week" ? 100 : 300} icon={CreditCard} color="bg-purple-500" isDE={isDE} />
+            </div>
+          )}
+
+          {/* Activity overview */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: isDE ? "RDV gesamt" : "RDV total", value: summary?.totalAppointments ?? 0, unit: isDE ? "Termine" : "rendez-vous", color: "text-primary" },
+              { label: isDE ? "Einnahmen" : "Revenus", value: `${(summary?.revenue ?? 0).toLocaleString("fr-MA")}`, unit: "MAD", color: "text-emerald-600" },
+              { label: isDE ? "Im Wartezimmer" : "Salle d'attente", value: summary?.waitingRoom ?? 0, unit: isDE ? "Patienten" : "patients", color: "text-amber-600" },
+            ].map(item => (
+              <div key={item.label} className="bg-muted/30 rounded-xl px-4 py-3 text-center">
+                <p className={cn("text-2xl font-bold", item.color)}>{item.value}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{item.unit}</p>
+                <p className="text-[11px] text-muted-foreground font-medium mt-1">{item.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* RDV par statut */}
+          <div>
+            <p className="text-xs font-semibold text-foreground mb-3">
+              {isDE ? "RDV nach Status" : "RDV par statut"}
+            </p>
+            <div className="space-y-2">
+              {BY_STATUS_BARS.map(({ key, label, color }) => {
+                const val = summary?.byStatus?.[key as keyof typeof summary.byStatus] ?? 0;
+                const total = summary?.totalAppointments || 1;
+                const pct = Math.round((val / total) * 100);
+                return (
+                  <div key={key} className="flex items-center gap-3">
+                    <span className="text-[11px] font-medium text-muted-foreground w-24 text-right flex-shrink-0">{label}</span>
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
+                    </div>
+                    <span className="text-xs font-bold text-foreground w-6 text-right flex-shrink-0">{val}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {analyticsLoading
