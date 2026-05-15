@@ -985,69 +985,77 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
     updateAndSave(next);
   }, [patientId, vt.deleteValueConfirm, updateAndSave]);
 
-  // Download full report as PDF — screenshot of the UI (pixel-perfect)
+  // Download full report as PDF — pixel-perfect screenshot
   const downloadPdf = useCallback(async (report: LabReport) => {
     if (!reportRef.current) return;
     setDownloadingPdf(true);
+
+    const el = reportRef.current;
+
+    // Save original inline styles
+    const origOverflow = el.style.overflow;
+    const origHeight   = el.style.height;
+    const origMaxH     = el.style.maxHeight;
+
     try {
       const [{ jsPDF }, html2canvas] = await Promise.all([
         import("jspdf"),
         import("html2canvas").then(m => m.default),
       ]);
 
-      const el = reportRef.current;
+      // Temporarily expand the scrollable container so html2canvas sees all content
+      el.style.overflow  = "visible";
+      el.style.height    = "auto";
+      el.style.maxHeight = "none";
 
-      // Capture the full scrollable content at 2x scale for sharpness
+      // Wait one frame for the browser to reflow
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
       const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
         logging: false,
-        windowWidth: el.scrollWidth,
-        // Capture full height including overflow
-        height: el.scrollHeight,
-        width: el.scrollWidth,
+        scrollX: 0,
+        scrollY: 0,
       });
 
-      const imgData = canvas.toDataURL("image/png");
-      const pdfW = 210;           // A4 width in mm
-      const pdfH = 297;           // A4 height in mm
-      const margin = 10;
-      const contentW = pdfW - margin * 2;
-      const contentH = pdfH - margin * 2;
+      // Restore original styles immediately after capture
+      el.style.overflow  = origOverflow;
+      el.style.height    = origHeight;
+      el.style.maxHeight = origMaxH;
 
-      // Convert canvas pixels to mm
-      const canvasW = canvas.width;
-      const canvasH = canvas.height;
-      const mmPerPx = contentW / canvasW;
-      const totalMmH = canvasH * mmPerPx;
+      const pdfW      = 210;
+      const pdfH      = 297;
+      const margin    = 10;
+      const contentW  = pdfW - margin * 2;
+      const contentH  = pdfH - margin * 2;
+      const canvasW   = canvas.width;
+      const canvasH   = canvas.height;
+      const mmPerPx   = contentW / canvasW;
+      const totalMmH  = canvasH * mmPerPx;
 
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
       let yOffset = 0;
       let page = 0;
 
       while (yOffset < totalMmH) {
         if (page > 0) doc.addPage();
-
-        // Slice of the canvas for this page
-        const slicePxH = Math.round(contentH / mmPerPx); // pixels per page
-        const sliceY = Math.round(yOffset / mmPerPx);     // pixel start of this slice
+        const slicePxH  = Math.round(contentH / mmPerPx);
+        const sliceY    = Math.round(yOffset / mmPerPx);
+        const sliceH    = Math.min(slicePxH, canvasH - sliceY);
 
         const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = canvasW;
-        pageCanvas.height = Math.min(slicePxH, canvasH - sliceY);
+        pageCanvas.width  = canvasW;
+        pageCanvas.height = sliceH;
         const ctx = pageCanvas.getContext("2d");
         if (ctx) {
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-          ctx.drawImage(canvas, 0, sliceY, canvasW, pageCanvas.height, 0, 0, canvasW, pageCanvas.height);
+          ctx.drawImage(canvas, 0, sliceY, canvasW, sliceH, 0, 0, canvasW, sliceH);
         }
-        const pageImgData = pageCanvas.toDataURL("image/png");
-        const pageImgH = pageCanvas.height * mmPerPx;
-        doc.addImage(pageImgData, "PNG", margin, margin, contentW, pageImgH);
-
+        doc.addImage(pageCanvas.toDataURL("image/jpeg", 0.95), "JPEG", margin, margin, contentW, sliceH * mmPerPx);
         yOffset += contentH;
         page++;
       }
@@ -1056,6 +1064,10 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
       doc.save(fname);
     } catch (err) {
       console.error("PDF error:", err);
+      // Ensure styles are restored even on error
+      el.style.overflow  = origOverflow;
+      el.style.height    = origHeight;
+      el.style.maxHeight = origMaxH;
     } finally {
       setDownloadingPdf(false);
     }
