@@ -670,6 +670,72 @@ function GenerateChoiceModal({ report, onConfirm, onClose, vt }: {
   );
 }
 
+// ─── Print Options Modal ──────────────────────────────────────────────────────
+
+function PrintOptionsModal({ report, vt, onConfirm, onClose }: {
+  report: LabReport;
+  vt: VTLang;
+  onConfirm: (inclGraphs: boolean, inclMedical: boolean) => void;
+  onClose: () => void;
+}) {
+  const [graphs, setGraphs]   = useState(true);
+  const [medical, setMedical] = useState(!!report.medicalReport);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-border/60 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Download className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-bold text-foreground">{vt.downloadPdf}</h3>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center">
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-xs text-muted-foreground mb-1">
+            {vt.chooseWhat.replace("générer", "inclure dans le PDF")}
+          </p>
+          <label className={cn(
+            "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
+            graphs ? "bg-primary/5 border-primary/30" : "bg-muted/30 border-border"
+          )}>
+            <input type="checkbox" checked={graphs} onChange={e => setGraphs(e.target.checked)} className="w-4 h-4 accent-primary" />
+            <div>
+              <p className="text-xs font-semibold text-foreground">{vt.analyzeGraphic}</p>
+              <p className="text-[10px] text-muted-foreground">{vt.graphsDesc}</p>
+            </div>
+          </label>
+          <label className={cn(
+            "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
+            medical ? "bg-primary/5 border-primary/30" : "bg-muted/30 border-border",
+            !report.medicalReport && "opacity-50 cursor-not-allowed"
+          )}>
+            <input type="checkbox" checked={medical} disabled={!report.medicalReport}
+              onChange={e => setMedical(e.target.checked)} className="w-4 h-4 accent-primary" />
+            <div>
+              <p className="text-xs font-semibold text-foreground">{vt.medicalReport}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {report.medicalReport ? vt.fullReportDesc : (vt.generating2)}
+              </p>
+            </div>
+          </label>
+          <div className="flex gap-2 pt-1">
+            <button onClick={() => onConfirm(graphs, medical)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-colors">
+              <Download className="w-3.5 h-3.5" /> Imprimer / Enregistrer PDF
+            </button>
+            <button onClick={onClose} className="px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-colors">
+              {vt.cancelEdit}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Edit Value Modal ──────────────────────────────────────────────────────────
 
 function EditValueModal({ value, vt, onSave, onClose }: {
@@ -985,17 +1051,17 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
     updateAndSave(next);
   }, [patientId, vt.deleteValueConfirm, updateAndSave]);
 
-  // Download full report as PDF via window.print() — 100% reliable, pixel-perfect
-  const downloadPdf = useCallback((report: LabReport) => {
+  // Download full report as PDF — called after user confirms print options
+  const executePrint = useCallback((report: LabReport, inclGraphs: boolean, inclMedical: boolean) => {
     if (!reportRef.current) return;
     setDownloadingPdf(true);
 
-    // 1. Clone the report HTML into a hidden print container
+    // Clone the report right panel content
     const printDiv = document.createElement("div");
     printDiv.id = "clinicos-pdf-print";
     printDiv.innerHTML = reportRef.current.innerHTML;
 
-    // 2. Remove overflow clipping on every cloned element
+    // Remove overflow clipping everywhere in the clone
     Array.from(printDiv.querySelectorAll("*")).forEach(node => {
       const el = node as HTMLElement;
       el.style.overflow  = "visible";
@@ -1003,26 +1069,27 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
       el.style.maxHeight = "none";
       el.style.height    = "auto";
     });
-    printDiv.style.overflow  = "visible";
-    printDiv.style.maxHeight = "none";
-    printDiv.style.height    = "auto";
-    printDiv.style.padding   = "12px";
+    printDiv.style.cssText = "overflow:visible;height:auto;max-height:none;padding:8px;";
     document.body.appendChild(printDiv);
 
-    // 2b. Remove the first child (report header card with buttons) — not needed in PDF
-    //     Keep only: values cards, charts, medical report
-    if (printDiv.firstElementChild) {
-      printDiv.removeChild(printDiv.firstElementChild);
-    }
+    // Remove: header card (lab name + buttons) — always hidden
+    // Structure: [0]=header, [1..n-2]=value sections, [n-2]=charts, [n-1]=medical report
+    const children = Array.from(printDiv.children);
+    // Remove header (first child)
+    children[0]?.remove();
 
-    // 3. Inject print-media CSS that hides everything except our container
+    const remaining = Array.from(printDiv.children);
+    const last = remaining[remaining.length - 1];   // medical report (last)
+    const secondLast = remaining[remaining.length - 2]; // charts section
+
+    if (!inclMedical) last?.remove();
+    if (!inclGraphs && secondLast && secondLast !== last) secondLast?.remove();
+
+    // @page margin:0 removes Chrome/Edge URL & title header/footer
     const style = document.createElement("style");
     style.id = "clinicos-print-style";
     style.textContent = `
-      @page {
-        size: A4;
-        margin: 10mm;  /* removes browser URL/title header & footer */
-      }
+      @page { size: A4; margin: 0mm; }
       @media print {
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         body > *:not(#clinicos-pdf-print) { display: none !important; }
@@ -1030,13 +1097,13 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
           display: block !important;
           position: static !important;
           width: 100% !important;
-          padding: 0 !important;
+          padding: 8mm !important;
+          box-sizing: border-box !important;
         }
       }
     `;
     document.head.appendChild(style);
 
-    // 4. Cleanup after printing (fires when print dialog closes)
     const cleanup = () => {
       document.getElementById("clinicos-pdf-print")?.remove();
       document.getElementById("clinicos-print-style")?.remove();
@@ -1044,9 +1111,13 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
     };
 
     window.addEventListener("afterprint", cleanup, { once: true });
-
-    // 5. Print (user can "Save as PDF" in the browser dialog)
     setTimeout(() => window.print(), 200);
+  }, []);
+
+  // Show print options modal, then execute print
+  const [printOptionsFor, setPrintOptionsFor] = useState<LabReport | null>(null);
+  const downloadPdf = useCallback((report: LabReport) => {
+    setPrintOptionsFor(report);
   }, []);
 
   // Regenerate the medical report of a specific lab report in the current language
@@ -1311,6 +1382,16 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
       {/* Value detail panel */}
       {selectedValue && (
         <DetailPanel v={selectedValue} patientName={patientName} onClose={() => setSelectedValue(null)} lang={lang} />
+      )}
+
+      {/* Print options modal */}
+      {printOptionsFor && (
+        <PrintOptionsModal
+          report={printOptionsFor}
+          vt={vt}
+          onConfirm={(g, m) => { setPrintOptionsFor(null); executePrint(printOptionsFor, g, m); }}
+          onClose={() => setPrintOptionsFor(null)}
+        />
       )}
 
       {/* Edit value modal */}
