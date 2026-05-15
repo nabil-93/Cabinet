@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { ok, err } from "@/lib/supabase/helpers";
 
 const ACTION_CATEGORIES: Record<string, string[]> = {
@@ -94,7 +94,8 @@ export async function DELETE(req: NextRequest) {
     const olderThan = req.nextUrl.searchParams.get("olderThan");
     if (!olderThan) return err("olderThan param required (ISO date)");
 
-    const supabase = await createClient();
+    // Use admin client to bypass RLS
+    const supabase = createAdminClient();
     const { error, count } = await supabase
       .from("activity_logs")
       .delete({ count: "exact" })
