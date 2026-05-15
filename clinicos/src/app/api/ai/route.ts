@@ -292,6 +292,36 @@ const FUNCTIONS = [
       },
     },
   },
+  {
+    name: "get_whatsapp_history",
+    description: "Obtenir l'historique des messages WhatsApp envoyés depuis le cabinet (stocké en localStorage côté client — retourne les données disponibles côté serveur via la base). Répond à: combien de messages envoyés, qui a reçu un message, quels patients ont été contactés.",
+    parameters: {
+      type: "object",
+      properties: {
+        patientId:   { type: "string", description: "Filtrer par patient" },
+        patientName: { type: "string", description: "Rechercher par nom de patient" },
+        limit:       { type: "number" },
+      },
+    },
+  },
+  {
+    name: "get_whatsapp_pending",
+    description: "Obtenir la liste des patients avec RDV dans les 3 prochains jours qui n'ont pas encore reçu de message WhatsApp de rappel. Répond à: qui doit encore recevoir un message, patients à contacter.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "open_whatsapp",
+    description: "Ouvrir WhatsApp Web pour envoyer un message à un patient. Génère le lien wa.me à ouvrir. Utilise pour: 'envoie un message WhatsApp à X', 'ouvre WhatsApp pour Y'.",
+    parameters: {
+      type: "object",
+      required: ["patientId"],
+      properties: {
+        patientId:   { type: "string" },
+        templateType:{ type: "string", enum: ["rdv_rappel", "rdv_confirm", "resultats", "annulation", "suivi", "custom"], description: "Type de template de message" },
+        customMessage:{ type: "string", description: "Message personnalisé (pour templateType=custom)" },
+      },
+    },
+  },
 ];
 
 // ─── Tool executor ─────────────────────────────────────────────────────────────
@@ -625,6 +655,94 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
         return JSON.stringify({ success: true, newPaid, newStatus, remaining: (inv.total || 0) - newPaid });
       }
 
+      case "get_whatsapp_history": {
+        // WhatsApp history is stored in localStorage client-side
+        // We return upcoming appointments context + note that history is client-side
+        // But we can check activity logs for whatsapp actions if logged
+        const { data: activity } = await supabase.from("activity_logs")
+          .select("user_name, entity_label, created_at, details")
+          .eq("action", "whatsapp_sent")
+          .order("created_at", { ascending: false })
+          .limit(args.limit ?? 50);
+
+        // Also return upcoming apts for context
+        const in3days = new Date(); in3days.setDate(in3days.getDate() + 3);
+        const { data: upcomingApts } = await supabase.from("appointments")
+          .select("id, date, time, type, patients(id, full_name, phone)")
+          .gte("date", today)
+          .lte("date", formatDate(in3days))
+          .neq("status", "cancelled")
+          .order("date").order("time");
+
+        return JSON.stringify({
+          note: "L'historique WhatsApp complet est stocké localement dans le navigateur. Voici les données disponibles:",
+          activityLogs: activity ?? [],
+          upcomingAppointments: (upcomingApts ?? []).map((a: any) => ({
+            patientId: (a.patients as any)?.id,
+            patientName: (a.patients as any)?.full_name,
+            phone: (a.patients as any)?.phone,
+            date: a.date, time: a.time, type: a.type,
+          })),
+        });
+      }
+
+      case "get_whatsapp_pending": {
+        const in3days = new Date(); in3days.setDate(in3days.getDate() + 3);
+        const { data: apts } = await supabase.from("appointments")
+          .select("id, date, time, type, status, patients(id, full_name, phone)")
+          .gte("date", today)
+          .lte("date", formatDate(in3days))
+          .neq("status", "cancelled")
+          .order("date").order("time");
+
+        return JSON.stringify({
+          note: "Voici les patients avec RDV dans les 3 prochains jours. L'historique des messages envoyés est stocké côté client.",
+          pending: (apts ?? []).map((a: any) => ({
+            appointmentId: a.id,
+            patientId: (a.patients as any)?.id,
+            patientName: (a.patients as any)?.full_name,
+            phone: (a.patients as any)?.phone,
+            date: a.date, time: a.time, type: a.type,
+            daysUntil: Math.round((new Date(a.date).getTime() - new Date(today).getTime()) / 86400000),
+          })),
+        });
+      }
+
+      case "open_whatsapp": {
+        const { data: patient } = await supabase.from("patients")
+          .select("full_name, phone")
+          .eq("id", args.patientId)
+          .single();
+
+        if (!patient || !(patient as any).phone) {
+          return JSON.stringify({ error: "Patient introuvable ou sans numéro de téléphone" });
+        }
+
+        const phone = ((patient as any).phone as string).replace(/[\s\-\.\(\)\+]/g, "");
+        const name  = (patient as any).full_name;
+
+        const templates: Record<string, (name: string) => string> = {
+          rdv_rappel:   (n) => `Bonjour ${n},\n\nNous vous rappelons votre prochain rendez-vous. Merci de confirmer votre présence ou de nous contacter.\n\nCordialement,\nVotre cabinet médical`,
+          rdv_confirm:  (n) => `Bonjour ${n},\n\nVotre rendez-vous est bien confirmé. Merci d'arriver 5 minutes avant l'heure.\n\nCordialement,\nVotre cabinet médical`,
+          resultats:    (n) => `Bonjour ${n},\n\nVos résultats d'analyses sont disponibles. Merci de nous contacter ou de passer au cabinet.\n\nCordialement,\nVotre cabinet médical`,
+          annulation:   (n) => `Bonjour ${n},\n\nNous sommes dans l'obligation d'annuler votre rendez-vous. Merci de nous contacter pour reprogrammer.\n\nCordialement,\nVotre cabinet médical`,
+          suivi:        (n) => `Bonjour ${n},\n\nCeci est un rappel pour continuer votre traitement et programmer un rendez-vous de suivi.\n\nCordialement,\nVotre cabinet médical`,
+          custom:       (_) => args.customMessage ?? "",
+        };
+
+        const message = (templates[args.templateType ?? "rdv_rappel"] ?? templates.rdv_rappel)(name);
+        const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+
+        return JSON.stringify({
+          success: true,
+          patientName: name,
+          phone,
+          whatsappUrl: waUrl,
+          message,
+          instruction: `OUVRE_WHATSAPP:${waUrl}`,
+        });
+      }
+
       default:
         return JSON.stringify({ error: `Outil inconnu: ${name}` });
     }
@@ -694,6 +812,7 @@ Tu as un accès COMPLET et EN TEMPS RÉEL à toutes les données du cabinet via 
 FONCTIONS DISPONIBLES :
 📊 LECTURE : get_stats, get_appointments, get_appointments_stats, get_patients, search_patients, get_waiting_room, get_invoices, get_invoices_stats, get_team, get_activity, get_consultations, get_prescriptions
 ✏️ ÉCRITURE : create_patient, update_patient, create_appointment, update_appointment_status, delete_appointment, add_to_waiting_room, create_consultation, create_prescription, pay_invoice
+📱 WHATSAPP : get_whatsapp_history (historique envoyés), get_whatsapp_pending (à envoyer), open_whatsapp (ouvrir WhatsApp Web pour un patient)
 
 ${periodGuide}
 
@@ -706,6 +825,7 @@ RÈGLES FONDAMENTALES :
 6. Utilise **gras** pour les infos importantes, listes à puces pour l'organisation.
 7. Si une fonction échoue → explique l'erreur et propose une alternative.
 8. Pour les statistiques temporelles → TOUJOURS utiliser get_appointments_stats ou get_invoices_stats.
+9. Pour WhatsApp : si demande "envoie WhatsApp à X" ou "ouvre WhatsApp pour X" → search_patients puis open_whatsapp. Le lien s'ouvrira automatiquement.
 
 Date d'aujourd'hui : ${dDate} (${today})`;
 }
@@ -812,7 +932,19 @@ export async function POST(req: NextRequest) {
         : "Désolé, je n'ai pas pu traiter cette demande. Veuillez reformuler ou réessayer.";
     }
 
-    return NextResponse.json({ message: finalText, mode: "openai" });
+    // Extract WhatsApp URL if present in the last function result
+    let whatsappUrl: string | null = null;
+    for (let i = openaiMessages.length - 1; i >= 0; i--) {
+      const m = openaiMessages[i];
+      if (m.role === "function" && m.name === "open_whatsapp") {
+        try {
+          const parsed = JSON.parse(m.content);
+          if (parsed.whatsappUrl) { whatsappUrl = parsed.whatsappUrl; break; }
+        } catch {}
+      }
+    }
+
+    return NextResponse.json({ message: finalText, mode: "openai", whatsappUrl });
   } catch (error: any) {
     console.error("AI route error:", error);
     return NextResponse.json({ message: "⚠️ Une erreur est survenue. Veuillez réessayer." }, { status: 500 });

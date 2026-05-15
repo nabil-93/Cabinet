@@ -327,6 +327,17 @@ export default function AIAssistantPage() {
         const data = await res.json();
         if (data.mode) setApiMode(data.mode === "openai" || data.mode === "claude" ? "openai" : "demo");
 
+        // Open WhatsApp Web if the AI generated a WhatsApp link
+        if (data.whatsappUrl) {
+          const a = document.createElement("a");
+          a.href = data.whatsappUrl;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+
         const aiMsg: Message = {
           id: `a-${Date.now()}`,
           role: "assistant",
