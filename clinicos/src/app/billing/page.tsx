@@ -678,6 +678,7 @@ export default function BillingPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | PaymentStatus>("all");
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [drawerList, setDrawerList] = useState<{ title: string; items: Invoice[] } | null>(null);
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
   const [payInvoice, setPayInvoice] = useState<Invoice | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -713,9 +714,46 @@ export default function BillingPage() {
     return matchSearch && matchStatus;
   });
 
-  const totalRevenue = invoices.reduce((s, inv) => s + (inv.paid || 0), 0);
-  const pendingAmount = invoices.reduce((s, inv) => s + Math.max(0, (inv.total || 0) - (inv.paid || 0)), 0);
-  const paidCount = invoices.filter(i => i.status === "paid").length;
+  const totalRevenue  = invoices.reduce((s, inv) => s + (inv.paid || 0), 0);
+  const unpaidAmount  = invoices.filter(i => i.status === "unpaid").reduce((s, i) => s + Math.max(0, (i.total || 0) - (i.paid || 0)), 0);
+  const paidInvoices  = invoices.filter(i => i.status === "paid");
+  const unpaidInvoices= invoices.filter(i => i.status === "unpaid");
+  const isDE = lang === "de";
+
+  const STAT_CARDS = [
+    {
+      label: isDE ? "Einnahmen" : "Revenus perçus",
+      value: `${totalRevenue.toLocaleString("fr-MA")} MAD`,
+      icon: TrendingUp,
+      color: "gradient-success",
+      drawerTitle: isDE ? "Bezahlte Rechnungen" : "Factures payées",
+      drawerItems: paidInvoices,
+    },
+    {
+      label: isDE ? "Unbezahlt" : "Factures impayées",
+      value: `${unpaidAmount.toLocaleString("fr-MA")} MAD`,
+      icon: Clock,
+      color: "gradient-warning",
+      drawerTitle: isDE ? "Unbezahlte Rechnungen" : "Factures impayées",
+      drawerItems: unpaidInvoices,
+    },
+    {
+      label: isDE ? "Bezahlte Rechnungen" : "Factures payées",
+      value: paidInvoices.length,
+      icon: CheckCircle,
+      color: "gradient-primary",
+      drawerTitle: isDE ? "Bezahlte Rechnungen" : "Factures payées",
+      drawerItems: paidInvoices,
+    },
+    {
+      label: isDE ? "Rechnungen gesamt" : "Total factures",
+      value: invoices.length,
+      icon: FileText,
+      color: "gradient-purple",
+      drawerTitle: isDE ? "Alle Rechnungen" : "Toutes les factures",
+      drawerItems: invoices,
+    },
+  ];
 
   return (
     <div className="flex flex-col h-full">
@@ -723,21 +761,21 @@ export default function BillingPage() {
 
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: t("billing.stats.revenue"), value: `${totalRevenue.toLocaleString("fr-MA")} MAD`, icon: TrendingUp, color: "gradient-success",  filter: "paid"   as const },
-            { label: t("billing.stats.pending"), value: `${pendingAmount.toLocaleString("fr-MA")} MAD`, icon: Clock,       color: "gradient-warning", filter: "unpaid" as const },
-            { label: t("billing.stats.paid"),    value: paidCount,        icon: CheckCircle, color: "gradient-primary", filter: "paid"   as const },
-            { label: t("billing.stats.total"),   value: invoices.length,  icon: FileText,    color: "gradient-purple",  filter: "all"    as const },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+          {STAT_CARDS.map(({ label, value, icon: Icon, color, drawerTitle, drawerItems }) => (
+            <button key={label}
+              onClick={() => setDrawerList({ title: drawerTitle, items: drawerItems })}
+              className="bg-card border border-border rounded-xl p-4 flex items-center gap-3 hover:shadow-md hover:border-primary/30 transition-all text-left group cursor-pointer">
               <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", color)}>
                 <Icon className="w-5 h-5 text-white" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-xs text-muted-foreground">{label}</p>
                 <p className="font-bold text-foreground text-sm">{isLoading ? "—" : value}</p>
+                <p className="text-[10px] text-primary/50 group-hover:text-primary transition-colors mt-0.5">
+                  → {isDE ? "Liste anzeigen" : "Voir la liste"}
+                </p>
               </div>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -917,6 +955,86 @@ export default function BillingPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Invoice list drawer ── */}
+      {drawerList && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setDrawerList(null)} />
+          <div className="fixed right-0 top-0 h-full z-50 w-full max-w-md bg-background border-l border-border shadow-2xl flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
+              <h2 className="font-bold text-sm text-foreground">{drawerList.title}</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  {drawerList.items.length} {isDE ? "Einträge" : "factures"}
+                </span>
+                <button
+                  onClick={() => {
+                    const shortLabel = drawerList.title.split(" ")[0];
+                    exportToExcel(drawerList.items, shortLabel, isDE);
+                  }}
+                  className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Excel
+                </button>
+                <button onClick={() => setDrawerList(null)} className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center">
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+
+            {/* Summary bar */}
+            {drawerList.items.length > 0 && (() => {
+              const totalT = drawerList.items.reduce((s, i) => s + (i.total || 0), 0);
+              const totalP = drawerList.items.reduce((s, i) => s + (i.paid  || 0), 0);
+              const totalR = drawerList.items.reduce((s, i) => s + Math.max(0, (i.total || 0) - (i.paid || 0)), 0);
+              return (
+                <div className="flex items-center gap-4 px-5 py-3 bg-muted/30 border-b border-border text-xs flex-shrink-0">
+                  <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong className="text-foreground">{totalT.toLocaleString("fr-MA")} MAD</strong></span>
+                  {totalP > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: <strong>{totalP.toLocaleString("fr-MA")} MAD</strong></span>}
+                  {totalR > 0 && <span className="text-red-500">{isDE ? "Offen" : "Reste"}: <strong>{totalR.toLocaleString("fr-MA")} MAD</strong></span>}
+                </div>
+              );
+            })()}
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {drawerList.items.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground gap-2">
+                  <FileText className="w-8 h-8 opacity-30" />
+                  <p className="text-sm">{isDE ? "Keine Einträge" : "Aucune facture"}</p>
+                </div>
+              ) : (
+                drawerList.items.map(inv => {
+                  const sc = STATUS_CONFIG[inv.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.unpaid;
+                  const remaining = Math.max(0, (inv.total || 0) - (inv.paid || 0));
+                  return (
+                    <div key={inv.id} className="bg-card border border-border rounded-xl p-3.5 space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-semibold text-sm text-foreground">{inv.patientName}</p>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className="text-[10px] text-muted-foreground font-mono">{inv.invoiceNumber}</span>
+                          <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", sc.cls)}>{sc.label}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                        {inv.patientPhone && <span>📞 {inv.patientPhone}</span>}
+                        {inv.date && <span>📅 {inv.date}</span>}
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-[11px] pt-0.5">
+                        <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong className="text-foreground">{(inv.total || 0).toLocaleString("fr-MA")} MAD</strong></span>
+                        {(inv.paid || 0) > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: <strong>{(inv.paid || 0).toLocaleString("fr-MA")} MAD</strong></span>}
+                        {remaining > 0 && <span className="text-red-500 font-semibold">{isDE ? "Offen" : "Reste"}: {remaining.toLocaleString("fr-MA")} MAD</span>}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
