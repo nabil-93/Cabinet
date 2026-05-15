@@ -444,6 +444,7 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
   const [uploading, setUploading]     = useState(false);
   const [uploadStep, setUploadStep]   = useState<"" | "extracting" | "reporting">("");
   const [selectedValue, setSelectedValue] = useState<ExtractedValue | null>(null);
+  const [lightboxSrc, setLightboxSrc]     = useState<string | null>(null);
 
   // Reset when patient changes
   useEffect(() => {
@@ -604,7 +605,15 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
             <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-start gap-4">
                 {selectedReport.imageThumb && (
-                  <img src={selectedReport.imageThumb} alt="rapport" className="w-16 h-16 rounded-xl object-cover border border-border flex-shrink-0" />
+                  <button
+                    onClick={() => setLightboxSrc(selectedReport.imageThumb!)}
+                    className="w-16 h-16 rounded-xl overflow-hidden border border-border flex-shrink-0 hover:ring-2 hover:ring-primary transition-all cursor-zoom-in group relative"
+                    title="Voir le rapport en grand">
+                    <img src={selectedReport.imageThumb} alt="rapport" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <span className="text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">Voir</span>
+                    </div>
+                  </button>
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -721,6 +730,25 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
       {/* Value detail panel */}
       {selectedValue && (
         <DetailPanel v={selectedValue} patientName={patientName} onClose={() => setSelectedValue(null)} />
+      )}
+
+      {/* Image lightbox */}
+      {lightboxSrc && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightboxSrc(null)}>
+          <button
+            onClick={() => setLightboxSrc(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+            <X className="w-5 h-5 text-white" />
+          </button>
+          <img
+            src={lightboxSrc}
+            alt="rapport biologique"
+            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
       )}
     </div>
   );
