@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Patient } from "@/types";
 import { useLang } from "@/lib/i18n";
+import { WhatsAppButton } from "@/components/whatsapp/WhatsAppButton";
 
 type GenderFilter = "all" | "male" | "female";
 type StatusFilter = "all" | "active" | "inactive";
@@ -190,6 +191,13 @@ export default function PatientsPage() {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Phone className="w-3.5 h-3.5 flex-shrink-0" />
                     <span>{patient.phone}</span>
+                    {patient.phone && (
+                      <WhatsAppButton
+                        patient={{ id: patient.id, fullName: patient.fullName, phone: patient.phone }}
+                        lang={lang as "fr" | "de"}
+                        size="sm"
+                      />
+                    )}
                   </div>
                   {patient.email && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">

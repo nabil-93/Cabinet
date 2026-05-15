@@ -34,6 +34,7 @@ import { prescriptionsService } from "@/services/prescriptions.service";
 import { FileText, Pill, Download, Pencil } from "lucide-react";
 import { getToday } from "@/lib/date-utils";
 import { useLang } from "@/lib/i18n";
+import { WhatsAppButton } from "@/components/whatsapp/WhatsAppButton";
 
 // STATUS_MAP is defined inside the component to access t()
 
@@ -369,6 +370,8 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
       return b.date.localeCompare(a.date);               // most recent first
     });
 
+  const nextApt = patientApts.find(a => a.date >= _today && a.status !== "cancelled") ?? null;
+
   // ── Modal states ──────────────────────────────────────────
   const [showEditModal,        setShowEditModal]        = useState(false);
   const [showAptModal,         setShowAptModal]         = useState(false);
@@ -660,7 +663,17 @@ export default function PatientProfilePage({ params }: { params: Promise<{ id: s
                 {patient.bloodType && ` · ${patient.bloodType}`}
               </p>
               <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
-                {patient.phone && <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Phone className="w-3.5 h-3.5" />{patient.phone}</div>}
+                {patient.phone && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Phone className="w-3.5 h-3.5" />{patient.phone}</div>
+                    <WhatsAppButton
+                      patient={{ id: patient.id, fullName: patient.fullName, phone: patient.phone }}
+                      nextApt={nextApt ? { date: nextApt.date, time: nextApt.time, type: nextApt.type } : null}
+                      lang={lang as "fr" | "de"}
+                      size="sm"
+                    />
+                  </div>
+                )}
                 {patient.email && <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Mail className="w-3.5 h-3.5" />{patient.email}</div>}
                 {patient.address && <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="w-3.5 h-3.5" />{patient.address}</div>}
               </div>
