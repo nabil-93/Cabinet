@@ -330,11 +330,14 @@ export default function ActivityPage() {
   const { lang, t } = useLang();
   const dateLocale = lang === "de" ? de : fr;
 
+  const [activeTab,       setActiveTab]       = useState<"actions" | "navigation">("actions");
   const [userFilter,      setUserFilter]      = useState("all");
   const [actionFilter,    setActionFilter]    = useState("all");
   const [dateRange,       setDateRange]       = useState("all");
   const [searchQuery,     setSearchQuery]     = useState("");
   const [selectedLog,     setSelectedLog]     = useState<ActivityLog | null>(null);
+
+  const NAV_ACTIONS = new Set(["page_view", "navigate"]);
 
   // Build query params for API
   const dateFrom = useMemo(() => getDateFrom(dateRange), [dateRange]);
@@ -367,8 +370,7 @@ export default function ActivityPage() {
     { value: "reset",      label: t("activity.filters.resets") },
     { value: "activate",   label: t("activity.filters.activations") },
     { value: "deactivate", label: t("activity.filters.deactivations") },
-    { value: "navigate",   label: "Navigation" },
-    { value: "download",   label: "Téléchargements" },
+    { value: "download",   label: lang === "de" ? "Downloads" : "Téléchargements" },
   ];
 
   const ENTITY_LABEL_MAP: Record<string, string> = {
@@ -419,11 +421,16 @@ export default function ActivityPage() {
     const q = searchQuery.trim().toLowerCase();
 
     return logs.filter(log => {
+      // Tab split: navigation vs actions
+      const isNav = NAV_ACTIONS.has(log.action);
+      if (activeTab === "navigation" && !isNav) return false;
+      if (activeTab === "actions"    &&  isNav) return false;
+
       // User filter
       const matchUser = userFilter === "all" || log.user_id === userFilter;
 
-      // Action type filter
-      const matchAction = actionFilter === "all"
+      // Action type filter (only relevant in "actions" tab)
+      const matchAction = activeTab === "navigation" || actionFilter === "all"
         || (actionFilter === "login"      && log.action === "login")
         || (actionFilter === "logout"     && log.action === "logout")
         || (actionFilter === "create"     && log.action.startsWith("create_"))
@@ -432,7 +439,6 @@ export default function ActivityPage() {
         || (actionFilter === "reset"      && log.action === "reset_password")
         || (actionFilter === "activate"   && log.action === "activate_user")
         || (actionFilter === "deactivate" && log.action === "deactivate_user")
-        || (actionFilter === "navigate"   && (log.action === "page_view" || log.action === "navigate"))
         || (actionFilter === "download"   && log.action.startsWith("export_"));
 
       // Search filter
@@ -443,13 +449,47 @@ export default function ActivityPage() {
 
       return matchUser && matchAction && matchSearch;
     });
-  }, [logs, userFilter, actionFilter, searchQuery]);
+  }, [logs, userFilter, actionFilter, searchQuery, activeTab, NAV_ACTIONS]);
 
   return (
     <div className="flex flex-col h-full">
       <Header title={t("activity.journalTitle")} subtitle={t("activity.journalSubtitle")} />
 
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-5">
+
+        {/* ── Tabs ── */}
+        <div className="flex gap-1 bg-muted/50 rounded-xl p-1">
+          <button
+            onClick={() => setActiveTab("actions")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all",
+              activeTab === "actions"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Activity className="w-4 h-4" />
+            {lang === "de" ? "Aktivitäten" : "Activités"}
+            <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+              {logs.filter(l => !NAV_ACTIONS.has(l.action)).length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab("navigation")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all",
+              activeTab === "navigation"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Navigation className="w-4 h-4" />
+            {lang === "de" ? "Navigation" : "Navigation"}
+            <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+              {logs.filter(l => NAV_ACTIONS.has(l.action)).length}
+            </span>
+          </button>
+        </div>
 
         {/* ── Filters bar ── */}
         <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
@@ -507,15 +547,17 @@ export default function ActivityPage() {
                   ))}
                 </select>
               </div>
-              <select
-                value={actionFilter}
-                onChange={e => setActionFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-border bg-background/50 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              >
-                {ACTION_TYPE_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+              {activeTab === "actions" && (
+                <select
+                  value={actionFilter}
+                  onChange={e => setActionFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-border bg-background/50 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                >
+                  {ACTION_TYPE_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
@@ -596,6 +638,13 @@ export default function ActivityPage() {
                           <span className="text-muted-foreground"> · {translateEntityLabel(log.entity_label)}</span>
                         )}
                       </p>
+                      {activeTab === "navigation" && log.details && (log.details as any).from && (
+                        <p className="text-xs text-indigo-500 mt-0.5 flex items-center gap-1">
+                          <span className="font-medium">{String((log.details as any).from)}</span>
+                          <ArrowRight className="w-3 h-3 flex-shrink-0" />
+                          <span className="font-semibold">{String((log.details as any).to ?? "")}</span>
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
                         {roleBadge(log.user_role)}
                         {" · "}
