@@ -79,7 +79,7 @@ const VT = {
     ref: "Réf:", uploadedOn: "Uploadé le",
     reportFrom: "Rapport du", successExtracted: "valeurs biologiques extraites",
     view: "Voir", regenBtn: "Régénérer en DE", regenLangBtn: "Regenerate in FR",
-    regenLoading: "Régénération...",
+    regenLoading: "Régénération...", translateLabels: "Traduire les labels en DE", translatingLabels: "Traduction...",
   },
   de: {
     reports: "Biologische Berichte", report: "Bericht", addReport: "Bericht hinzufügen",
@@ -108,7 +108,7 @@ const VT = {
     ref: "Ref:", uploadedOn: "Hochgeladen am",
     reportFrom: "Bericht vom", successExtracted: "biologische Werte extrahiert",
     view: "Ansehen", regenBtn: "Auf Deutsch neu generieren", regenLangBtn: "Auf Deutsch neu generieren",
-    regenLoading: "Wird neu generiert...",
+    regenLoading: "Wird neu generiert...", translateLabels: "Labels auf Deutsch übersetzen", translatingLabels: "Übersetzen...",
   },
 };
 type VTLang = typeof VT.fr;
@@ -645,6 +645,7 @@ export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
   const [lightboxSrc, setLightboxSrc]         = useState<string | null>(null);
   const [pendingReport, setPendingReport]     = useState<LabReport | null>(null); // waiting for user choice
   const [regenReportId, setRegenReportId]     = useState<string | null>(null);    // which report is being regenerated
+  const [translatingId, setTranslatingId]     = useState<string | null>(null);    // which report labels are being translated
 
   // Reset when patient changes
   useEffect(() => {
@@ -698,7 +699,7 @@ export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
         const extRes = await fetch("/api/v1/lab-extract", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: b64 }),
+          body: JSON.stringify({ imageBase64: b64, lang: lang ?? "fr" }),
         });
         const extData = await extRes.json();
         if (!extRes.ok || extData.error) throw new Error(extData.error ?? "Extraction échouée");
@@ -771,6 +772,50 @@ export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
     updateAndSave(next);
     if (selectedId === id) setSelectedId(next[0]?.id ?? null);
   }, [reports, selectedId, updateAndSave]);
+
+  // Translate labels of existing report to current language via GPT
+  const translateReportLabels = useCallback(async (report: LabReport) => {
+    if (!lang || lang === "fr") return; // only meaningful for DE
+    setTranslatingId(report.id);
+    try {
+      const valuesJson = JSON.stringify(report.values.map(v => ({ label: v.label, category: v.category })));
+      const prompt = `Traduis ces noms d'examens biologiques et catégories du français vers l'allemand. Retourne UNIQUEMENT un JSON avec le même tableau, juste les champs "label" et "category" traduits:
+${valuesJson}
+Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
+
+      const res = await fetch("/api/v1/medical-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          values: report.values,
+          patientName: "",
+          summary: "",
+          reportDate: null,
+          lang,
+          customPrompt: prompt,
+        }),
+      });
+      const data = await res.json();
+      // Parse the translated labels from the report text
+      try {
+        const match = (data.report ?? "").match(/\[[\s\S]*\]/);
+        if (match) {
+          const translated: Array<{ label: string; category: string }> = JSON.parse(match[0]);
+          const updatedValues = report.values.map((v, i) => ({
+            ...v,
+            label: translated[i]?.label ?? v.label,
+            category: translated[i]?.category ?? v.category,
+          }));
+          const updated = loadReports(patientId).map(r =>
+            r.id === report.id ? { ...r, values: updatedValues } : r
+          );
+          updateAndSave(updated);
+        }
+      } catch { /* parse failed, keep original */ }
+    } finally {
+      setTranslatingId(null);
+    }
+  }, [patientId, lang, updateAndSave]);
 
   // Regenerate the medical report of a specific lab report in the current language
   const regenerateReport = useCallback(async (report: LabReport) => {
@@ -887,6 +932,19 @@ export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
                   <p className="text-[10px] text-muted-foreground mb-2">
                     {vt.uploadedOn} {format(new Date(selectedReport.uploadedAt), "d MMM yyyy à HH:mm", { locale: dateFnsLocale })}
                   </p>
+                  {/* Translate labels button — only in DE, for existing French reports */}
+                  {lang === "de" && selectedReport.values.length > 0 && (
+                    <button
+                      onClick={() => translateReportLabels(selectedReport)}
+                      disabled={translatingId === selectedReport.id}
+                      className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold text-primary bg-primary/5 hover:bg-primary/15 border border-primary/20 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50 w-fit">
+                      {translatingId === selectedReport.id
+                        ? <><Loader2 className="w-3 h-3 animate-spin" /> {vt.translatingLabels}</>
+                        : <><RefreshCw className="w-3 h-3" /> {vt.translateLabels}</>
+                      }
+                    </button>
+                  )}
+
                   {/* Summary banner */}
                   {selectedReport.summary && (
                     <div className={cn(
