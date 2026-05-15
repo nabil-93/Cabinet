@@ -985,93 +985,59 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
     updateAndSave(next);
   }, [patientId, vt.deleteValueConfirm, updateAndSave]);
 
-  // Download full report as PDF — pixel-perfect screenshot
-  const downloadPdf = useCallback(async (report: LabReport) => {
+  // Download full report as PDF via window.print() — 100% reliable, pixel-perfect
+  const downloadPdf = useCallback((report: LabReport) => {
     if (!reportRef.current) return;
     setDownloadingPdf(true);
 
-    const el = reportRef.current;
+    // 1. Clone the report HTML into a hidden print container
+    const printDiv = document.createElement("div");
+    printDiv.id = "clinicos-pdf-print";
+    printDiv.innerHTML = reportRef.current.innerHTML;
 
-    // Save original inline styles
-    const origOverflow = el.style.overflow;
-    const origHeight   = el.style.height;
-    const origMaxH     = el.style.maxHeight;
-
-    try {
-      const [{ jsPDF }, html2canvas] = await Promise.all([
-        import("jspdf"),
-        import("html2canvas").then(m => m.default),
-      ]);
-
-      // Temporarily expand the scrollable container so html2canvas sees all content
+    // 2. Remove overflow clipping on every cloned element
+    Array.from(printDiv.querySelectorAll("*")).forEach(node => {
+      const el = node as HTMLElement;
       el.style.overflow  = "visible";
-      el.style.height    = "auto";
+      el.style.overflowY = "visible";
       el.style.maxHeight = "none";
+      el.style.height    = "auto";
+    });
+    printDiv.style.overflow  = "visible";
+    printDiv.style.maxHeight = "none";
+    printDiv.style.height    = "auto";
+    printDiv.style.padding   = "12px";
+    document.body.appendChild(printDiv);
 
-      // Wait one frame for the browser to reflow
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        scrollX: 0,
-        scrollY: 0,
-      });
-
-      // Restore original styles immediately after capture
-      el.style.overflow  = origOverflow;
-      el.style.height    = origHeight;
-      el.style.maxHeight = origMaxH;
-
-      const pdfW      = 210;
-      const pdfH      = 297;
-      const margin    = 10;
-      const contentW  = pdfW - margin * 2;
-      const contentH  = pdfH - margin * 2;
-      const canvasW   = canvas.width;
-      const canvasH   = canvas.height;
-      const mmPerPx   = contentW / canvasW;
-      const totalMmH  = canvasH * mmPerPx;
-
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      let yOffset = 0;
-      let page = 0;
-
-      while (yOffset < totalMmH) {
-        if (page > 0) doc.addPage();
-        const slicePxH  = Math.round(contentH / mmPerPx);
-        const sliceY    = Math.round(yOffset / mmPerPx);
-        const sliceH    = Math.min(slicePxH, canvasH - sliceY);
-
-        const pageCanvas = document.createElement("canvas");
-        pageCanvas.width  = canvasW;
-        pageCanvas.height = sliceH;
-        const ctx = pageCanvas.getContext("2d");
-        if (ctx) {
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-          ctx.drawImage(canvas, 0, sliceY, canvasW, sliceH, 0, 0, canvasW, sliceH);
+    // 3. Inject print-media CSS that hides everything except our container
+    const style = document.createElement("style");
+    style.id = "clinicos-print-style";
+    style.textContent = `
+      @media print {
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        body > *:not(#clinicos-pdf-print) { display: none !important; }
+        #clinicos-pdf-print {
+          display: block !important;
+          position: static !important;
+          left: 0 !important;
+          width: 100% !important;
         }
-        doc.addImage(pageCanvas.toDataURL("image/jpeg", 0.95), "JPEG", margin, margin, contentW, sliceH * mmPerPx);
-        yOffset += contentH;
-        page++;
       }
+    `;
+    document.head.appendChild(style);
 
-      const fname = `rapport-${(patientName ?? "patient").replace(/\s+/g, "-").toLowerCase()}-${report.reportDate ?? report.uploadedAt.slice(0, 10)}.pdf`;
-      doc.save(fname);
-    } catch (err) {
-      console.error("PDF error:", err);
-      // Ensure styles are restored even on error
-      el.style.overflow  = origOverflow;
-      el.style.height    = origHeight;
-      el.style.maxHeight = origMaxH;
-    } finally {
+    // 4. Cleanup after printing (fires when print dialog closes)
+    const cleanup = () => {
+      document.getElementById("clinicos-pdf-print")?.remove();
+      document.getElementById("clinicos-print-style")?.remove();
       setDownloadingPdf(false);
-    }
-  }, [patientName]);
+    };
+
+    window.addEventListener("afterprint", cleanup, { once: true });
+
+    // 5. Print (user can "Save as PDF" in the browser dialog)
+    setTimeout(() => window.print(), 200);
+  }, []);
 
   // Regenerate the medical report of a specific lab report in the current language
   const regenerateReport = useCallback(async (report: LabReport) => {
