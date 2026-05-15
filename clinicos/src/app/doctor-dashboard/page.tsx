@@ -1185,7 +1185,7 @@ export default function DoctorDashboardPage() {
                             {upcomingApts.map(apt => {
                               const sc = STATUS_CONFIG[apt.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
                               const d = new Date(apt.date);
-                              const dayLabel = isToday(d) ? "Aujourd'hui" : isTomorrow(d) ? "Demain" : format(d, "EEEE d MMMM", { locale: dateLocale });
+                              const dayLabel = isToday(d) ? (lang === "de" ? "Heute" : "Aujourd'hui") : isTomorrow(d) ? (lang === "de" ? "Morgen" : "Demain") : format(d, "EEEE d MMMM", { locale: dateLocale });
                               return (
                                 <div key={apt.id} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-all">
                                   <div className="w-9 h-9 rounded-xl bg-primary/10 flex flex-col items-center justify-center flex-shrink-0">
@@ -1681,7 +1681,7 @@ export default function DoctorDashboardPage() {
                           <div className="divide-y divide-border/40">
                             {upcomingApts.map(apt => {
                               const d = new Date(apt.date);
-                              const dayLabel = isToday(d) ? "Aujourd'hui" : isTomorrow(d) ? "Demain" : format(d, "EEEE d MMMM", { locale: dateLocale });
+                              const dayLabel = isToday(d) ? (lang === "de" ? "Heute" : "Aujourd'hui") : isTomorrow(d) ? (lang === "de" ? "Morgen" : "Demain") : format(d, "EEEE d MMMM", { locale: dateLocale });
                               const sc = STATUS_CONFIG[apt.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.confirmed;
                               return (
                                 <div key={apt.id} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-all">

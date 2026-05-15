@@ -9,7 +9,7 @@ import {
 import {
   Upload, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Microscope, TrendingUp, Info, X, ChevronRight, Plus,
-  FileText, Clock, Trash2,
+  FileText, Clock, Trash2, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -78,7 +78,8 @@ const VT = {
     positioning: "Positionnement dans les normes", positioningDesc: "50% = centre de la plage normale",
     ref: "Réf:", uploadedOn: "Uploadé le",
     reportFrom: "Rapport du", successExtracted: "valeurs biologiques extraites",
-    view: "Voir",
+    view: "Voir", regenBtn: "Régénérer en DE", regenLangBtn: "Regenerate in FR",
+    regenLoading: "Régénération...",
   },
   de: {
     reports: "Biologische Berichte", report: "Bericht", addReport: "Bericht hinzufügen",
@@ -106,7 +107,8 @@ const VT = {
     positioning: "Positionierung im Normalbereich", positioningDesc: "50% = Mitte des Normalbereichs",
     ref: "Ref:", uploadedOn: "Hochgeladen am",
     reportFrom: "Bericht vom", successExtracted: "biologische Werte extrahiert",
-    view: "Ansehen",
+    view: "Ansehen", regenBtn: "Auf Deutsch neu generieren", regenLangBtn: "Auf Deutsch neu generieren",
+    regenLoading: "Wird neu generiert...",
   },
 };
 type VTLang = typeof VT.fr;
@@ -642,6 +644,7 @@ export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
   const [selectedValue, setSelectedValue]     = useState<ExtractedValue | null>(null);
   const [lightboxSrc, setLightboxSrc]         = useState<string | null>(null);
   const [pendingReport, setPendingReport]     = useState<LabReport | null>(null); // waiting for user choice
+  const [regenReportId, setRegenReportId]     = useState<string | null>(null);    // which report is being regenerated
 
   // Reset when patient changes
   useEffect(() => {
@@ -768,6 +771,33 @@ export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
     updateAndSave(next);
     if (selectedId === id) setSelectedId(next[0]?.id ?? null);
   }, [reports, selectedId, updateAndSave]);
+
+  // Regenerate the medical report of a specific lab report in the current language
+  const regenerateReport = useCallback(async (report: LabReport) => {
+    setRegenReportId(report.id);
+    try {
+      const res = await fetch("/api/v1/medical-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          values: report.values,
+          patientName,
+          summary: report.summary,
+          reportDate: report.reportDate,
+          lang: lang ?? "fr",
+        }),
+      });
+      const data = await res.json();
+      if (data.report) {
+        const updated = loadReports(patientId).map(r =>
+          r.id === report.id ? { ...r, medicalReport: data.report } : r
+        );
+        updateAndSave(updated);
+      }
+    } finally {
+      setRegenReportId(null);
+    }
+  }, [patientId, patientName, lang, updateAndSave]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -930,10 +960,21 @@ export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
               <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary" />
                 <h3 className="text-sm font-semibold text-foreground">{vt.medicalReport}</h3>
-                {!selectedReport.medicalReport && (
+                {!selectedReport.medicalReport ? (
                   <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-full flex items-center gap-1 ml-auto">
                     <Loader2 className="w-2.5 h-2.5 animate-spin" /> {vt.generating2}
                   </span>
+                ) : (
+                  <button
+                    onClick={() => regenerateReport(selectedReport)}
+                    disabled={regenReportId === selectedReport.id}
+                    className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/5 hover:bg-primary/15 border border-primary/20 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+                    title={vt.regenBtn}>
+                    {regenReportId === selectedReport.id
+                      ? <><Loader2 className="w-3 h-3 animate-spin" /> {vt.regenLoading}</>
+                      : <><RefreshCw className="w-3 h-3" /> {lang === "de" ? "Auf Deutsch" : "Changer de langue"}</>
+                    }
+                  </button>
                 )}
               </div>
               <div className="p-4">
