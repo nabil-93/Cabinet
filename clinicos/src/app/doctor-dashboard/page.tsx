@@ -192,8 +192,8 @@ function ValueCard({ label, value, unit, status }: MedicalValue) {
   );
 }
 
-function StatProgressCard({ label, value, max, icon: Icon, color }: {
-  label: string; value: number; max: number; icon: React.ElementType; color: string;
+function StatProgressCard({ label, value, max, icon: Icon, color, monthlyGoalLabel }: {
+  label: string; value: number; max: number; icon: React.ElementType; color: string; monthlyGoalLabel?: string;
 }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
   return (
@@ -210,7 +210,7 @@ function StatProgressCard({ label, value, max, icon: Icon, color }: {
       <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
         <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-[10px] text-muted-foreground">{pct}% de l&apos;objectif mensuel</p>
+      <p className="text-[10px] text-muted-foreground">{pct}{monthlyGoalLabel ?? "% de l'objectif mensuel"}</p>
     </div>
   );
 }
@@ -248,6 +248,133 @@ function ChatBubble({ msg }: { msg: ChatMessage }) {
   );
 }
 
+// ─── Dashboard Translations ───────────────────────────────────────────────────
+
+const DT = {
+  fr: {
+    // Top tabs
+    operational: "OPÉRATIONNEL", values: "VALEURS", stats: "STATISTIQUES",
+    // Sub-tabs
+    history: "Historique", doc: "Documentation", ia: "Analyse IA",
+    billing: "Facturation", calendar: "Calendrier",
+    // Left rail
+    patientFile: "Dossier patient", inConsultation: "En consultation",
+    waitingRoom: "Salle d'attente", waiting: "en attente", inProgress: "en cours",
+    activePatients: "Patients actifs", today: "aujourd'hui",
+    noPatientSelected: "Aucun patient sélectionné",
+    clickToSee: "Cliquez sur un patient pour voir son dossier",
+    emptyWaiting: "Salle d'attente vide",
+    consultingSince: "En consultation depuis",
+    waitingSince: "Attend depuis",
+    endConsultation: "Terminer consultation",
+    callPatient: "Appeler ce patient",
+    callUrgent: "⚡ Appeler — URGENT",
+    seeAll: "Voir tout",
+    // Right panel
+    upcomingApts: "Prochains rendez-vous", upcoming: "à venir",
+    visitHistory: "Historique des visites", visits: "visites",
+    allFilter: "Tous", doneFilter: "Terminés", confirmedFilter: "Confirmés",
+    cancelledFilter: "Annulés", resetFilters: "Réinitialiser",
+    noVisits: "Aucune visite précédente",
+    noResults: "Aucun résultat pour ces filtres",
+    nothingRecorded: "Rien d'enregistré",
+    consultations: "Consultations", reports: "rapports",
+    newReport: "+ Nouveau rapport", prescriptions: "Ordonnances",
+    newPrescription: "+ Nouvelle ordonnance", treatment: "Traitement",
+    nextApt: "Prochain RDV", noConsult: "Aucune consultation enregistrée",
+    noPrescription: "Aucune ordonnance",
+    aiMedical: "Assistant IA médical", context: "Contexte",
+    noPatient: "Aucun patient sélectionné",
+    newConv: "Nouveau", open: "Ouvrir",
+    sendPlaceholder: "Question sur", genericPlaceholder: "Posez une question...",
+    enterToSend: "Entrée pour envoyer · Maj+Entrée nouvelle ligne · 📎 pour joindre une image",
+    noPatientValues: "Aucun patient sélectionné",
+    selectPatientValues: "Sélectionnez un patient pour analyser ses valeurs biologiques",
+    calendarTitle: "Calendrier du patient", totalApts: "rendez-vous au total",
+    newApt: "Nouveau RDV", upcoming2: "À VENIR", past: "VISITES PASSÉES",
+    confirmApt: "Confirmer", cancelBtn: "Annuler",
+    aptDate: "Date", aptTime: "Heure", aptType: "Type", aptNotes: "Notes (optionnel)",
+    saving: "Sauvegarde...",
+    statsMonth: "Statistiques du mois", consultationsCount: "Consultations",
+    patientsCount: "Patients traités", prescriptionsCount: "Ordonnances",
+    invoicesCount: "Factures", activity: "Aperçu de l'activité",
+    analytics: "Analytiques", todayApts: "RDV aujourd'hui", appointments: "rendez-vous",
+    revenue: "Revenus du mois", mad: "MAD", waitingRoomCount: "En salle d'attente",
+    patients: "patients", byStatus: "RDV du jour par statut",
+    monthlyGoal: "% de l'objectif mensuel",
+  },
+  de: {
+    // Top tabs
+    operational: "OPERATIV", values: "WERTE", stats: "STATISTIKEN",
+    // Sub-tabs
+    history: "Verlauf", doc: "Dokumentation", ia: "KI-Analyse",
+    billing: "Abrechnung", calendar: "Kalender",
+    // Left rail
+    patientFile: "Patientenakte", inConsultation: "In Konsultation",
+    waitingRoom: "Wartezimmer", waiting: "wartend", inProgress: "in Bearbeitung",
+    activePatients: "Aktive Patienten", today: "heute",
+    noPatientSelected: "Kein Patient ausgewählt",
+    clickToSee: "Klicken Sie auf einen Patienten, um seine Akte zu sehen",
+    emptyWaiting: "Wartezimmer leer",
+    consultingSince: "In Konsultation seit",
+    waitingSince: "Wartet seit",
+    endConsultation: "Konsultation beenden",
+    callPatient: "Patient aufrufen",
+    callUrgent: "⚡ Aufrufen — DRINGEND",
+    seeAll: "Alle sehen",
+    // Right panel
+    upcomingApts: "Nächste Termine", upcoming: "bevorstehend",
+    visitHistory: "Besuchsverlauf", visits: "Besuche",
+    allFilter: "Alle", doneFilter: "Abgeschlossen", confirmedFilter: "Bestätigt",
+    cancelledFilter: "Abgesagt", resetFilters: "Filter zurücksetzen",
+    noVisits: "Keine früheren Besuche",
+    noResults: "Keine Ergebnisse für diese Filter",
+    nothingRecorded: "Nichts eingetragen",
+    consultations: "Konsultationen", reports: "Berichte",
+    newReport: "+ Neuer Bericht", prescriptions: "Rezepte",
+    newPrescription: "+ Neues Rezept", treatment: "Behandlung",
+    nextApt: "Nächster Termin", noConsult: "Keine Konsultation eingetragen",
+    noPrescription: "Kein Rezept vorhanden",
+    aiMedical: "Medizinischer KI-Assistent", context: "Kontext",
+    noPatient: "Kein Patient ausgewählt",
+    newConv: "Neu", open: "Öffnen",
+    sendPlaceholder: "Frage zu", genericPlaceholder: "Stellen Sie eine Frage...",
+    enterToSend: "Enter zum Senden · Umsch+Enter neue Zeile · 📎 Bild anhängen",
+    noPatientValues: "Kein Patient ausgewählt",
+    selectPatientValues: "Wählen Sie einen Patienten, um seine biologischen Werte zu analysieren",
+    calendarTitle: "Patientenkalender", totalApts: "Termine insgesamt",
+    newApt: "Neuer Termin", upcoming2: "BEVORSTEHEND", past: "VERGANGENE BESUCHE",
+    confirmApt: "Bestätigen", cancelBtn: "Abbrechen",
+    aptDate: "Datum", aptTime: "Uhrzeit", aptType: "Typ", aptNotes: "Notizen (optional)",
+    saving: "Speichern...",
+    statsMonth: "Statistiken des Monats", consultationsCount: "Konsultationen",
+    patientsCount: "Behandelte Patienten", prescriptionsCount: "Rezepte",
+    invoicesCount: "Rechnungen", activity: "Aktivitätsübersicht",
+    analytics: "Analysen", todayApts: "Termine heute", appointments: "Termine",
+    revenue: "Monatseinnahmen", mad: "MAD", waitingRoomCount: "Im Wartezimmer",
+    patients: "Patienten", byStatus: "Termine des Tages nach Status",
+    monthlyGoal: "% des Monatsziels",
+  },
+};
+type DashLang = typeof DT.fr;
+
+// ─── LangSwitcher ─────────────────────────────────────────────────────────────
+
+function LangSwitcher() {
+  const { lang, setLang } = useLang();
+  return (
+    <div className="flex items-center gap-0.5 bg-muted/60 border border-border/50 rounded-xl p-1 flex-shrink-0">
+      {(["fr", "de"] as const).map(l => (
+        <button key={l} onClick={() => setLang(l)}
+          className={cn("px-2 py-0.5 rounded-lg text-[11px] font-bold uppercase transition-all",
+            lang === l ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 // Chat persistence helpers (outside component to avoid re-creation)
@@ -261,6 +388,7 @@ export default function DoctorDashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { lang } = useLang();
+  const dt: DashLang = DT[lang];
   const today = getToday();
   const dateLocale = lang === "de" ? de : fr;
   const queryClient = useQueryClient();
@@ -688,9 +816,9 @@ export default function DoctorDashboardPage() {
 
         <div className="flex items-center gap-1 flex-shrink-0">
           {([
-            { id: "op" as const,     icon: Stethoscope, label: "OPÉRATIONNEL" },
-            { id: "values" as const, icon: Heart,        label: "VALEURS" },
-            { id: "stats" as const,  icon: BarChart2,    label: "STATISTIQUES" },
+            { id: "op" as const,     icon: Stethoscope, label: dt.operational },
+            { id: "values" as const, icon: Heart,        label: dt.values },
+            { id: "stats" as const,  icon: BarChart2,    label: dt.stats },
           ] as const).map(({ id, icon: Icon, label }) => (
             <button
               key={id}
@@ -707,6 +835,7 @@ export default function DoctorDashboardPage() {
             </button>
           ))}
         </div>
+        <LangSwitcher />
       </div>
 
       {/* ── Main Content ───────────────────────────────────────────────────── */}
@@ -720,10 +849,10 @@ export default function DoctorDashboardPage() {
             <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-border/60">
               <div className="flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5 text-primary" />
-                <span className="text-xs font-semibold text-foreground">Dossier patient</span>
+                <span className="text-xs font-semibold text-foreground">{dt.patientFile}</span>
                 {inProgressWaiting && !selectedId && (
                   <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                    En consultation
+                    {dt.inConsultation}
                   </span>
                 )}
               </div>
@@ -737,8 +866,8 @@ export default function DoctorDashboardPage() {
             {!effectiveSelectedId ? (
               <div className="p-4 text-center">
                 <User className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-[11px] text-muted-foreground font-medium">Aucun patient sélectionné</p>
-                <p className="text-[10px] text-muted-foreground/70 mt-1">Cliquez sur un patient pour voir son dossier</p>
+                <p className="text-[11px] text-muted-foreground font-medium">{dt.noPatientSelected}</p>
+                <p className="text-[10px] text-muted-foreground/70 mt-1">{dt.clickToSee}</p>
               </div>
             ) : patientLoading ? (
               <div className="p-3 space-y-2">
@@ -819,16 +948,16 @@ export default function DoctorDashboardPage() {
             <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-border/60">
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-xs font-semibold text-foreground">Salle d&apos;attente</span>
+                <span className="text-xs font-semibold text-foreground">{dt.waitingRoom}</span>
               </div>
               <span className="text-[10px] text-muted-foreground">
-                {waitingPatients.filter(w => w.status === "waiting").length} en attente
-                {waitingPatients.some(w => w.status === "in_progress") ? " · 1 en cours" : ""}
+                {waitingPatients.filter(w => w.status === "waiting").length} {dt.waiting}
+                {waitingPatients.some(w => w.status === "in_progress") ? ` · 1 ${dt.inProgress}` : ""}
               </span>
             </div>
             <div className="p-2 space-y-1.5 max-h-64 overflow-y-auto custom-scroll">
               {waitingPatients.length === 0 ? (
-                <div className="py-4 text-center text-[11px] text-muted-foreground">Salle d&apos;attente vide</div>
+                <div className="py-4 text-center text-[11px] text-muted-foreground">{dt.emptyWaiting}</div>
               ) : (
                 [...waitingPatients]
                   .sort((a, b) => {
@@ -890,7 +1019,7 @@ export default function DoctorDashboardPage() {
                               : "text-amber-600 dark:text-amber-400"
                           )}>
                             <Timer className="w-2.5 h-2.5 flex-shrink-0" />
-                            {isInProgress ? `En consultation depuis ${elapsedMins}min` : `Attend depuis ${elapsedMins}min`}
+                            {isInProgress ? `${dt.consultingSince} ${elapsedMins}min` : `${dt.waitingSince} ${elapsedMins}min`}
                           </p>
                         </div>
                       </div>
@@ -903,7 +1032,7 @@ export default function DoctorDashboardPage() {
                             className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg py-1.5 transition-colors"
                           >
                             {isActing ? <Loader2 className="w-3 h-3 animate-spin" /> : <StopCircle className="w-3 h-3" />}
-                            Terminer consultation
+                            {dt.endConsultation}
                           </button>
                         ) : (
                           <button
@@ -917,7 +1046,7 @@ export default function DoctorDashboardPage() {
                             )}
                           >
                             {isActing ? <Loader2 className="w-3 h-3 animate-spin" /> : <PhoneCall className="w-3 h-3" />}
-                            {isUrgent ? "⚡ Appeler — URGENT" : "Appeler ce patient"}
+                            {isUrgent ? dt.callUrgent : dt.callPatient}
                           </button>
                         )}
                       </div>
@@ -928,11 +1057,11 @@ export default function DoctorDashboardPage() {
             </div>
             <div className="px-3 py-2 border-t border-border/60 flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground">
-                {waitingPatients.filter(w => w.status === "waiting").length} en attente
-                {waitingPatients.some(w => w.status === "in_progress") ? " · 1 en cours" : ""}
+                {waitingPatients.filter(w => w.status === "waiting").length} {dt.waiting}
+                {waitingPatients.some(w => w.status === "in_progress") ? ` · 1 ${dt.inProgress}` : ""}
               </span>
               <Link href="/waiting-room" className="text-[10px] text-primary hover:underline flex items-center gap-0.5 font-medium">
-                Voir tout <ChevronRight className="w-3 h-3" />
+                {dt.seeAll} <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
           </div>
@@ -942,10 +1071,10 @@ export default function DoctorDashboardPage() {
             <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-border/60">
               <div className="flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-primary" />
-                <span className="text-xs font-semibold text-foreground">Patients actifs</span>
+                <span className="text-xs font-semibold text-foreground">{dt.activePatients}</span>
               </div>
               <span className="text-[10px] text-muted-foreground font-medium">
-                {aptsLoading ? "..." : `${todayApts.length} aujourd'hui`}
+                {aptsLoading ? "..." : `${todayApts.length} ${dt.today}`}
               </span>
             </div>
             <div className="p-2 space-y-0.5 max-h-56 overflow-y-auto custom-scroll">
@@ -993,11 +1122,11 @@ export default function DoctorDashboardPage() {
               {/* Sub-tabs */}
               <div className="flex-shrink-0 flex items-center gap-1 mb-3 bg-muted/40 rounded-xl p-1">
                 {([
-                  { id: "history" as const, icon: History,      label: "Historique" },
-                  { id: "doc" as const,     icon: FileText,      label: "Documentation" },
-                  { id: "ia" as const,      icon: Bot,           label: "Analyse IA" },
-                  { id: "billing" as const, icon: CreditCard,    label: "Facturation" },
-                  { id: "cal" as const,     icon: Calendar,      label: "Calendrier" },
+                  { id: "history" as const, icon: History,      label: dt.history },
+                  { id: "doc" as const,     icon: FileText,      label: dt.doc },
+                  { id: "ia" as const,      icon: Bot,           label: dt.ia },
+                  { id: "billing" as const, icon: CreditCard,    label: dt.billing },
+                  { id: "cal" as const,     icon: Calendar,      label: dt.calendar },
                 ] as const).map(({ id, icon: Icon, label }) => (
                   <button
                     key={id}
@@ -1021,9 +1150,9 @@ export default function DoctorDashboardPage() {
                   <div className="h-full flex items-center justify-center">
                     <div className="text-center py-16">
                       <User className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
-                      <p className="text-sm font-medium text-muted-foreground">Aucun patient sélectionné</p>
+                      <p className="text-sm font-medium text-muted-foreground">{dt.noPatientSelected}</p>
                       <p className="text-xs text-muted-foreground/60 mt-1">
-                        Sélectionnez un patient dans la liste pour afficher son dossier
+                        {dt.clickToSee}
                       </p>
                     </div>
                   </div>
@@ -1048,8 +1177,8 @@ export default function DoctorDashboardPage() {
                         <div className="bg-card border border-border rounded-2xl overflow-hidden">
                           <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-primary" />
-                            <h3 className="text-sm font-semibold text-foreground">Prochains rendez-vous</h3>
-                            <span className="text-[10px] text-muted-foreground ml-auto">{upcomingApts.length} à venir</span>
+                            <h3 className="text-sm font-semibold text-foreground">{dt.upcomingApts}</h3>
+                            <span className="text-[10px] text-muted-foreground ml-auto">{upcomingApts.length} {dt.upcoming}</span>
                           </div>
                           <div className="divide-y divide-border/40">
                             {upcomingApts.map(apt => {
@@ -1090,9 +1219,9 @@ export default function DoctorDashboardPage() {
                       <div className="bg-card border border-border rounded-2xl overflow-hidden">
                         <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
                           <History className="w-4 h-4 text-muted-foreground" />
-                          <h3 className="text-sm font-semibold text-foreground">Historique des visites</h3>
+                          <h3 className="text-sm font-semibold text-foreground">{dt.visitHistory}</h3>
                           <span className="text-[10px] text-muted-foreground ml-auto">
-                            {filteredPast.length}/{pastApts.length} visite{pastApts.length !== 1 ? "s" : ""}
+                            {filteredPast.length}/{pastApts.length} {dt.visits}
                           </span>
                         </div>
 
@@ -1100,10 +1229,10 @@ export default function DoctorDashboardPage() {
                         <div className="px-4 py-2 border-b border-border/40 flex flex-wrap gap-1.5">
                           {/* Status filters */}
                           {([
-                            { value: "all", label: "Tous" },
-                            { value: "completed", label: "Terminés" },
-                            { value: "confirmed", label: "Confirmés" },
-                            { value: "cancelled", label: "Annulés" },
+                            { value: "all", label: dt.allFilter },
+                            { value: "completed", label: dt.doneFilter },
+                            { value: "confirmed", label: dt.confirmedFilter },
+                            { value: "cancelled", label: dt.cancelledFilter },
                           ]).map(f => (
                             <button
                               key={f.value}
@@ -1135,7 +1264,7 @@ export default function DoctorDashboardPage() {
                             <button
                               onClick={() => { setHistoryStatusFilter("all"); setHistoryTypeFilter("all"); }}
                               className="text-[10px] px-2 py-1 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors flex items-center gap-0.5">
-                              <XCircle className="w-3 h-3" /> Réinitialiser
+                              <XCircle className="w-3 h-3" /> {dt.resetFilters}
                             </button>
                           )}
                         </div>
@@ -1144,7 +1273,7 @@ export default function DoctorDashboardPage() {
                           <div className="py-10 text-center">
                             <History className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
                             <p className="text-sm text-muted-foreground">
-                              {pastApts.length === 0 ? "Aucune visite précédente" : "Aucun résultat pour ces filtres"}
+                              {pastApts.length === 0 ? dt.noVisits : dt.noResults}
                             </p>
                           </div>
                         ) : (
@@ -1206,7 +1335,7 @@ export default function DoctorDashboardPage() {
                                       </div>
                                       <div className="flex items-center gap-2 flex-shrink-0">
                                         <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full", sc.className)}>{sc.label}</span>
-                                        <span className="text-[9px] text-muted-foreground/50 italic">Rien d&apos;enregistré</span>
+                                        <span className="text-[9px] text-muted-foreground/50 italic">{dt.nothingRecorded}</span>
                                       </div>
                                     </div>
                                   )}
@@ -1295,10 +1424,10 @@ export default function DoctorDashboardPage() {
                           <Bot className="w-4 h-4 text-primary" />
                         </div>
                         <div>
-                          <h3 className="text-sm font-semibold text-foreground">Assistant IA médical</h3>
+                          <h3 className="text-sm font-semibold text-foreground">{dt.aiMedical}</h3>
                           {selectedPatient
-                            ? <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Contexte: {selectedPatient.fullName}</p>
-                            : <p className="text-[10px] text-muted-foreground">Aucun patient sélectionné</p>
+                            ? <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">{dt.context}: {selectedPatient.fullName}</p>
+                            : <p className="text-[10px] text-muted-foreground">{dt.noPatient}</p>
                           }
                         </div>
                       </div>
@@ -1313,11 +1442,11 @@ export default function DoctorDashboardPage() {
                             }}
                             className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-accent transition-colors"
                           >
-                            <RefreshCw className="w-3 h-3" /> Nouveau
+                            <RefreshCw className="w-3 h-3" /> {dt.newConv}
                           </button>
                         )}
                         <Link href="/ai-assistant" className="text-[10px] text-primary hover:underline flex items-center gap-0.5 px-2 py-1">
-                          Ouvrir <ExternalLink className="w-2.5 h-2.5" />
+                          {dt.open} <ExternalLink className="w-2.5 h-2.5" />
                         </Link>
                       </div>
                     </div>
@@ -1415,7 +1544,7 @@ export default function DoctorDashboardPage() {
                           onKeyDown={e => {
                             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
                           }}
-                          placeholder={selectedPatient ? `Question sur ${selectedPatient.fullName}...` : "Posez une question..."}
+                          placeholder={selectedPatient ? `${dt.sendPlaceholder} ${selectedPatient.fullName}...` : dt.genericPlaceholder}
                           rows={2}
                           className="flex-1 px-3 py-2 rounded-xl bg-muted/50 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 resize-none transition-all"
                         />
@@ -1427,7 +1556,7 @@ export default function DoctorDashboardPage() {
                           {chatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                         </button>
                       </div>
-                      <p className="text-[9px] text-muted-foreground">Entrée pour envoyer · Maj+Entrée nouvelle ligne · 📎 pour joindre une image</p>
+                      <p className="text-[9px] text-muted-foreground">{dt.enterToSend}</p>
                     </div>
                   </div>
                 )}
@@ -1449,9 +1578,9 @@ export default function DoctorDashboardPage() {
                     <div className="bg-card border border-border rounded-2xl overflow-hidden">
                       <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
                         <div>
-                          <h3 className="text-sm font-semibold text-foreground">Calendrier du patient</h3>
+                          <h3 className="text-sm font-semibold text-foreground">{dt.calendarTitle}</h3>
                           <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {selectedPatient?.fullName} · {patientApts.length} rendez-vous au total
+                            {selectedPatient?.fullName} · {patientApts.length} {dt.totalApts}
                           </p>
                         </div>
                         <button
@@ -1459,7 +1588,7 @@ export default function DoctorDashboardPage() {
                           className="flex items-center gap-1.5 text-[11px] font-semibold text-white bg-primary px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
                         >
                           <Plus className="w-3.5 h-3.5" />
-                          Nouveau RDV
+                          {dt.newApt}
                         </button>
                       </div>
 
@@ -1469,7 +1598,7 @@ export default function DoctorDashboardPage() {
                           <p className="text-xs font-semibold text-foreground">Planifier un rendez-vous</p>
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="text-[10px] text-muted-foreground block mb-1">Date</label>
+                              <label className="text-[10px] text-muted-foreground block mb-1">{dt.aptDate}</label>
                               <input
                                 type="date"
                                 value={newAptDate}
@@ -1478,7 +1607,7 @@ export default function DoctorDashboardPage() {
                               />
                             </div>
                             <div>
-                              <label className="text-[10px] text-muted-foreground block mb-1">Heure</label>
+                              <label className="text-[10px] text-muted-foreground block mb-1">{dt.aptTime}</label>
                               <input
                                 type="time"
                                 value={newAptTime}
@@ -1487,7 +1616,7 @@ export default function DoctorDashboardPage() {
                               />
                             </div>
                             <div className="col-span-2">
-                              <label className="text-[10px] text-muted-foreground block mb-1">Type</label>
+                              <label className="text-[10px] text-muted-foreground block mb-1">{dt.aptType}</label>
                               <select
                                 value={newAptType}
                                 onChange={e => setNewAptType(e.target.value)}
@@ -1499,7 +1628,7 @@ export default function DoctorDashboardPage() {
                               </select>
                             </div>
                             <div className="col-span-2">
-                              <label className="text-[10px] text-muted-foreground block mb-1">Notes (optionnel)</label>
+                              <label className="text-[10px] text-muted-foreground block mb-1">{dt.aptNotes}</label>
                               <input
                                 type="text"
                                 value={newAptNotes}
@@ -1516,13 +1645,13 @@ export default function DoctorDashboardPage() {
                               className="flex items-center gap-1.5 text-[11px] font-semibold text-white bg-primary px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60"
                             >
                               {aptSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                              Confirmer
+                              {dt.confirmApt}
                             </button>
                             <button
                               onClick={() => setShowNewApt(false)}
                               className="text-[11px] text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-accent transition-colors"
                             >
-                              Annuler
+                              {dt.cancelBtn}
                             </button>
                           </div>
                         </div>
@@ -1531,7 +1660,7 @@ export default function DoctorDashboardPage() {
                       {/* Upcoming */}
                       {upcomingApts.length > 0 && (
                         <div>
-                          <p className="px-4 pt-3 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">À venir</p>
+                          <p className="px-4 pt-3 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{dt.upcoming2}</p>
                           <div className="divide-y divide-border/40">
                             {upcomingApts.map(apt => {
                               const d = new Date(apt.date);
@@ -1558,7 +1687,7 @@ export default function DoctorDashboardPage() {
                       {/* Past */}
                       {pastApts.length > 0 && (
                         <div>
-                          <p className="px-4 pt-3 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Visites passées</p>
+                          <p className="px-4 pt-3 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{dt.past}</p>
                           <div className="divide-y divide-border/40">
                             {pastApts.slice(0, 8).map(apt => {
                               const d = new Date(apt.date);
@@ -1602,8 +1731,8 @@ export default function DoctorDashboardPage() {
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center py-16">
                     <Heart className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-muted-foreground">Aucun patient sélectionné</p>
-                    <p className="text-xs text-muted-foreground/60 mt-1">Sélectionnez un patient pour analyser ses valeurs biologiques</p>
+                    <p className="text-sm font-medium text-muted-foreground">{dt.noPatientValues}</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">{dt.selectPatientValues}</p>
                   </div>
                 </div>
               ) : (
@@ -1611,6 +1740,7 @@ export default function DoctorDashboardPage() {
                   <ValuesTab
                     patientId={effectiveSelectedId}
                     patientName={selectedPatient?.fullName}
+                    lang={lang}
                   />
                 </div>
               )}
@@ -1624,13 +1754,13 @@ export default function DoctorDashboardPage() {
                 <div className="bg-card border border-border rounded-2xl p-4">
                   <div className="flex items-center gap-2 mb-4">
                     <TrendingUp className="w-4 h-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">Statistiques du mois</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{dt.statsMonth}</h3>
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <StatProgressCard label="Consultations" value={stats?.completedToday ?? 0} max={30} icon={Stethoscope} color="bg-primary" />
-                    <StatProgressCard label="Patients traités" value={stats?.totalPatients ?? 0} max={100} icon={Users} color="bg-emerald-500" />
-                    <StatProgressCard label="Ordonnances" value={prescriptions.filter(r => r.status === "active").length} max={50} icon={Pill} color="bg-amber-500" />
-                    <StatProgressCard label="Factures" value={invoices.length} max={40} icon={CreditCard} color="bg-blue-500" />
+                    <StatProgressCard label={dt.consultationsCount} value={stats?.completedToday ?? 0} max={30} icon={Stethoscope} color="bg-primary" monthlyGoalLabel={dt.monthlyGoal} />
+                    <StatProgressCard label={dt.patientsCount} value={stats?.totalPatients ?? 0} max={100} icon={Users} color="bg-emerald-500" monthlyGoalLabel={dt.monthlyGoal} />
+                    <StatProgressCard label={dt.prescriptionsCount} value={prescriptions.filter(r => r.status === "active").length} max={50} icon={Pill} color="bg-amber-500" monthlyGoalLabel={dt.monthlyGoal} />
+                    <StatProgressCard label={dt.invoicesCount} value={invoices.length} max={40} icon={CreditCard} color="bg-blue-500" monthlyGoalLabel={dt.monthlyGoal} />
                   </div>
                 </div>
 
@@ -1638,17 +1768,17 @@ export default function DoctorDashboardPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-primary" />
-                      <h3 className="text-sm font-semibold text-foreground">Aperçu de l&apos;activité</h3>
+                      <h3 className="text-sm font-semibold text-foreground">{dt.activity}</h3>
                     </div>
                     <Link href="/analytics" className="text-[11px] text-primary hover:underline flex items-center gap-0.5">
-                      Analytiques <ChevronRight className="w-3.5 h-3.5" />
+                      {dt.analytics} <ChevronRight className="w-3.5 h-3.5" />
                     </Link>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { label: "RDV aujourd'hui",    value: stats?.todayAppointments ?? 0, unit: "rendez-vous", color: "text-primary" },
-                      { label: "Revenus du mois",    value: `${(stats?.monthlyRevenue ?? 0).toLocaleString()}`, unit: "MAD", color: "text-emerald-600 dark:text-emerald-400" },
-                      { label: "En salle d'attente", value: stats?.waitingRoom ?? 0, unit: "patients", color: "text-amber-600 dark:text-amber-400" },
+                      { label: dt.todayApts,        value: stats?.todayAppointments ?? 0, unit: dt.appointments, color: "text-primary" },
+                      { label: dt.revenue,          value: `${(stats?.monthlyRevenue ?? 0).toLocaleString()}`, unit: dt.mad, color: "text-emerald-600 dark:text-emerald-400" },
+                      { label: dt.waitingRoomCount, value: stats?.waitingRoom ?? 0, unit: dt.patients, color: "text-amber-600 dark:text-amber-400" },
                     ].map(({ label, value, unit, color }) => (
                       <div key={label} className="bg-muted/30 rounded-xl p-3 text-center">
                         <p className={cn("text-2xl font-bold", color)}>{value}</p>
@@ -1660,7 +1790,7 @@ export default function DoctorDashboardPage() {
                 </div>
 
                 <div className="bg-card border border-border rounded-2xl p-4">
-                  <h3 className="text-xs font-semibold text-foreground mb-3">RDV du jour par statut</h3>
+                  <h3 className="text-xs font-semibold text-foreground mb-3">{dt.byStatus}</h3>
                   <div className="space-y-2">
                     {(["confirmed", "completed", "pending", "cancelled"] as const).map(status => {
                       const count = todayApts.filter(a => a.status === status).length;

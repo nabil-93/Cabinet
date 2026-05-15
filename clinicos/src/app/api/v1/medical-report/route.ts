@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { values, patientName, summary, reportDate, customPrompt } = await req.json();
+    const { values, patientName, summary, reportDate, customPrompt, lang } = await req.json();
     if (!values?.length) return NextResponse.json({ error: "Valeurs requises" }, { status: 400 });
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -16,6 +16,10 @@ export async function POST(req: NextRequest) {
     const fmt = (vals: any[]) =>
       vals.map(v => `- ${v.label}: ${v.value} ${v.unit} [norme: ${v.refMin ?? "?"} – ${v.refMax ?? "?"} ${v.unit}]`).join("\n");
     const score = Math.round((okVals.length / values.length) * 100);
+
+    const langInstruction = lang === "de"
+      ? "Antworte auf Deutsch, professionell strukturiert."
+      : "Réponse professionnelle, structurée, en français.";
 
     // If a custom prompt is provided (single value analysis), use it directly
     const prompt = customPrompt ? customPrompt : `Tu es un médecin clinicien senior expert en biologie médicale. Génère un rapport médical complet et professionnel basé sur ces résultats d'analyses biologiques.
@@ -62,7 +66,7 @@ Quand revoir le patient, quels contrôles biologiques refaire et à quelle fréq
 **NIVEAU D'URGENCE**
 Indique clairement: Urgence immédiate (< 24h) / Semi-urgent (< 48h) / Consultation programmée (< 2 semaines) / Surveillance simple. Justifie ta décision.
 
-Réponse professionnelle, structurée, en français. Sois précis et cliniquement utile.`;
+${langInstruction} Sois précis et cliniquement utile.`;
 
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",

@@ -46,7 +46,70 @@ interface LabReport {
 interface ValuesTabProps {
   patientId: string;
   patientName?: string;
+  lang?: "fr" | "de";
 }
+
+// ─── ValuesTab Translations ────────────────────────────────────────────────────
+
+const VT = {
+  fr: {
+    reports: "Rapports biologiques", report: "rapport", addReport: "Ajouter un rapport",
+    reading: "Lecture du rapport…", generating: "Génération du rapport médical…",
+    extracting: "GPT-4o extrait les valeurs biologiques", analyzing: "Analyse clinique en cours",
+    extracted: "valeurs biologiques extraites", chooseWhat: "Que souhaitez-vous générer ?",
+    graphs: "Analyse graphique", graphsDesc: "Donut, histogramme et radar de positionnement",
+    fullReport: "Rapport médical complet", fullReportDesc: "Diagnostic, recommandations, plan de suivi par IA",
+    saveOnly: "Enregistrer les valeurs", generate: "Générer",
+    cancel: "Annuler", noReport: "Aucun rapport sélectionné",
+    uploadHint: "Uploadez une image de rapport biologique pour commencer",
+    dropOrClick: "Déposez ou cliquez pour analyser un rapport",
+    formats: "Image JPG, PNG · PDF — Rapport de laboratoire, bilan biologique",
+    medicalReport: "Rapport médical complet", generating2: "Génération en cours…",
+    generatingLong: "Le rapport médical est en cours de génération par l'IA…",
+    disclaimer: "Ce rapport est généré par IA à titre indicatif. Il ne remplace pas le jugement clinique du médecin.",
+    analyzeGraphic: "Analyse graphique", valuesCount: "valeurs",
+    clickDetail: "Cliquez sur une valeur pour l'analyser en détail.",
+    source: "Source:",
+    detailAnalyzing: "Analyse médicale en cours...",
+    normal: "Normal", attention: "Attention", critique: "Critique",
+    globalScore: "Score global:",
+    normales: "normales", surveillees: "à surveiller", critiques: "critiques",
+    byCategory: "Score par catégorie", distribution: "Répartition des valeurs",
+    positioning: "Positionnement dans les normes", positioningDesc: "50% = centre de la plage normale",
+    ref: "Réf:", uploadedOn: "Uploadé le",
+    reportFrom: "Rapport du", successExtracted: "valeurs biologiques extraites",
+    view: "Voir",
+  },
+  de: {
+    reports: "Biologische Berichte", report: "Bericht", addReport: "Bericht hinzufügen",
+    reading: "Bericht wird gelesen…", generating: "Medizinischer Bericht wird erstellt…",
+    extracting: "GPT-4o extrahiert biologische Werte", analyzing: "Klinische Analyse läuft",
+    extracted: "biologische Werte extrahiert", chooseWhat: "Was möchten Sie erstellen?",
+    graphs: "Grafische Analyse", graphsDesc: "Donut, Histogramm und Radar",
+    fullReport: "Vollständiger Medizinbericht", fullReportDesc: "Diagnose, Empfehlungen, Nachsorgeplan durch KI",
+    saveOnly: "Werte speichern", generate: "Erstellen",
+    cancel: "Abbrechen", noReport: "Kein Bericht ausgewählt",
+    uploadHint: "Laden Sie ein Bild des biologischen Berichts hoch, um zu beginnen",
+    dropOrClick: "Ablegen oder klicken, um einen Bericht zu analysieren",
+    formats: "Bild JPG, PNG · PDF — Laborbericht, biologisches Profil",
+    medicalReport: "Vollständiger Medizinbericht", generating2: "Wird erstellt…",
+    generatingLong: "Der Medizinbericht wird von der KI erstellt…",
+    disclaimer: "Dieser Bericht wird von KI als Hinweis erstellt. Er ersetzt nicht das klinische Urteil des Arztes.",
+    analyzeGraphic: "Grafische Analyse", valuesCount: "Werte",
+    clickDetail: "Klicken Sie auf einen Wert, um ihn im Detail zu analysieren.",
+    source: "Quelle:",
+    detailAnalyzing: "Medizinische Analyse läuft...",
+    normal: "Normal", attention: "Achtung", critique: "Kritisch",
+    globalScore: "Gesamtpunktzahl:",
+    normales: "normal", surveillees: "zu beachten", critiques: "kritisch",
+    byCategory: "Punktzahl nach Kategorie", distribution: "Werteverteilung",
+    positioning: "Positionierung im Normalbereich", positioningDesc: "50% = Mitte des Normalbereichs",
+    ref: "Ref:", uploadedOn: "Hochgeladen am",
+    reportFrom: "Bericht vom", successExtracted: "biologische Werte extrahiert",
+    view: "Ansehen",
+  },
+};
+type VTLang = typeof VT.fr;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 
@@ -173,14 +236,16 @@ function ValueCard({ v, onClick }: { v: ExtractedValue; onClick?: () => void }) 
 
 // ─── Value Detail Panel ───────────────────────────────────────────────────────
 
-function DetailPanel({ v, patientName, onClose }: {
+function DetailPanel({ v, patientName, onClose, lang }: {
   v: ExtractedValue;
   patientName?: string;
   onClose: () => void;
+  lang?: "fr" | "de";
 }) {
   const [explanation, setExplanation] = useState<string | null>(null);
   const [loading, setLoading]         = useState(true);
   const s = STATUS[v.status];
+  const dvt = VT[lang ?? "fr"];
 
   useEffect(() => {
     let cancelled = false;
@@ -223,6 +288,7 @@ Réponse concise, professionnelle, en français.`;
         summary: `Analyse de: ${v.label} = ${v.value} ${v.unit}`,
         reportDate: null,
         customPrompt: prompt,
+        lang,
       }),
     })
       .then(r => r.json())
@@ -262,7 +328,7 @@ Réponse concise, professionnelle, en français.`;
           {loading ? (
             <div className="flex flex-col items-center gap-3 py-12">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              <p className="text-sm text-muted-foreground">Analyse médicale en cours...</p>
+              <p className="text-sm text-muted-foreground">{dvt.detailAnalyzing}</p>
             </div>
           ) : explanation ? <MdText text={explanation} /> : null}
         </div>
@@ -273,20 +339,20 @@ Réponse concise, professionnelle, en français.`;
 
 // ─── Charts ────────────────────────────────────────────────────────────────────
 
-function StatusPieChart({ values }: { values: ExtractedValue[] }) {
+function StatusPieChart({ values, vt }: { values: ExtractedValue[]; vt: VTLang }) {
   const ok = values.filter(v => v.status === "ok").length;
   const warn = values.filter(v => v.status === "warn").length;
   const danger = values.filter(v => v.status === "danger").length;
   const data = [
-    { name: "Normal",    value: ok,     fill: "#10b981" },
-    { name: "Attention", value: warn,   fill: "#f59e0b" },
-    { name: "Critique",  value: danger, fill: "#ef4444" },
+    { name: vt.normal,    value: ok,     fill: "#10b981" },
+    { name: vt.attention, value: warn,   fill: "#f59e0b" },
+    { name: vt.critique,  value: danger, fill: "#ef4444" },
   ].filter(d => d.value > 0);
 
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2">
-        <TrendingUp className="w-3.5 h-3.5 text-primary" /> Répartition des valeurs
+        <TrendingUp className="w-3.5 h-3.5 text-primary" /> {vt.distribution}
       </h4>
       <ResponsiveContainer width="100%" height={180}>
         <PieChart>
@@ -298,7 +364,7 @@ function StatusPieChart({ values }: { values: ExtractedValue[] }) {
         </PieChart>
       </ResponsiveContainer>
       <div className="grid grid-cols-3 gap-2 mt-2">
-        {[{ label: "Normal", count: ok, color: "text-emerald-600" }, { label: "Attention", count: warn, color: "text-amber-600" }, { label: "Critique", count: danger, color: "text-red-600" }]
+        {[{ label: vt.normal, count: ok, color: "text-emerald-600" }, { label: vt.attention, count: warn, color: "text-amber-600" }, { label: vt.critique, count: danger, color: "text-red-600" }]
           .map(({ label, count, color }) => (
             <div key={label} className="text-center bg-muted/30 rounded-xl py-2">
               <p className={cn("text-2xl font-bold", color)}>{count}</p>
@@ -310,7 +376,7 @@ function StatusPieChart({ values }: { values: ExtractedValue[] }) {
   );
 }
 
-function ValuesBarChart({ values }: { values: ExtractedValue[] }) {
+function ValuesBarChart({ values, vt }: { values: ExtractedValue[]; vt: VTLang }) {
   const withRange = values.filter(v => v.refMin !== null && v.refMax !== null && !isNaN(parseFloat(v.value))).slice(0, 12);
   if (!withRange.length) return null;
   const data = withRange.map(v => {
@@ -339,8 +405,8 @@ function ValuesBarChart({ values }: { values: ExtractedValue[] }) {
   };
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
-      <h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-2"><TrendingUp className="w-3.5 h-3.5 text-primary" />Positionnement dans les normes</h4>
-      <p className="text-[10px] text-muted-foreground mb-3">50% = centre de la plage normale</p>
+      <h4 className="text-xs font-semibold text-foreground mb-1 flex items-center gap-2"><TrendingUp className="w-3.5 h-3.5 text-primary" />{vt.positioning}</h4>
+      <p className="text-[10px] text-muted-foreground mb-3">{vt.positioningDesc}</p>
       <ResponsiveContainer width="100%" height={Math.max(180, withRange.length * 26)}>
         <BarChart data={data} layout="vertical" margin={{ left: 0, right: 40, top: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
@@ -359,7 +425,7 @@ function ValuesBarChart({ values }: { values: ExtractedValue[] }) {
   );
 }
 
-function CategoryRadarChart({ values }: { values: ExtractedValue[] }) {
+function CategoryRadarChart({ values, vt }: { values: ExtractedValue[]; vt: VTLang }) {
   const cats = Array.from(new Set(values.map(v => v.category))).slice(0, 8);
   if (cats.length < 3) return null;
   const data = cats.map(cat => {
@@ -368,7 +434,7 @@ function CategoryRadarChart({ values }: { values: ExtractedValue[] }) {
   });
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
-      <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2"><TrendingUp className="w-3.5 h-3.5 text-primary" />Score par catégorie</h4>
+      <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2"><TrendingUp className="w-3.5 h-3.5 text-primary" />{vt.byCategory}</h4>
       <ResponsiveContainer width="100%" height={240}>
         <RadarChart data={data} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
           <PolarGrid stroke="#e5e7eb" />
@@ -436,10 +502,11 @@ function ReportCard({ report, isSelected, onClick, onDelete }: {
 
 // ─── Generate Choice Modal ────────────────────────────────────────────────────
 
-function GenerateChoiceModal({ report, onConfirm, onClose }: {
+function GenerateChoiceModal({ report, onConfirm, onClose, vt }: {
   report: LabReport;
   onConfirm: (graphs: boolean, fullReport: boolean) => void;
   onClose: () => void;
+  vt: VTLang;
 }) {
   const [graphs, setGraphs]         = useState(true);
   const [fullReport, setFullReport] = useState(true);
@@ -471,19 +538,19 @@ function GenerateChoiceModal({ report, onConfirm, onClose }: {
         <div className="px-6 py-4 bg-muted/20 border-b border-border/60">
           <div className="flex items-center gap-2 mb-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <p className="text-xs font-semibold text-foreground">{report.values.length} valeurs biologiques extraites</p>
+            <p className="text-xs font-semibold text-foreground">{report.values.length} {vt.successExtracted}</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">{ok} normales</span>
-            {warn   > 0 && <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-full">{warn} attention</span>}
-            {danger > 0 && <span className="text-[10px] text-red-600 bg-red-50 dark:bg-red-950/30 px-2 py-0.5 rounded-full">{danger} critiques</span>}
+            <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">{ok} {vt.normales}</span>
+            {warn   > 0 && <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-full">{warn} {vt.surveillees}</span>}
+            {danger > 0 && <span className="text-[10px] text-red-600 bg-red-50 dark:bg-red-950/30 px-2 py-0.5 rounded-full">{danger} {vt.critiques}</span>}
           </div>
           {report.summary && <p className="text-[10px] text-muted-foreground mt-2 italic">{report.summary}</p>}
         </div>
 
         {/* Options */}
         <div className="px-6 py-4 space-y-3">
-          <p className="text-xs font-semibold text-foreground mb-2">Que souhaitez-vous générer ?</p>
+          <p className="text-xs font-semibold text-foreground mb-2">{vt.chooseWhat}</p>
 
           <label className={cn(
             "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
@@ -491,8 +558,8 @@ function GenerateChoiceModal({ report, onConfirm, onClose }: {
           )}>
             <input type="checkbox" checked={graphs} onChange={e => setGraphs(e.target.checked)} className="w-4 h-4 accent-primary" />
             <div>
-              <p className="text-xs font-semibold text-foreground">Analyse graphique</p>
-              <p className="text-[10px] text-muted-foreground">Donut, histogramme et radar de positionnement</p>
+              <p className="text-xs font-semibold text-foreground">{vt.graphs}</p>
+              <p className="text-[10px] text-muted-foreground">{vt.graphsDesc}</p>
             </div>
           </label>
 
@@ -502,8 +569,8 @@ function GenerateChoiceModal({ report, onConfirm, onClose }: {
           )}>
             <input type="checkbox" checked={fullReport} onChange={e => setFullReport(e.target.checked)} className="w-4 h-4 accent-primary" />
             <div>
-              <p className="text-xs font-semibold text-foreground">Rapport médical complet</p>
-              <p className="text-[10px] text-muted-foreground">Diagnostic, recommandations, plan de suivi par IA</p>
+              <p className="text-xs font-semibold text-foreground">{vt.fullReport}</p>
+              <p className="text-[10px] text-muted-foreground">{vt.fullReportDesc}</p>
             </div>
           </label>
 
@@ -521,12 +588,12 @@ function GenerateChoiceModal({ report, onConfirm, onClose }: {
             onClick={() => onConfirm(graphs, fullReport)}
             className="flex-1 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
             <Microscope className="w-4 h-4" />
-            {(!graphs && !fullReport) ? "Enregistrer les valeurs" : "Générer"}
+            {(!graphs && !fullReport) ? vt.saveOnly : vt.generate}
           </button>
           <button
             onClick={onClose}
             className="px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-colors">
-            Annuler
+            {vt.cancel}
           </button>
         </div>
       </div>
@@ -536,7 +603,7 @@ function GenerateChoiceModal({ report, onConfirm, onClose }: {
 
 // ─── Upload Zone ──────────────────────────────────────────────────────────────
 
-function UploadZone({ onFile, compact = false }: { onFile: (f: File) => void; compact?: boolean }) {
+function UploadZone({ onFile, compact = false, vt }: { onFile: (f: File) => void; compact?: boolean; vt: VTLang }) {
   const [dragOver, setDragOver] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
   return (
@@ -554,9 +621,9 @@ function UploadZone({ onFile, compact = false }: { onFile: (f: File) => void; co
         <Upload className={cn("text-primary", compact ? "w-5 h-5" : "w-7 h-7")} />
       </div>
       <p className={cn("font-semibold text-foreground mb-1", compact ? "text-xs" : "text-sm")}>
-        {compact ? "Ajouter un rapport" : "Déposez ou cliquez pour analyser un rapport"}
+        {compact ? vt.addReport : vt.dropOrClick}
       </p>
-      {!compact && <p className="text-xs text-muted-foreground">Image JPG, PNG · PDF — Rapport de laboratoire, bilan biologique</p>}
+      {!compact && <p className="text-xs text-muted-foreground">{vt.formats}</p>}
       <input ref={ref} type="file" accept="image/*,.pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) { onFile(f); e.target.value = ""; } }} />
     </div>
   );
@@ -564,7 +631,8 @@ function UploadZone({ onFile, compact = false }: { onFile: (f: File) => void; co
 
 // ─── Main ValuesTab ───────────────────────────────────────────────────────────
 
-export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
+export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
+  const vt: VTLang = VT[lang ?? "fr"];
   const [reports, setReports]         = useState<LabReport[]>(() => loadReports(patientId));
   const [selectedId, setSelectedId]   = useState<string | null>(() => loadReports(patientId)[0]?.id ?? null);
   const [uploading, setUploading]     = useState(false);
@@ -678,6 +746,7 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
             patientName,
             summary: report.summary,
             reportDate: report.reportDate,
+            lang,
           }),
         });
         const repData = await repRes.json();
@@ -712,8 +781,8 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
       {/* ── LEFT: Reports timeline ── */}
       <div className="w-64 flex-shrink-0 flex flex-col gap-3 overflow-y-auto custom-scroll">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-xs font-semibold text-foreground">Rapports biologiques</h3>
-          <span className="text-[10px] text-muted-foreground">{reports.length} rapport{reports.length !== 1 ? "s" : ""}</span>
+          <h3 className="text-xs font-semibold text-foreground">{vt.reports}</h3>
+          <span className="text-[10px] text-muted-foreground">{reports.length} {vt.report}{reports.length !== 1 && lang !== "de" ? "s" : ""}</span>
         </div>
 
         {/* Upload zone (compact if has reports) */}
@@ -721,14 +790,14 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
           <div className="bg-card border border-border rounded-2xl p-4 text-center space-y-2">
             <Loader2 className="w-6 h-6 text-primary animate-spin mx-auto" />
             <p className="text-[10px] text-muted-foreground font-medium">
-              {uploadStep === "extracting" ? "Lecture du rapport…" : "Génération du rapport médical…"}
+              {uploadStep === "extracting" ? vt.reading : vt.generating}
             </p>
             <p className="text-[9px] text-muted-foreground">
-              {uploadStep === "extracting" ? "GPT-4o extrait les valeurs biologiques" : "Analyse clinique en cours"}
+              {uploadStep === "extracting" ? vt.extracting : vt.analyzing}
             </p>
           </div>
         ) : (
-          <UploadZone onFile={handleFile} compact={reports.length > 0} />
+          <UploadZone onFile={handleFile} compact={reports.length > 0} vt={vt} />
         )}
 
         {/* Reports list */}
@@ -751,8 +820,8 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
           <div className="h-full flex items-center justify-center">
             <div className="text-center py-16">
               <Microscope className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
-              <p className="text-sm font-medium text-muted-foreground">Aucun rapport sélectionné</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Uploadez une image de rapport biologique pour commencer</p>
+              <p className="text-sm font-medium text-muted-foreground">{vt.noReport}</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">{vt.uploadHint}</p>
             </div>
           </div>
         ) : (
@@ -767,7 +836,7 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
                     title="Voir le rapport en grand">
                     <img src={selectedReport.imageThumb} alt="rapport" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                      <span className="text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">Voir</span>
+                      <span className="text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">{vt.view}</span>
                     </div>
                   </button>
                 )}
@@ -778,12 +847,12 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
                     </h3>
                     {selectedReport.reportDate && (
                       <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                        Rapport du {format(new Date(selectedReport.reportDate), "d MMM yyyy", { locale: fr })}
+                        {vt.reportFrom} {format(new Date(selectedReport.reportDate), "d MMM yyyy", { locale: fr })}
                       </span>
                     )}
                   </div>
                   <p className="text-[10px] text-muted-foreground mb-2">
-                    Uploadé le {format(new Date(selectedReport.uploadedAt), "d MMM yyyy à HH:mm", { locale: fr })}
+                    {vt.uploadedOn} {format(new Date(selectedReport.uploadedAt), "d MMM yyyy à HH:mm", { locale: fr })}
                   </p>
                   {/* Summary banner */}
                   {selectedReport.summary && (
@@ -797,10 +866,10 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
                       <div className="flex-1">
                         <p className="text-xs font-semibold text-foreground">{selectedReport.summary}</p>
                         <div className="flex items-center gap-3 mt-1">
-                          <span className="text-[10px] text-emerald-600 font-medium">{ok} normales</span>
-                          {warn   > 0 && <span className="text-[10px] text-amber-600 font-medium">{warn} attention</span>}
-                          {danger > 0 && <span className="text-[10px] text-red-600 font-medium">{danger} critiques</span>}
-                          <span className="text-[10px] text-muted-foreground ml-auto">Score: <strong>{score}%</strong></span>
+                          <span className="text-[10px] text-emerald-600 font-medium">{ok} {vt.normales}</span>
+                          {warn   > 0 && <span className="text-[10px] text-amber-600 font-medium">{warn} {vt.surveillees}</span>}
+                          {danger > 0 && <span className="text-[10px] text-red-600 font-medium">{danger} {vt.critiques}</span>}
+                          <span className="text-[10px] text-muted-foreground ml-auto">{vt.globalScore} <strong>{score}%</strong></span>
                         </div>
                       </div>
                     </div>
@@ -837,18 +906,18 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
               <div className="bg-muted/20 rounded-2xl border border-border/60 p-4 space-y-4">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-primary" />
-                  <h3 className="text-sm font-semibold text-foreground">Analyse graphique</h3>
-                  <span className="text-[10px] text-muted-foreground">{selectedReport.values.length} valeurs</span>
+                  <h3 className="text-sm font-semibold text-foreground">{vt.analyzeGraphic}</h3>
+                  <span className="text-[10px] text-muted-foreground">{selectedReport.values.length} {vt.valuesCount}</span>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <StatusPieChart values={selectedReport.values} />
-                  {categories.length >= 3 && <CategoryRadarChart values={selectedReport.values} />}
+                  <StatusPieChart values={selectedReport.values} vt={vt} />
+                  {categories.length >= 3 && <CategoryRadarChart values={selectedReport.values} vt={vt} />}
                 </div>
-                <ValuesBarChart values={selectedReport.values} />
+                <ValuesBarChart values={selectedReport.values} vt={vt} />
                 <p className="text-[9px] text-muted-foreground flex items-center gap-1">
                   <Info className="w-3 h-3 flex-shrink-0" />
-                  Cliquez sur une valeur pour l&apos;analyser en détail.
-                  {selectedReport.labName && ` Source: ${selectedReport.labName}.`}
+                  {vt.clickDetail}
+                  {selectedReport.labName && ` ${vt.source} ${selectedReport.labName}.`}
                 </p>
               </div>
             )}
@@ -857,10 +926,10 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
             {selectedReport.hasReport !== false && <div className="bg-card border border-border rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-semibold text-foreground">Rapport médical complet</h3>
+                <h3 className="text-sm font-semibold text-foreground">{vt.medicalReport}</h3>
                 {!selectedReport.medicalReport && (
                   <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-full flex items-center gap-1 ml-auto">
-                    <Loader2 className="w-2.5 h-2.5 animate-spin" /> Génération en cours…
+                    <Loader2 className="w-2.5 h-2.5 animate-spin" /> {vt.generating2}
                   </span>
                 )}
               </div>
@@ -870,12 +939,12 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
                 ) : (
                   <div className="flex items-center gap-3 py-6 justify-center text-muted-foreground">
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <p className="text-xs">Le rapport médical est en cours de génération par l&apos;IA…</p>
+                    <p className="text-xs">{vt.generatingLong}</p>
                   </div>
                 )}
                 <p className="text-[9px] text-muted-foreground mt-4 flex items-center gap-1">
                   <Info className="w-3 h-3 flex-shrink-0" />
-                  Ce rapport est généré par IA à titre indicatif. Il ne remplace pas le jugement clinique du médecin.
+                  {vt.disclaimer}
                 </p>
               </div>
             </div>}
@@ -885,7 +954,7 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
 
       {/* Value detail panel */}
       {selectedValue && (
-        <DetailPanel v={selectedValue} patientName={patientName} onClose={() => setSelectedValue(null)} />
+        <DetailPanel v={selectedValue} patientName={patientName} onClose={() => setSelectedValue(null)} lang={lang} />
       )}
 
       {/* Generation choice modal */}
@@ -894,6 +963,7 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
           report={pendingReport}
           onConfirm={confirmGenerate}
           onClose={() => setPendingReport(null)}
+          vt={vt}
         />
       )}
 
