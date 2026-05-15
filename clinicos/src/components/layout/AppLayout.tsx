@@ -6,6 +6,7 @@ import Sidebar from "./Sidebar";
 import MobileNav from "./MobileNav";
 import CommandPalette from "@/components/ui/CommandPalette";
 import { RealtimeProvider } from "@/providers/RealtimeProvider";
+import ActivityTracker from "@/providers/ActivityTracker";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -47,6 +48,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           Mobile (< md): No left margin — sidebar is a slide-over overlay.
           Desktop (≥ md): Left margin = sidebar width via CSS var + .main-with-sidebar.
         */}
+        <ActivityTracker />
         <main className="main-with-sidebar h-screen flex flex-col overflow-hidden transition-all duration-300">
           {/* Add bottom padding on mobile to avoid content hiding under MobileNav */}
           <div className="flex flex-col flex-1 min-h-0 pb-[64px] md:pb-0">

@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Invoice, InvoiceItem, PaymentStatus } from "@/types";
 import { useLang } from "@/lib/i18n";
+import { trackDownload } from "@/lib/client-track";
 
 // ─── Excel export ─────────────────────────────────────────────────────────────
 async function exportToExcel(invoices: Invoice[], statusLabel: string, isDE: boolean) {
@@ -66,7 +67,9 @@ async function exportToExcel(invoices: Invoice[], statusLabel: string, isDE: boo
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
   const date = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `ClinicOS-Factures-${statusLabel}-${date}.xlsx`);
+  const filename = `ClinicOS-Factures-${statusLabel}-${date}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  trackDownload("excel", filename, invoices.length);
   toast.success(isDE ? `${invoices.length} Einträge exportiert` : `${invoices.length} factures exportées`);
 }
 
