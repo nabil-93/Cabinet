@@ -985,80 +985,71 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
     updateAndSave(next);
   }, [patientId, vt.deleteValueConfirm, updateAndSave]);
 
-  // Download full report as PDF using jsPDF
+  // Download full report as PDF — screenshot of the UI (pixel-perfect)
   const downloadPdf = useCallback(async (report: LabReport) => {
+    if (!reportRef.current) return;
     setDownloadingPdf(true);
     try {
-      const { jsPDF } = await import("jspdf");
+      const [{ jsPDF }, html2canvas] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas").then(m => m.default),
+      ]);
+
+      const el = reportRef.current;
+
+      // Capture the full scrollable content at 2x scale for sharpness
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: el.scrollWidth,
+        // Capture full height including overflow
+        height: el.scrollHeight,
+        width: el.scrollWidth,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdfW = 210;           // A4 width in mm
+      const pdfH = 297;           // A4 height in mm
+      const margin = 10;
+      const contentW = pdfW - margin * 2;
+      const contentH = pdfH - margin * 2;
+
+      // Convert canvas pixels to mm
+      const canvasW = canvas.width;
+      const canvasH = canvas.height;
+      const mmPerPx = contentW / canvasW;
+      const totalMmH = canvasH * mmPerPx;
+
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const margin = 15;
-      const pageW = 210;
-      const contentW = pageW - margin * 2;
-      let y = margin;
 
-      const addText = (text: string, fontSize: number, isBold = false, color: [number, number, number] = [0, 0, 0]) => {
-        doc.setFontSize(fontSize);
-        doc.setFont("helvetica", isBold ? "bold" : "normal");
-        doc.setTextColor(...color);
-        const lines = doc.splitTextToSize(text, contentW);
-        doc.text(lines, margin, y);
-        y += lines.length * (fontSize * 0.4) + 2;
-      };
+      let yOffset = 0;
+      let page = 0;
 
-      const addLine = () => {
-        doc.setDrawColor(220, 220, 220);
-        doc.line(margin, y, pageW - margin, y);
-        y += 4;
-      };
+      while (yOffset < totalMmH) {
+        if (page > 0) doc.addPage();
 
-      const checkPage = (needed = 20) => {
-        if (y + needed > 280) { doc.addPage(); y = margin; }
-      };
+        // Slice of the canvas for this page
+        const slicePxH = Math.round(contentH / mmPerPx); // pixels per page
+        const sliceY = Math.round(yOffset / mmPerPx);     // pixel start of this slice
 
-      // Header
-      addText(report.labName ?? "Rapport Biologique", 16, true, [30, 64, 175]);
-      if (report.reportDate) addText(`Date du rapport: ${report.reportDate}`, 10, false, [100, 100, 100]);
-      addText(`Patient: ${patientName ?? "—"}`, 10, false, [100, 100, 100]);
-      addText(`Généré le: ${new Date().toLocaleDateString("fr-FR")}`, 10, false, [100, 100, 100]);
-      y += 2; addLine();
-
-      // Summary
-      const ok = report.values.filter(v => v.status === "ok").length;
-      const warn = report.values.filter(v => v.status === "warn").length;
-      const danger = report.values.filter(v => v.status === "danger").length;
-      const score = Math.round((ok / Math.max(1, report.values.length)) * 100);
-      addText(`Score global: ${score}% — ${ok} normales · ${warn} attention · ${danger} critiques`, 10, true);
-      if (report.summary) addText(report.summary, 10, false, [80, 80, 80]);
-      y += 2; addLine();
-
-      // Values by category
-      const cats = Array.from(new Set(report.values.map(v => v.category)));
-      for (const cat of cats) {
-        checkPage(30);
-        addText(cat, 12, true, [30, 64, 175]);
-        const catVals = report.values.filter(v => v.category === cat);
-        for (const v of catVals) {
-          checkPage(10);
-          const statusColor: [number, number, number] = v.status === "danger" ? [220, 38, 38] : v.status === "warn" ? [217, 119, 6] : [5, 150, 105];
-          const ref = v.refMin !== null && v.refMax !== null ? ` (réf: ${v.refMin}–${v.refMax} ${v.unit})` : "";
-          addText(`• ${v.label}: ${v.value} ${v.unit}${ref}`, 10, false, statusColor);
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = canvasW;
+        pageCanvas.height = Math.min(slicePxH, canvasH - sliceY);
+        const ctx = pageCanvas.getContext("2d");
+        if (ctx) {
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          ctx.drawImage(canvas, 0, sliceY, canvasW, pageCanvas.height, 0, 0, canvasW, pageCanvas.height);
         }
-        y += 2;
-      }
-      addLine();
+        const pageImgData = pageCanvas.toDataURL("image/png");
+        const pageImgH = pageCanvas.height * mmPerPx;
+        doc.addImage(pageImgData, "PNG", margin, margin, contentW, pageImgH);
 
-      // Medical report
-      if (report.medicalReport) {
-        checkPage(20);
-        addText("Rapport Médical Complet", 13, true, [30, 64, 175]);
-        y += 2;
-        const lines = report.medicalReport.split("\n").filter(l => l.trim());
-        for (const line of lines) {
-          checkPage(8);
-          const isBold = line.startsWith("**") || /^[A-Z\s]{4,}$/.test(line.trim());
-          const clean = line.replace(/\*\*/g, "").replace(/^#+\s*/, "");
-          addText(clean, 10, isBold, isBold ? [30, 64, 175] : [40, 40, 40]);
-        }
+        yOffset += contentH;
+        page++;
       }
 
       const fname = `rapport-${(patientName ?? "patient").replace(/\s+/g, "-").toLowerCase()}-${report.reportDate ?? report.uploadedAt.slice(0, 10)}.pdf`;
@@ -1146,7 +1137,7 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
       </div>
 
       {/* ── RIGHT: Selected report detail ── */}
-      <div className="flex-1 min-w-0 overflow-y-auto custom-scroll space-y-4">
+      <div ref={reportRef} className="flex-1 min-w-0 overflow-y-auto custom-scroll space-y-4">
         {!selectedReport ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center py-16">
