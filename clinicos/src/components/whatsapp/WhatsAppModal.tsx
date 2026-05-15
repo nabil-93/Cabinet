@@ -16,7 +16,8 @@ export interface WaPatient {
 
 export interface WaAppointment {
   id?: string;
-  date: string;
+  date: string;      // display label (ex: "vendredi 16 mai")
+  rawDate?: string;  // YYYY-MM-DD pour les calculs
   time: string;
   type: string;
 }
@@ -30,6 +31,7 @@ export interface WhatsAppMessage {
   templateId: string;
   sentAt: string;
   appointmentId?: string;
+  appointmentDate?: string; // YYYY-MM-DD — pour afficher le délai dans l'historique
 }
 
 // ─── Country codes ────────────────────────────────────────────────────────────
@@ -180,6 +182,7 @@ export function WhatsAppModal({ patient, nextApt, onClose, onSent, lang = "fr" }
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory]  = useState<WhatsAppMessage[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [pendingMsg, setPendingMsg] = useState<WhatsAppMessage | null>(null);
 
   useEffect(() => {
     setHistory(loadWaHistory().filter(m => m.patientId === patient.id));
@@ -195,12 +198,12 @@ export function WhatsAppModal({ patient, nextApt, onClose, onSent, lang = "fr" }
   const formatted = formatPhone(phone, countryCode);
   const isPhoneValid = formatted.replace(/\D/g, "").length >= 9;
 
-  const handleSend = () => {
+  // Step 1 — open WhatsApp Web, wait for confirmation
+  const handleOpenWhatsApp = () => {
     if (!isPhoneValid) return;
     const url = buildWhatsAppUrl(phone, countryCode, message);
     window.open(url, "_blank", "noopener,noreferrer");
-
-    const msg: WhatsAppMessage = {
+    setPendingMsg({
       id: `wa-${Date.now()}`,
       patientId: patient.id,
       patientName: patient.fullName,
@@ -208,12 +211,21 @@ export function WhatsAppModal({ patient, nextApt, onClose, onSent, lang = "fr" }
       message,
       templateId: selectedTemplate.id,
       sentAt: new Date().toISOString(),
-      appointmentId: nextApt ? (nextApt as any).id : undefined,
-    };
-    saveWaMessage(msg);
-    setHistory(prev => [msg, ...prev]);
-    onSent?.(msg);
+      appointmentId: nextApt?.id,
+      appointmentDate: nextApt?.rawDate,
+    });
   };
+
+  // Step 2 — user confirms the message was actually sent
+  const handleConfirmSent = () => {
+    if (!pendingMsg) return;
+    saveWaMessage(pendingMsg);
+    setHistory(prev => [pendingMsg, ...prev]);
+    onSent?.(pendingMsg);
+    setPendingMsg(null);
+  };
+
+  const handleCancelPending = () => setPendingMsg(null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
@@ -363,16 +375,44 @@ export function WhatsAppModal({ patient, nextApt, onClose, onSent, lang = "fr" }
         </div>
 
         {!showHistory && (
-          <div className="px-5 py-4 border-t border-border/60 flex gap-3 flex-shrink-0">
-            <button onClick={onClose}
-              className="flex-1 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-colors">
-              {isDE ? "Abbrechen" : "Annuler"}
-            </button>
-            <button onClick={handleSend} disabled={!isPhoneValid || !message.trim()}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#25D366] hover:bg-[#20b858] text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-[#25D366]/20">
-              <Send className="w-4 h-4" />
-              {isDE ? "WhatsApp öffnen" : "Ouvrir WhatsApp"}
-            </button>
+          <div className="px-5 py-4 border-t border-border/60 flex-shrink-0">
+            {pendingMsg ? (
+              /* Step 2 — confirmation */
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 bg-[#25D366]/10 rounded-xl px-3 py-2.5">
+                  <Check className="w-4 h-4 text-[#25D366] flex-shrink-0" />
+                  <p className="text-xs text-foreground font-medium">
+                    {isDE
+                      ? "WhatsApp wurde geöffnet. Hast du die Nachricht gesendet?"
+                      : "WhatsApp est ouvert. As-tu envoyé le message ?"}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleCancelPending}
+                    className="flex-1 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-colors border border-border">
+                    {isDE ? "Nein" : "Non"}
+                  </button>
+                  <button onClick={handleConfirmSent}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#25D366] hover:bg-[#20b858] text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-[#25D366]/20">
+                    <Check className="w-4 h-4" />
+                    {isDE ? "Ja, gesendet ✓" : "Oui, envoyé ✓"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Step 1 — open WhatsApp */
+              <div className="flex gap-3">
+                <button onClick={onClose}
+                  className="flex-1 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-colors">
+                  {isDE ? "Abbrechen" : "Annuler"}
+                </button>
+                <button onClick={handleOpenWhatsApp} disabled={!isPhoneValid || !message.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#25D366] hover:bg-[#20b858] text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-[#25D366]/20">
+                  <Send className="w-4 h-4" />
+                  {isDE ? "WhatsApp öffnen" : "Ouvrir WhatsApp"}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

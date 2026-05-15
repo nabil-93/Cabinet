@@ -190,6 +190,7 @@ export default function WhatsAppPage() {
       apt: {
         id: item.appointment.id,
         date: formatDateDisplay(item.appointment.date, locale),
+        rawDate: item.appointment.date,
         time: item.appointment.time,
         type: item.appointment.type,
       },
@@ -482,6 +483,37 @@ function PendingCard({
 
 // ─── History Card ─────────────────────────────────────────────────────────────
 
+function appointmentBadge(rawDate: string | undefined, isDE: boolean) {
+  if (!rawDate) return null;
+  try {
+    const days = Math.round(
+      (startOfDay(parseISO(rawDate)).getTime() - startOfDay(new Date()).getTime()) / 86400000
+    );
+    let label: string;
+    let color: string;
+    if (days < 0) {
+      label = isDE ? `Vor ${Math.abs(days)} Tagen` : `Il y a ${Math.abs(days)} j`;
+      color = "bg-muted text-muted-foreground border-border";
+    } else if (days === 0) {
+      label = isDE ? "Heute" : "Aujourd'hui";
+      color = "bg-red-100 text-red-700 border-red-200";
+    } else if (days === 1) {
+      label = isDE ? "Morgen" : "Demain";
+      color = "bg-orange-100 text-orange-700 border-orange-200";
+    } else {
+      label = isDE ? `In ${days} Tagen` : `Dans ${days} j`;
+      color = "bg-blue-100 text-blue-700 border-blue-200";
+    }
+    return (
+      <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", color)}>
+        {label}
+      </span>
+    );
+  } catch {
+    return null;
+  }
+}
+
 function HistoryCard({
   msg,
   isDE,
@@ -496,11 +528,12 @@ function HistoryCard({
   const [expanded, setExpanded] = useState(false);
   const template = WA_TEMPLATES.find(t => t.id === msg.templateId);
   const templateLabel = template ? (isDE ? template.labelDE : template.label) : msg.templateId;
+  const badge = appointmentBadge(msg.appointmentDate, isDE);
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 p-4">
-        {/* Expand toggle — takes up most of the row */}
+        {/* Expand toggle */}
         <button
           onClick={() => setExpanded(!expanded)}
           className="flex items-center gap-3 flex-1 min-w-0 text-left"
@@ -509,7 +542,10 @@ function HistoryCard({
             <Check className="w-5 h-5 text-[#25D366]" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-foreground truncate">{msg.patientName}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-semibold text-sm text-foreground truncate">{msg.patientName}</p>
+              {badge}
+            </div>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-[11px] text-[#25D366] font-medium">
                 {template?.emoji ?? "💬"} {templateLabel}
