@@ -1009,18 +1009,28 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
     printDiv.style.padding   = "12px";
     document.body.appendChild(printDiv);
 
+    // 2b. Remove the first child (report header card with buttons) — not needed in PDF
+    //     Keep only: values cards, charts, medical report
+    if (printDiv.firstElementChild) {
+      printDiv.removeChild(printDiv.firstElementChild);
+    }
+
     // 3. Inject print-media CSS that hides everything except our container
     const style = document.createElement("style");
     style.id = "clinicos-print-style";
     style.textContent = `
+      @page {
+        size: A4;
+        margin: 10mm;  /* removes browser URL/title header & footer */
+      }
       @media print {
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         body > *:not(#clinicos-pdf-print) { display: none !important; }
         #clinicos-pdf-print {
           display: block !important;
           position: static !important;
-          left: 0 !important;
           width: 100% !important;
+          padding: 0 !important;
         }
       }
     `;
