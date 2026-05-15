@@ -82,6 +82,26 @@ async function compressImage(dataUrl: string, maxPx: number, quality: number): P
 const compressToThumb   = (url: string) => compressImage(url, 400,  0.6);
 const compressToPreview = (url: string) => compressImage(url, 1400, 0.9);
 
+/** Convert first page of a PDF (base64) to a JPEG dataUrl using pdfjs-dist */
+async function pdfToImageDataUrl(pdfBase64: string): Promise<string> {
+  // Dynamic import — client only
+  const pdfjsLib = await import("pdfjs-dist");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+
+  const pdfBytes = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+  const loadTask = pdfjsLib.getDocument({ data: pdfBytes });
+  const pdf      = await loadTask.promise;
+  const page     = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 2.5 }); // high scale for clarity
+
+  const canvas = document.createElement("canvas");
+  canvas.width  = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext("2d")!;
+  await page.render({ canvasContext: ctx as any, viewport, canvas }).promise;
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS = {
@@ -536,7 +556,7 @@ function UploadZone({ onFile, compact = false }: { onFile: (f: File) => void; co
       <p className={cn("font-semibold text-foreground mb-1", compact ? "text-xs" : "text-sm")}>
         {compact ? "Ajouter un rapport" : "Déposez ou cliquez pour analyser un rapport"}
       </p>
-      {!compact && <p className="text-xs text-muted-foreground">Image JPG, PNG · Rapport de laboratoire, bilan biologique</p>}
+      {!compact && <p className="text-xs text-muted-foreground">Image JPG, PNG · PDF — Rapport de laboratoire, bilan biologique</p>}
       <input ref={ref} type="file" accept="image/*,.pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) { onFile(f); e.target.value = ""; } }} />
     </div>
   );
@@ -574,10 +594,26 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
     setUploading(true);
     setUploadStep("extracting");
 
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
     const reader = new FileReader();
     reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string;
-      const b64 = dataUrl.split(",")[1];
+      let dataUrl = e.target?.result as string;
+      let b64 = dataUrl.split(",")[1];
+
+      // Convert PDF first page to image
+      if (isPdf) {
+        try {
+          const imageDataUrl = await pdfToImageDataUrl(b64);
+          dataUrl = imageDataUrl;
+          b64 = imageDataUrl.split(",")[1];
+        } catch (err) {
+          console.error("PDF conversion failed:", err);
+          setUploading(false);
+          setUploadStep("");
+          return;
+        }
+      }
 
       // Compress both sizes in parallel
       const [thumb, preview] = await Promise.all([
