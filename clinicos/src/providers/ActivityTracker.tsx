@@ -5,30 +5,41 @@ import { trackNavigation } from "@/lib/client-track";
 
 // ─── Pathname → human label map ───────────────────────────────────────────────
 const PATH_LABELS: Record<string, string> = {
-  "/patients":        "Patients",
-  "/billing":         "Facturation",
-  "/whatsapp":        "WhatsApp",
-  "/analytics":       "Analytique",
-  "/appointments":    "Rendez-vous",
-  "/calendar":        "Calendrier",
-  "/waiting-room":    "Salle d'attente",
-  "/prescriptions":   "Ordonnances",
-  "/ai-assistant":    "Assistant IA",
-  "/activity":        "Activité",
-  "/team":            "Équipe",
-  "/settings":        "Paramètres",
-  "/dashboard":       "Dashboard",
-  "/doctor-dashboard":"Dashboard Médecin",
+  "/patients":         "Patients",
+  "/billing":          "Facturation",
+  "/whatsapp":         "WhatsApp",
+  "/analytics":        "Analytique",
+  "/appointments":     "Rendez-vous",
+  "/calendar":         "Calendrier",
+  "/waiting-room":     "Salle d'attente",
+  "/prescriptions":    "Ordonnances",
+  "/ai-assistant":     "Assistant IA",
+  "/activity":         "Activité",
+  "/team":             "Équipe",
+  "/settings":         "Paramètres",
+  "/dashboard":        "Dashboard",
+  "/doctor-dashboard": "Dashboard Médecin",
 };
 
+// Dynamic route patterns (order matters — most specific first)
+const DYNAMIC_PATTERNS: { pattern: RegExp; label: (m: RegExpMatchArray) => string }[] = [
+  { pattern: /^\/patients\/([^/]+)$/, label: () => "Profil patient" },
+  { pattern: /^\/patients\/([^/]+)\/(.+)$/, label: () => "Dossier patient" },
+];
+
 function getPageLabel(pathname: string): string {
+  // Dynamic routes first
+  for (const { pattern, label } of DYNAMIC_PATTERNS) {
+    const m = pathname.match(pattern);
+    if (m) return label(m);
+  }
   // Exact match
   if (PATH_LABELS[pathname]) return PATH_LABELS[pathname];
-  // Prefix match (e.g. /patients/123)
+  // Prefix match
   for (const [prefix, label] of Object.entries(PATH_LABELS)) {
     if (pathname.startsWith(prefix + "/")) return label;
   }
-  // Fallback: capitalize last segment
+  // Fallback
   const segment = pathname.split("/").filter(Boolean).pop() ?? pathname;
   return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, " ");
 }

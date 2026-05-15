@@ -341,7 +341,7 @@ export default function ActivityPage() {
   const [deleting,        setDeleting]        = useState(false);
   const [customHours,     setCustomHours]     = useState("");
 
-  const NAV_ACTIONS = new Set(["page_view", "navigate"]);
+  const NAV_ACTIONS = new Set(["page_view", "navigate", "view_patient"]);
 
   const DELETE_OPTIONS = [
     { label: lang === "de" ? "Älter als 24 Stunden" : "Plus de 24h",    hours: 24 },
@@ -742,7 +742,18 @@ export default function ActivityPage() {
                           <span className="text-muted-foreground"> · {translateEntityLabel(log.entity_label)}</span>
                         )}
                       </p>
-                      {activeTab === "navigation" && log.details && (log.details as any).from && (
+                      {activeTab === "navigation" && log.action === "view_patient" && log.entity_label && (
+                        <p className="text-xs text-violet-600 mt-0.5 flex items-center gap-1 font-medium">
+                          <UserPlus className="w-3 h-3 flex-shrink-0" />
+                          {log.entity_label}
+                          {(log.details as any)?.from && (
+                            <span className="text-muted-foreground font-normal ml-1">
+                              — {lang === "de" ? "von" : "depuis"} {String((log.details as any).from)}
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      {activeTab === "navigation" && log.action !== "view_patient" && log.details && (log.details as any).from && (
                         <p className="text-xs text-indigo-500 mt-0.5 flex items-center gap-1">
                           <span className="font-medium">{String((log.details as any).from)}</span>
                           <ArrowRight className="w-3 h-3 flex-shrink-0" />
