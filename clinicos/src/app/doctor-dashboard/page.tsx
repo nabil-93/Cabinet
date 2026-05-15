@@ -250,6 +250,13 @@ function ChatBubble({ msg }: { msg: ChatMessage }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+// Chat persistence helpers (outside component to avoid re-creation)
+const CHAT_KEY = (id: string) => `clinicos-chat-${id}`;
+const loadChat = (id: string): ChatMessage[] => {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(CHAT_KEY(id)) ?? "[]") || []; } catch { return []; }
+};
+
 export default function DoctorDashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -340,6 +347,22 @@ export default function DoctorDashboardPage() {
   // Auto-select the patient currently in consultation
   const inProgressWaiting = waitingPatients.find(wp => wp.status === "in_progress");
   const effectiveSelectedId = selectedId ?? inProgressWaiting?.patientId ?? null;
+
+  // Load chat history when effective patient changes
+  useEffect(() => {
+    setChatMessages(effectiveSelectedId ? loadChat(effectiveSelectedId) : []);
+    setChatInput("");
+    setChatImageB64(null);
+  }, [effectiveSelectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist chat whenever messages change
+  useEffect(() => {
+    if (!effectiveSelectedId) return;
+    try {
+      const toSave = chatMessages.filter(m => !m.loading);
+      localStorage.setItem(CHAT_KEY(effectiveSelectedId), JSON.stringify(toSave));
+    } catch {}
+  }, [chatMessages, effectiveSelectedId]);
 
   const { data: selectedPatient, isLoading: patientLoading } = usePatient(effectiveSelectedId ?? "");
 
@@ -452,7 +475,6 @@ export default function DoctorDashboardPage() {
 
   const handleSelectPatient = useCallback((id: string) => {
     setSelectedId(prev => prev === id ? null : id);
-    setChatMessages([]);
   }, []);
 
   const role = user?.role === "doctor" ? "Médecin" : user?.role === "admin" ? "Admin Médecin" : user?.role ?? "";
@@ -638,7 +660,6 @@ export default function DoctorDashboardPage() {
                           setSelectedId(p.id);
                           setSearchQuery(p.fullName);
                           setSearchOpen(false);
-                          setChatMessages([]);
                         }}
                         className={cn(
                           "w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors",
@@ -1284,7 +1305,12 @@ export default function DoctorDashboardPage() {
                       <div className="flex items-center gap-1">
                         {chatMessages.length > 0 && (
                           <button
-                            onClick={() => setChatMessages([])}
+                            onClick={() => {
+                              setChatMessages([]);
+                              if (effectiveSelectedId) {
+                                try { localStorage.removeItem(CHAT_KEY(effectiveSelectedId)); } catch {}
+                              }
+                            }}
                             className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-accent transition-colors"
                           >
                             <RefreshCw className="w-3 h-3" /> Nouveau
@@ -1571,7 +1597,7 @@ export default function DoctorDashboardPage() {
 
           {/* ── VALEURS ─────────────────────────────────────────────────── */}
           {activeTop === "values" && (
-            <div className="flex-1 overflow-y-auto custom-scroll">
+            <div className="flex-1 overflow-hidden">
               {!effectiveSelectedId ? (
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center py-16">
@@ -1581,10 +1607,12 @@ export default function DoctorDashboardPage() {
                   </div>
                 </div>
               ) : (
-                <ValuesTab
-                  patientId={effectiveSelectedId}
-                  patientName={selectedPatient?.fullName}
-                />
+                <div className="h-full overflow-hidden">
+                  <ValuesTab
+                    patientId={effectiveSelectedId}
+                    patientName={selectedPatient?.fullName}
+                  />
+                </div>
               )}
             </div>
           )}
