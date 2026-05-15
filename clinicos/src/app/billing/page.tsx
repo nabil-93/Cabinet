@@ -1,6 +1,6 @@
 ﻿"use client";
 import { useState, useRef, useEffect } from "react";
-import { FileText, Plus, Search, TrendingUp, Clock, CheckCircle, Pencil, X, Download, Trash2 } from "lucide-react";
+import { FileText, Plus, Search, TrendingUp, Clock, CheckCircle, Pencil, X, Download, Trash2, Sheet, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { fr, de } from "date-fns/locale";
 import Header from "@/components/layout/Header";
@@ -12,6 +12,63 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Invoice, InvoiceItem, PaymentStatus } from "@/types";
 import { useLang } from "@/lib/i18n";
+
+// ─── Excel export ─────────────────────────────────────────────────────────────
+async function exportToExcel(invoices: Invoice[], statusLabel: string, isDE: boolean) {
+  const XLSX = await import("xlsx");
+
+  const statusMap: Record<string, string> = {
+    paid:     isDE ? "Bezahlt"       : "Payé",
+    unpaid:   isDE ? "Unbezahlt"     : "Impayé",
+    partial:  isDE ? "Teilweise"     : "Partiel",
+    refunded: isDE ? "Erstattet"     : "Remboursé",
+    overdue:  isDE ? "Überfällig"    : "En retard",
+  };
+
+  const rows = invoices.map(inv => ({
+    [isDE ? "Rechnungsnummer" : "N° Facture"]:   inv.invoiceNumber ?? "—",
+    [isDE ? "Patient"         : "Patient"]:       inv.patientName  ?? "—",
+    [isDE ? "Telefon"         : "Téléphone"]:    inv.patientPhone ?? "—",
+    [isDE ? "Datum"           : "Date"]:          inv.date         ?? "—",
+    [isDE ? "Fälligkeitsdatum": "Échéance"]:     inv.dueDate      ?? "—",
+    [isDE ? "Gesamt (MAD)"    : "Total (MAD)"]:   inv.total        ?? 0,
+    [isDE ? "Bezahlt (MAD)"   : "Payé (MAD)"]:    inv.paid         ?? 0,
+    [isDE ? "Restbetrag (MAD)": "Reste (MAD)"]:  Math.max(0, (inv.total ?? 0) - (inv.paid ?? 0)),
+    [isDE ? "Status"          : "Statut"]:        statusMap[inv.status] ?? inv.status,
+  }));
+
+  // Summary row
+  const totalTotal   = invoices.reduce((s, i) => s + (i.total ?? 0), 0);
+  const totalPaid    = invoices.reduce((s, i) => s + (i.paid  ?? 0), 0);
+  const totalRem     = invoices.reduce((s, i) => s + Math.max(0, (i.total ?? 0) - (i.paid ?? 0)), 0);
+  rows.push({
+    [isDE ? "Rechnungsnummer" : "N° Facture"]:   "",
+    [isDE ? "Patient"         : "Patient"]:       isDE ? "GESAMT" : "TOTAL",
+    [isDE ? "Telefon"         : "Téléphone"]:    "",
+    [isDE ? "Datum"           : "Date"]:          "",
+    [isDE ? "Fälligkeitsdatum": "Échéance"]:     "",
+    [isDE ? "Gesamt (MAD)"    : "Total (MAD)"]:   totalTotal,
+    [isDE ? "Bezahlt (MAD)"   : "Payé (MAD)"]:    totalPaid,
+    [isDE ? "Restbetrag (MAD)": "Reste (MAD)"]:  totalRem,
+    [isDE ? "Status"          : "Statut"]:        `${invoices.length} ${isDE ? "Einträge" : "factures"}`,
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Column widths
+  ws["!cols"] = [
+    { wch: 20 }, { wch: 25 }, { wch: 18 }, { wch: 14 },
+    { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 15 }, { wch: 12 },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const sheetName = statusLabel.slice(0, 31);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const date = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `ClinicOS-Factures-${statusLabel}-${date}.xlsx`);
+  toast.success(isDE ? `${invoices.length} Einträge exportiert` : `${invoices.length} factures exportées`);
+}
 
 const DEFAULT_ITEMS: InvoiceItem[] = [
   { description: "Consultation médicale", quantity: 1, unitPrice: 300, total: 300 },
@@ -619,6 +676,7 @@ export default function BillingPage() {
   const dateLocale = lang === "de" ? de : fr;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | PaymentStatus>("all");
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
   const [payInvoice, setPayInvoice] = useState<Invoice | null>(null);
@@ -666,20 +724,28 @@ export default function BillingPage() {
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: t("billing.stats.revenue"), value: `${totalRevenue.toLocaleString("fr-MA")} MAD`, icon: TrendingUp, color: "gradient-success" },
-            { label: t("billing.stats.pending"), value: `${pendingAmount.toLocaleString("fr-MA")} MAD`, icon: Clock, color: "gradient-warning" },
-            { label: t("billing.stats.paid"),    value: paidCount, icon: CheckCircle, color: "gradient-primary" },
-            { label: t("billing.stats.total"),   value: invoices.length, icon: FileText, color: "gradient-purple" },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+            { label: t("billing.stats.revenue"), value: `${totalRevenue.toLocaleString("fr-MA")} MAD`, icon: TrendingUp, color: "gradient-success",  filter: "paid"   as const, exportKey: "paid"   },
+            { label: t("billing.stats.pending"), value: `${pendingAmount.toLocaleString("fr-MA")} MAD`, icon: Clock,       color: "gradient-warning", filter: "unpaid" as const, exportKey: "unpaid" },
+            { label: t("billing.stats.paid"),    value: paidCount,        icon: CheckCircle, color: "gradient-primary", filter: "paid"   as const, exportKey: "paid"   },
+            { label: t("billing.stats.total"),   value: invoices.length,  icon: FileText,    color: "gradient-purple",  filter: "all"    as const, exportKey: "all"    },
+          ].map(({ label, value, icon: Icon, color, filter, exportKey }) => (
+            <button key={label}
+              onClick={() => {
+                setStatusFilter(filter);
+                const toExport = exportKey === "all" ? invoices : invoices.filter(i => i.status === exportKey);
+                const shortLabel = exportKey === "all" ? "Toutes" : exportKey.charAt(0).toUpperCase() + exportKey.slice(1);
+                exportToExcel(toExport, shortLabel, lang === "de");
+              }}
+              className="bg-card border border-border rounded-xl p-4 flex items-center gap-3 hover:shadow-md hover:border-primary/30 transition-all text-left group cursor-pointer">
               <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", color)}>
                 <Icon className="w-5 h-5 text-white" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-xs text-muted-foreground">{label}</p>
                 <p className="font-bold text-foreground text-sm">{isLoading ? "—" : value}</p>
+                <p className="text-[10px] text-muted-foreground/60 group-hover:text-emerald-600 transition-colors mt-0.5">↓ Excel</p>
               </div>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -697,6 +763,44 @@ export default function BillingPage() {
               <option value="unpaid">{t("billing.status.unpaid")}</option>
               <option value="partial">{t("billing.status.partial")}</option>
             </select>
+
+            {/* Excel export button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu(v => !v)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-sm font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-950/50 transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Excel
+                <ChevronDown className={cn("w-3 h-3 transition-transform", showExportMenu && "rotate-180")} />
+              </button>
+              {showExportMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-xl shadow-lg overflow-hidden w-52">
+                    {[
+                      { key: "all",     label: lang === "de" ? "Alle Rechnungen"         : "Toutes les factures",       color: "text-foreground",    count: invoices.length },
+                      { key: "unpaid",  label: lang === "de" ? "Unbezahlte Rechnungen"   : "Factures impayées",         color: "text-red-600",       count: invoices.filter(i => i.status === "unpaid").length },
+                      { key: "partial", label: lang === "de" ? "Teilweise bezahlt"        : "Partiellement payées",      color: "text-orange-600",    count: invoices.filter(i => i.status === "partial").length },
+                      { key: "paid",    label: lang === "de" ? "Bezahlte Rechnungen"     : "Factures payées",           color: "text-emerald-600",   count: invoices.filter(i => i.status === "paid").length },
+                      { key: "current", label: lang === "de" ? "Aktuelle Auswahl"         : "Sélection actuelle",        color: "text-primary",       count: filtered.length },
+                    ].map(({ key, label, color, count }) => (
+                      <button key={key} onClick={() => {
+                        setShowExportMenu(false);
+                        const toExport = key === "current" ? filtered : key === "all" ? invoices : invoices.filter(i => i.status === key);
+                        const shortLabel = key === "all" ? "Toutes" : key === "current" ? "Selection" : key.charAt(0).toUpperCase() + key.slice(1);
+                        exportToExcel(toExport, shortLabel, lang === "de");
+                      }}
+                        className="w-full flex items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-accent transition-colors">
+                        <span className={cn("font-medium", color)}>{label}</span>
+                        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{count}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
             <button onClick={() => setShowCreate(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm">
               <Plus className="w-4 h-4" /> {t("billing.newInvoice")}
