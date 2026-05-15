@@ -339,6 +339,7 @@ export default function ActivityPage() {
   const [selectedLog,     setSelectedLog]     = useState<ActivityLog | null>(null);
   const [showDeleteMenu,  setShowDeleteMenu]  = useState(false);
   const [deleting,        setDeleting]        = useState(false);
+  const [customHours,     setCustomHours]     = useState("");
 
   const NAV_ACTIONS = new Set(["page_view", "navigate"]);
 
@@ -625,8 +626,8 @@ export default function ActivityPage() {
                 {showDeleteMenu && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowDeleteMenu(false)} />
-                    <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-xl shadow-lg overflow-hidden w-52">
-                      <p className="text-[10px] text-muted-foreground px-3 pt-2 pb-1 uppercase tracking-wider font-semibold">
+                    <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-xl shadow-lg overflow-hidden w-56">
+                      <p className="text-[10px] text-muted-foreground px-3 pt-2.5 pb-1 uppercase tracking-wider font-semibold">
                         {lang === "de" ? "Einträge löschen älter als:" : "Supprimer les entrées de plus de :"}
                       </p>
                       {DELETE_OPTIONS.map(opt => (
@@ -639,6 +640,40 @@ export default function ActivityPage() {
                           {opt.label}
                         </button>
                       ))}
+
+                      {/* Custom hours input */}
+                      <div className="border-t border-border/60 px-3 py-2.5">
+                        <p className="text-[10px] text-muted-foreground mb-1.5 font-semibold uppercase tracking-wider">
+                          {lang === "de" ? "Benutzerdefiniert (Stunden):" : "Personnalisé (heures) :"}
+                        </p>
+                        <div className="flex gap-1.5">
+                          <input
+                            type="number"
+                            min="1"
+                            max="8760"
+                            value={customHours}
+                            onChange={e => setCustomHours(e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            placeholder={lang === "de" ? "z.B. 3" : "ex: 3"}
+                            className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-red-400/50 focus:border-red-400 transition-all"
+                          />
+                          <button
+                            onClick={() => {
+                              const h = parseInt(customHours, 10);
+                              if (!h || h < 1) return;
+                              handleDelete(h);
+                              setCustomHours("");
+                            }}
+                            disabled={!customHours || parseInt(customHours) < 1}
+                            className="px-2.5 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {lang === "de" ? "OK" : "OK"}
+                          </button>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground/60 mt-1">
+                          {lang === "de" ? "1–8760 Stunden (1 Jahr max.)" : "1 à 8760 h (1 an max.)"}
+                        </p>
+                      </div>
                     </div>
                   </>
                 )}
