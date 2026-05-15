@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { TrendingUp, Users, Calendar, CreditCard, CheckCircle, BarChart2, AreaChart as AreaIcon, LineChart as LineIcon, Stethoscope, FileText, Clock, Activity } from "lucide-react";
+import { TrendingUp, Users, Calendar, CreditCard, CheckCircle, BarChart2, AreaChart as AreaIcon, LineChart as LineIcon, Stethoscope, FileText, Clock, Activity, X, Phone, AlertCircle, ChevronRight } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/services/api";
@@ -26,17 +26,40 @@ const ConsultationTypesChart = dynamic(() => import("@/components/charts/Consult
 
 type StatPeriod = "day" | "week" | "month";
 
+type DrillType = "consultations" | "patients" | "prescriptions" | "invoices" | "invoices_unpaid" | "invoices_partial" | "rdv_confirmed" | "rdv_pending" | "rdv_cancelled" | "rdv_all";
+
 interface SummaryData {
   period: string;
   consultations: number;
   patients: number;
   prescriptions: number;
   invoices: number;
+  unpaidCount: number;
+  partialCount: number;
+  unpaidAmount: number;
+  partialAmount: number;
   revenue: number;
   totalAppointments: number;
   byStatus: { confirmed: number; completed: number; pending: number; cancelled: number };
   todayByStatus: { confirmed: number; completed: number; pending: number; cancelled: number };
   waitingRoom: number;
+}
+
+interface DrillItem {
+  id: string;
+  patientName: string;
+  patientPhone?: string;
+  date?: string;
+  time?: string;
+  type?: string;
+  status?: string;
+  diagnosis?: string;
+  medications?: string;
+  invoiceNumber?: string;
+  total?: number;
+  paid?: number;
+  remaining?: number;
+  gender?: string;
 }
 
 interface AnalyticsData {
@@ -88,24 +111,155 @@ function NoData({ label }: { label: string }) {
   );
 }
 
-function StatCard({ label, value, max, icon: Icon, color, isDE }: {
-  label: string; value: number; max: number; icon: any; color: string; isDE: boolean;
+function StatCard({ label, value, max, icon: Icon, color, isDE, onClick, sub }: {
+  label: string; value: number | string; max: number; icon: any; color: string; isDE: boolean;
+  onClick?: () => void; sub?: string;
 }) {
-  const pct = Math.min(Math.round((value / max) * 100), 100);
+  const numVal = typeof value === "number" ? value : 0;
+  const pct = Math.min(Math.round((numVal / max) * 100), 100);
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <button
+      onClick={onClick}
+      className={cn(
+        "bg-card border border-border rounded-xl p-4 text-left transition-all",
+        onClick && "hover:shadow-md hover:border-primary/30 cursor-pointer group"
+      )}
+    >
       <div className="flex items-center justify-between mb-3">
         <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", color)}>
           <Icon className="w-4 h-4 text-white" />
         </div>
-        <span className="text-2xl font-bold text-foreground">{value}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-2xl font-bold text-foreground">{value}</span>
+          {onClick && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-primary transition-colors" />}
+        </div>
       </div>
       <p className="text-xs font-semibold text-foreground mb-2">{label}</p>
+      {sub && <p className="text-[10px] text-muted-foreground mb-1.5">{sub}</p>}
       <div className="h-1.5 bg-muted rounded-full overflow-hidden">
         <div className={cn("h-full rounded-full transition-all duration-500", color)} style={{ width: `${pct}%` }} />
       </div>
       <p className="text-[10px] text-muted-foreground mt-1">{pct}% {isDE ? "des Monatsziels" : "de l'objectif mensuel"}</p>
-    </div>
+    </button>
+  );
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  confirmed: "bg-emerald-100 text-emerald-700",
+  completed: "bg-blue-100 text-blue-700",
+  pending:   "bg-amber-100 text-amber-700",
+  cancelled: "bg-red-100 text-red-700",
+  unpaid:    "bg-red-100 text-red-700",
+  partial:   "bg-orange-100 text-orange-700",
+  paid:      "bg-emerald-100 text-emerald-700",
+};
+
+function DrillDrawer({ type, period, isDE, onClose }: {
+  type: DrillType; period: string; isDE: boolean; onClose: () => void;
+}) {
+  const { data, isLoading } = useQuery<DrillItem[]>({
+    queryKey: ["drilldown", type, period],
+    queryFn: async () => {
+      const r = await api.get(`/analytics/drilldown?type=${type}&period=${period}`);
+      return r.data.data ?? r.data ?? [];
+    },
+    staleTime: 30_000,
+  });
+
+  const TITLES: Record<DrillType, { fr: string; de: string }> = {
+    consultations:    { fr: "Consultations terminées", de: "Abgeschlossene Konsultationen" },
+    patients:         { fr: "Patients traités",         de: "Behandelte Patienten" },
+    prescriptions:    { fr: "Ordonnances",              de: "Rezepte" },
+    invoices:         { fr: "Toutes les factures",      de: "Alle Rechnungen" },
+    invoices_unpaid:  { fr: "Factures impayées",        de: "Unbezahlte Rechnungen" },
+    invoices_partial: { fr: "Factures partielles",      de: "Teilweise bezahlte Rechnungen" },
+    rdv_confirmed:    { fr: "RDV confirmés",            de: "Bestätigte Termine" },
+    rdv_pending:      { fr: "RDV en attente",           de: "Ausstehende Termine" },
+    rdv_cancelled:    { fr: "RDV annulés",              de: "Abgesagte Termine" },
+    rdv_all:          { fr: "Tous les RDV",             de: "Alle Termine" },
+  };
+  const title = isDE ? TITLES[type].de : TITLES[type].fr;
+
+  return (
+    <>
+      {/* Overlay */}
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
+      {/* Drawer */}
+      <div className="fixed right-0 top-0 h-full z-50 w-full max-w-md bg-background border-l border-border shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
+          <h2 className="font-bold text-sm text-foreground">{title}</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{data?.length ?? 0} {isDE ? "Einträge" : "résultats"}</span>
+            <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center">
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {isLoading ? (
+            Array(6).fill(null).map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse">
+                <div className="h-3 w-32 bg-muted rounded mb-2" />
+                <div className="h-2 w-48 bg-muted rounded" />
+              </div>
+            ))
+          ) : !data?.length ? (
+            <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
+              <AlertCircle className="w-8 h-8 opacity-30" />
+              <p className="text-sm">{isDE ? "Keine Einträge" : "Aucun résultat"}</p>
+            </div>
+          ) : (
+            data.map((item, i) => (
+              <div key={item.id ?? i} className="bg-card border border-border rounded-xl p-3.5 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold text-sm text-foreground">{item.patientName}</p>
+                  {item.status && (
+                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>
+                      {item.status}
+                    </span>
+                  )}
+                  {item.invoiceNumber && (
+                    <span className="text-[10px] text-muted-foreground flex-shrink-0">{item.invoiceNumber}</span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  {item.patientPhone && (
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <Phone className="w-3 h-3" />{item.patientPhone}
+                    </span>
+                  )}
+                  {item.date && (
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <Calendar className="w-3 h-3" />{item.date}{item.time && ` · ${item.time}`}
+                    </span>
+                  )}
+                  {item.type && <span className="text-[11px] text-muted-foreground">{item.type}</span>}
+                  {item.gender && <span className="text-[11px] text-muted-foreground">{item.gender === "male" ? (isDE ? "Mann" : "Homme") : item.gender === "female" ? (isDE ? "Frau" : "Femme") : item.gender}</span>}
+                </div>
+
+                {item.diagnosis && (
+                  <p className="text-[11px] text-muted-foreground italic">{item.diagnosis}</p>
+                )}
+                {item.medications && (
+                  <p className="text-[11px] text-foreground/70">{item.medications}</p>
+                )}
+                {(item.total !== undefined) && (
+                  <div className="flex items-center gap-3 text-[11px] pt-0.5">
+                    <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong>{item.total?.toLocaleString("fr-MA")} MAD</strong></span>
+                    {(item.paid ?? 0) > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: {item.paid?.toLocaleString("fr-MA")} MAD</span>}
+                    {(item.remaining ?? 0) > 0 && <span className="text-red-500">{isDE ? "Offen" : "Reste"}: {item.remaining?.toLocaleString("fr-MA")} MAD</span>}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -113,6 +267,7 @@ export default function AnalyticsPage() {
   const { lang, t } = useLang();
   const isDE = lang === "de";
   const [statPeriod, setStatPeriod] = useState<StatPeriod>("month");
+  const [drillType, setDrillType]  = useState<DrillType | null>(null);
   const [period,    setPeriod]    = useState<"1d" | "1w" | "1m" | "6m">("1d");
   const [chartType, setChartType] = useState<"bar" | "area" | "line">("bar");
 
@@ -198,18 +353,55 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* 4 stat cards */}
+          {/* 4 main stat cards */}
           {summaryLoading ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {Array(4).fill(null).map((_, i) => <KpiSkeleton key={i} />)}
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <StatCard label={isDE ? "Konsultationen" : "Consultations"} value={summary?.consultations ?? 0} max={statPeriod === "day" ? 30 : statPeriod === "week" ? 150 : 500} icon={Stethoscope} color="bg-primary" isDE={isDE} />
-              <StatCard label={isDE ? "Behandelte Patienten" : "Patients traités"} value={summary?.patients ?? 0} max={statPeriod === "day" ? 30 : statPeriod === "week" ? 150 : 500} icon={Users} color="bg-emerald-500" isDE={isDE} />
-              <StatCard label={isDE ? "Rezepte" : "Ordonnances"} value={summary?.prescriptions ?? 0} max={statPeriod === "day" ? 20 : statPeriod === "week" ? 100 : 300} icon={FileText} color="bg-amber-500" isDE={isDE} />
-              <StatCard label={isDE ? "Rechnungen" : "Factures"} value={summary?.invoices ?? 0} max={statPeriod === "day" ? 20 : statPeriod === "week" ? 100 : 300} icon={CreditCard} color="bg-purple-500" isDE={isDE} />
-            </div>
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <StatCard label={isDE ? "Konsultationen" : "Consultations"} value={summary?.consultations ?? 0} max={statPeriod === "day" ? 30 : statPeriod === "week" ? 150 : 500} icon={Stethoscope} color="bg-primary" isDE={isDE} onClick={() => setDrillType("consultations")} />
+                <StatCard label={isDE ? "Behandelte Patienten" : "Patients traités"} value={summary?.patients ?? 0} max={statPeriod === "day" ? 30 : statPeriod === "week" ? 150 : 500} icon={Users} color="bg-emerald-500" isDE={isDE} onClick={() => setDrillType("patients")} />
+                <StatCard label={isDE ? "Rezepte" : "Ordonnances"} value={summary?.prescriptions ?? 0} max={statPeriod === "day" ? 20 : statPeriod === "week" ? 100 : 300} icon={FileText} color="bg-amber-500" isDE={isDE} onClick={() => setDrillType("prescriptions")} />
+                <StatCard label={isDE ? "Rechnungen" : "Factures"} value={summary?.invoices ?? 0} max={statPeriod === "day" ? 20 : statPeriod === "week" ? 100 : 300} icon={CreditCard} color="bg-purple-500" isDE={isDE} onClick={() => setDrillType("invoices")} />
+              </div>
+
+              {/* Unpaid / Partial invoice cards */}
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => setDrillType("invoices_unpaid")}
+                  className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-xl p-3.5 text-left hover:shadow-md transition-all group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-500" />
+                      <span className="text-xs font-semibold text-red-700 dark:text-red-400">{isDE ? "Unbezahlt" : "Impayées"}</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-red-400 group-hover:text-red-600 transition-colors" />
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-2">
+                    <span className="text-xl font-bold text-red-600">{(summary?.unpaidAmount ?? 0).toLocaleString("fr-MA")}</span>
+                    <span className="text-xs text-red-500">MAD</span>
+                    <span className="text-[10px] text-red-400 ml-auto">{summary?.unpaidCount ?? 0} {isDE ? "Rechnungen" : "factures"}</span>
+                  </div>
+                </button>
+
+                <button onClick={() => setDrillType("invoices_partial")}
+                  className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900 rounded-xl p-3.5 text-left hover:shadow-md transition-all group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-orange-500" />
+                      <span className="text-xs font-semibold text-orange-700 dark:text-orange-400">{isDE ? "Teilweise bezahlt" : "Partiellement payées"}</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-orange-400 group-hover:text-orange-600 transition-colors" />
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-2">
+                    <span className="text-xl font-bold text-orange-600">{(summary?.partialAmount ?? 0).toLocaleString("fr-MA")}</span>
+                    <span className="text-xs text-orange-500">MAD</span>
+                    <span className="text-[10px] text-orange-400 ml-auto">{summary?.partialCount ?? 0} {isDE ? "Rechnungen" : "factures"}</span>
+                  </div>
+                </button>
+              </div>
+            </>
           )}
 
           {/* Activity overview */}
@@ -231,20 +423,24 @@ export default function AnalyticsPage() {
           <div>
             <p className="text-xs font-semibold text-foreground mb-3">
               {isDE ? "RDV nach Status" : "RDV par statut"}
+              <span className="ml-2 text-[10px] font-normal text-muted-foreground">{isDE ? "— klicken für Details" : "— cliquer pour voir la liste"}</span>
             </p>
             <div className="space-y-2">
               {BY_STATUS_BARS.map(({ key, label, color }) => {
                 const val = summary?.byStatus?.[key as keyof typeof summary.byStatus] ?? 0;
                 const total = summary?.totalAppointments || 1;
                 const pct = Math.round((val / total) * 100);
+                const drillKey = `rdv_${key}` as DrillType;
                 return (
-                  <div key={key} className="flex items-center gap-3">
+                  <button key={key} onClick={() => val > 0 && setDrillType(drillKey)}
+                    className={cn("w-full flex items-center gap-3 rounded-lg px-1 py-1 transition-colors text-left", val > 0 && "hover:bg-muted/50 cursor-pointer")}>
                     <span className="text-[11px] font-medium text-muted-foreground w-24 text-right flex-shrink-0">{label}</span>
                     <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
                     </div>
                     <span className="text-xs font-bold text-foreground w-6 text-right flex-shrink-0">{val}</span>
-                  </div>
+                    {val > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground/40 flex-shrink-0" />}
+                  </button>
                 );
               })}
             </div>
@@ -449,6 +645,16 @@ export default function AnalyticsPage() {
         </div>
 
       </div>
+
+      {/* Drill-down drawer */}
+      {drillType && (
+        <DrillDrawer
+          type={drillType}
+          period={statPeriod}
+          isDE={isDE}
+          onClose={() => setDrillType(null)}
+        />
+      )}
     </div>
   );
 }

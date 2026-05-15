@@ -67,6 +67,10 @@ export async function GET(req: NextRequest) {
 
     const revenue = (invoices ?? []).reduce((s, inv) => s + (inv.paid || 0), 0);
     const invoicesCount = (invoices ?? []).length;
+    const unpaidInvoices  = (invoices ?? []).filter(inv => inv.status === "unpaid");
+    const partialInvoices = (invoices ?? []).filter(inv => inv.status === "partial");
+    const unpaidAmount  = unpaidInvoices.reduce((s, inv) => s + ((inv.total ?? 0) - (inv.paid ?? 0)), 0);
+    const partialAmount = partialInvoices.reduce((s, inv) => s + ((inv.total ?? 0) - (inv.paid ?? 0)), 0);
 
     // Today breakdown for the bar chart
     const todayAptsList = todayApts ?? [];
@@ -85,6 +89,10 @@ export async function GET(req: NextRequest) {
       patients: uniquePatients,
       prescriptions: (prescriptions ?? []).length,
       invoices: invoicesCount,
+      unpaidCount: unpaidInvoices.length,
+      partialCount: partialInvoices.length,
+      unpaidAmount,
+      partialAmount,
       revenue,
       totalAppointments: apts.length,
       byStatus: { confirmed, completed, pending, cancelled },
