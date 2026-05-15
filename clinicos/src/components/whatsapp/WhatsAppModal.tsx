@@ -145,6 +145,11 @@ export function saveWaMessage(msg: WhatsAppMessage) {
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch {}
 }
 
+export function deleteWaMessage(id: string) {
+  const next = loadWaHistory().filter(m => m.id !== id);
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch {}
+}
+
 export function getWaLogo() {
   return (
     <svg viewBox="0 0 24 24" className="fill-current">

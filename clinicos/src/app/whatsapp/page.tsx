@@ -11,6 +11,7 @@ import {
   WhatsAppModal,
   loadWaHistory,
   saveWaMessage,
+  deleteWaMessage,
   WA_TEMPLATES,
   getWaLogo,
   type WaPatient,
@@ -386,7 +387,16 @@ export default function WhatsAppPage() {
                   </button>
                 </div>
                 {filteredHistory.map(msg => (
-                  <HistoryCard key={msg.id} msg={msg} isDE={isDE} locale={locale} />
+                  <HistoryCard
+                    key={msg.id}
+                    msg={msg}
+                    isDE={isDE}
+                    locale={locale}
+                    onDelete={(id) => {
+                      deleteWaMessage(id);
+                      setHistory(prev => prev.filter(m => m.id !== id));
+                    }}
+                  />
                 ))}
               </>
             )}
@@ -476,10 +486,12 @@ function HistoryCard({
   msg,
   isDE,
   locale,
+  onDelete,
 }: {
   msg: WhatsAppMessage;
   isDE: boolean;
   locale: Locale;
+  onDelete: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const template = WA_TEMPLATES.find(t => t.id === msg.templateId);
@@ -487,32 +499,40 @@ function HistoryCard({
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-4 hover:bg-accent/30 transition-colors text-left"
-      >
-        <div className="w-10 h-10 rounded-xl bg-[#25D366]/10 flex items-center justify-center flex-shrink-0">
-          <Check className="w-5 h-5 text-[#25D366]" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm text-foreground truncate">{msg.patientName}</p>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className="text-[11px] text-[#25D366] font-medium">
-              {template?.emoji ?? "💬"} {templateLabel}
-            </span>
-            <span className="text-[10px] text-muted-foreground/50">•</span>
-            <span className="text-[11px] text-muted-foreground">
-              +{msg.phone}
-            </span>
+      <div className="flex items-center gap-3 p-4">
+        {/* Expand toggle — takes up most of the row */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-[#25D366]/10 flex items-center justify-center flex-shrink-0">
+            <Check className="w-5 h-5 text-[#25D366]" />
           </div>
-        </div>
-        <div className="text-right flex-shrink-0">
-          <p className="text-[11px] text-muted-foreground">
-            {formatSentAt(msg.sentAt, locale)}
-          </p>
-          <p className={cn("text-[10px] mt-0.5 transition-transform duration-200", expanded ? "rotate-180" : "")}>▼</p>
-        </div>
-      </button>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-foreground truncate">{msg.patientName}</p>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span className="text-[11px] text-[#25D366] font-medium">
+                {template?.emoji ?? "💬"} {templateLabel}
+              </span>
+              <span className="text-[10px] text-muted-foreground/50">•</span>
+              <span className="text-[11px] text-muted-foreground">+{msg.phone}</span>
+            </div>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-[11px] text-muted-foreground">{formatSentAt(msg.sentAt, locale)}</p>
+            <p className={cn("text-[10px] mt-0.5 transition-transform duration-200", expanded ? "rotate-180" : "")}>▼</p>
+          </div>
+        </button>
+
+        {/* Delete button */}
+        <button
+          onClick={() => onDelete(msg.id)}
+          className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
+          title={isDE ? "Löschen" : "Supprimer"}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
 
       {expanded && (
         <div className="px-4 pb-4 border-t border-border/40 pt-3">
