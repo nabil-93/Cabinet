@@ -104,11 +104,12 @@ export async function GET(req: NextRequest) {
     }
 
     // ── Invoices (all / unpaid / partial) ──────────────────────────────────
-    if (["invoices", "invoices_unpaid", "invoices_partial"].includes(type)) {
+    if (["invoices", "invoices_unpaid", "invoices_partial", "invoices_paid"].includes(type)) {
       const statusMap: Record<string, string | null> = {
         invoices:         null,
         invoices_unpaid:  "unpaid",
         invoices_partial: "partial",
+        invoices_paid:    "paid",
       };
       const status = statusMap[type];
       let q = supabase

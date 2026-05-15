@@ -26,7 +26,7 @@ const ConsultationTypesChart = dynamic(() => import("@/components/charts/Consult
 
 type StatPeriod = "day" | "week" | "month";
 
-type DrillType = "consultations" | "patients" | "prescriptions" | "invoices" | "invoices_unpaid" | "invoices_partial" | "rdv_confirmed" | "rdv_pending" | "rdv_cancelled" | "rdv_all";
+type DrillType = "consultations" | "patients" | "prescriptions" | "invoices" | "invoices_unpaid" | "invoices_partial" | "invoices_paid" | "rdv_confirmed" | "rdv_pending" | "rdv_cancelled" | "rdv_all";
 
 interface SummaryData {
   period: string;
@@ -145,14 +145,31 @@ function StatCard({ label, value, max, icon: Icon, color, isDE, onClick, sub }: 
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  confirmed: "bg-emerald-100 text-emerald-700",
-  completed: "bg-blue-100 text-blue-700",
-  pending:   "bg-amber-100 text-amber-700",
-  cancelled: "bg-red-100 text-red-700",
-  unpaid:    "bg-red-100 text-red-700",
-  partial:   "bg-orange-100 text-orange-700",
-  paid:      "bg-emerald-100 text-emerald-700",
+  confirmed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  completed: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  pending:   "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  cancelled: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  unpaid:    "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  partial:   "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+  paid:      "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
 };
+
+function translateStatus(status: string, isDE: boolean): string {
+  const map: Record<string, { fr: string; de: string }> = {
+    confirmed: { fr: "Confirmé",   de: "Bestätigt" },
+    completed: { fr: "Terminé",    de: "Abgeschlossen" },
+    pending:   { fr: "En attente", de: "Ausstehend" },
+    cancelled: { fr: "Annulé",     de: "Abgesagt" },
+    unpaid:    { fr: "Impayé",     de: "Unbezahlt" },
+    partial:   { fr: "Partiel",    de: "Teilweise" },
+    paid:      { fr: "Payé",       de: "Bezahlt" },
+    overdue:   { fr: "En retard",  de: "Überfällig" },
+    active:    { fr: "Actif",      de: "Aktiv" },
+    inactive:  { fr: "Inactif",    de: "Inaktiv" },
+    expired:   { fr: "Expiré",     de: "Abgelaufen" },
+  };
+  return map[status]?.[isDE ? "de" : "fr"] ?? status;
+}
 
 function DrillDrawer({ type, period, isDE, onClose }: {
   type: DrillType; period: string; isDE: boolean; onClose: () => void;
@@ -167,16 +184,17 @@ function DrillDrawer({ type, period, isDE, onClose }: {
   });
 
   const TITLES: Record<DrillType, { fr: string; de: string }> = {
-    consultations:    { fr: "Consultations terminées", de: "Abgeschlossene Konsultationen" },
-    patients:         { fr: "Patients traités",         de: "Behandelte Patienten" },
-    prescriptions:    { fr: "Ordonnances",              de: "Rezepte" },
-    invoices:         { fr: "Toutes les factures",      de: "Alle Rechnungen" },
-    invoices_unpaid:  { fr: "Factures impayées",        de: "Unbezahlte Rechnungen" },
-    invoices_partial: { fr: "Factures partielles",      de: "Teilweise bezahlte Rechnungen" },
-    rdv_confirmed:    { fr: "RDV confirmés",            de: "Bestätigte Termine" },
-    rdv_pending:      { fr: "RDV en attente",           de: "Ausstehende Termine" },
-    rdv_cancelled:    { fr: "RDV annulés",              de: "Abgesagte Termine" },
-    rdv_all:          { fr: "Tous les RDV",             de: "Alle Termine" },
+    consultations:    { fr: "Consultations terminées",          de: "Abgeschlossene Konsultationen" },
+    patients:         { fr: "Patients traités",                  de: "Behandelte Patienten" },
+    prescriptions:    { fr: "Ordonnances",                       de: "Rezepte" },
+    invoices:         { fr: "Toutes les factures",               de: "Alle Rechnungen" },
+    invoices_unpaid:  { fr: "Factures impayées",                 de: "Unbezahlte Rechnungen" },
+    invoices_partial: { fr: "Factures partiellement payées",     de: "Teilweise bezahlte Rechnungen" },
+    invoices_paid:    { fr: "Factures payées (revenus)",         de: "Bezahlte Rechnungen (Einnahmen)" },
+    rdv_confirmed:    { fr: "Rendez-vous confirmés",             de: "Bestätigte Termine" },
+    rdv_pending:      { fr: "Rendez-vous en attente",            de: "Ausstehende Termine" },
+    rdv_cancelled:    { fr: "Rendez-vous annulés",               de: "Abgesagte Termine" },
+    rdv_all:          { fr: "Tous les rendez-vous",              de: "Alle Termine" },
   };
   const title = isDE ? TITLES[type].de : TITLES[type].fr;
 
@@ -190,7 +208,11 @@ function DrillDrawer({ type, period, isDE, onClose }: {
         <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
           <h2 className="font-bold text-sm text-foreground">{title}</h2>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{data?.length ?? 0} {isDE ? "Einträge" : "résultats"}</span>
+            {!isLoading && (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                {data?.length ?? 0} {isDE ? "Einträge" : "résultats"}
+              </span>
+            )}
             <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center">
               <X className="w-4 h-4 text-muted-foreground" />
             </button>
@@ -216,14 +238,16 @@ function DrillDrawer({ type, period, isDE, onClose }: {
               <div key={item.id ?? i} className="bg-card border border-border rounded-xl p-3.5 space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-semibold text-sm text-foreground">{item.patientName}</p>
-                  {item.status && (
-                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>
-                      {item.status}
-                    </span>
-                  )}
-                  {item.invoiceNumber && (
-                    <span className="text-[10px] text-muted-foreground flex-shrink-0">{item.invoiceNumber}</span>
-                  )}
+                  <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+                    {item.invoiceNumber && (
+                      <span className="text-[10px] text-muted-foreground">{item.invoiceNumber}</span>
+                    )}
+                    {item.status && (
+                      <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", STATUS_COLORS[item.status] ?? "bg-muted text-muted-foreground")}>
+                        {translateStatus(item.status, isDE)}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-x-3 gap-y-1">
@@ -238,7 +262,12 @@ function DrillDrawer({ type, period, isDE, onClose }: {
                     </span>
                   )}
                   {item.type && <span className="text-[11px] text-muted-foreground">{item.type}</span>}
-                  {item.gender && <span className="text-[11px] text-muted-foreground">{item.gender === "male" ? (isDE ? "Mann" : "Homme") : item.gender === "female" ? (isDE ? "Frau" : "Femme") : item.gender}</span>}
+                  {item.gender && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {item.gender === "male"   ? (isDE ? "Mann"   : "Homme") :
+                       item.gender === "female" ? (isDE ? "Frau"   : "Femme") : item.gender}
+                    </span>
+                  )}
                 </div>
 
                 {item.diagnosis && (
@@ -247,11 +276,21 @@ function DrillDrawer({ type, period, isDE, onClose }: {
                 {item.medications && (
                   <p className="text-[11px] text-foreground/70">{item.medications}</p>
                 )}
-                {(item.total !== undefined) && (
-                  <div className="flex items-center gap-3 text-[11px] pt-0.5">
-                    <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong>{item.total?.toLocaleString("fr-MA")} MAD</strong></span>
-                    {(item.paid ?? 0) > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: {item.paid?.toLocaleString("fr-MA")} MAD</span>}
-                    {(item.remaining ?? 0) > 0 && <span className="text-red-500">{isDE ? "Offen" : "Reste"}: {item.remaining?.toLocaleString("fr-MA")} MAD</span>}
+                {item.total !== undefined && (
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] pt-0.5">
+                    <span className="text-muted-foreground">
+                      {isDE ? "Gesamt" : "Total"}: <strong>{item.total?.toLocaleString("fr-MA")} MAD</strong>
+                    </span>
+                    {(item.paid ?? 0) > 0 && (
+                      <span className="text-emerald-600">
+                        {isDE ? "Bezahlt" : "Payé"}: {item.paid?.toLocaleString("fr-MA")} MAD
+                      </span>
+                    )}
+                    {(item.remaining ?? 0) > 0 && (
+                      <span className="text-red-500 font-semibold">
+                        {isDE ? "Offen" : "Reste"}: {item.remaining?.toLocaleString("fr-MA")} MAD
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -407,15 +446,18 @@ export default function AnalyticsPage() {
           {/* Activity overview */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: isDE ? "RDV gesamt" : "RDV total", value: summary?.totalAppointments ?? 0, unit: isDE ? "Termine" : "rendez-vous", color: "text-primary" },
-              { label: isDE ? "Einnahmen" : "Revenus", value: `${(summary?.revenue ?? 0).toLocaleString("fr-MA")}`, unit: "MAD", color: "text-emerald-600" },
-              { label: isDE ? "Im Wartezimmer" : "Salle d'attente", value: summary?.waitingRoom ?? 0, unit: isDE ? "Patienten" : "patients", color: "text-amber-600" },
+              { label: isDE ? "RDV gesamt" : "RDV total", value: summary?.totalAppointments ?? 0, unit: isDE ? "Termine" : "rendez-vous", color: "text-primary", drill: "rdv_all" as DrillType },
+              { label: isDE ? "Einnahmen" : "Revenus", value: `${(summary?.revenue ?? 0).toLocaleString("fr-MA")}`, unit: "MAD", color: "text-emerald-600", drill: "invoices_paid" as DrillType },
+              { label: isDE ? "Im Wartezimmer" : "Salle d'attente", value: summary?.waitingRoom ?? 0, unit: isDE ? "Patienten" : "patients", color: "text-amber-600", drill: null },
             ].map(item => (
-              <div key={item.label} className="bg-muted/30 rounded-xl px-4 py-3 text-center">
+              <button key={item.label}
+                onClick={() => item.drill && setDrillType(item.drill)}
+                className={cn("bg-muted/30 rounded-xl px-4 py-3 text-center transition-all", item.drill && "hover:shadow-md hover:bg-muted/50 cursor-pointer group")}>
                 <p className={cn("text-2xl font-bold", item.color)}>{item.value}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">{item.unit}</p>
                 <p className="text-[11px] text-muted-foreground font-medium mt-1">{item.label}</p>
-              </div>
+                {item.drill && <p className="text-[9px] text-muted-foreground/50 mt-0.5 group-hover:text-primary transition-colors">{isDE ? "↗ Details" : "↗ voir la liste"}</p>}
+              </button>
             ))}
           </div>
 
