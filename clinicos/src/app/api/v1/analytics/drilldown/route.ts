@@ -31,10 +31,11 @@ export async function GET(req: NextRequest) {
     const supabase = await createClient();
 
     // ── Appointments by status ──────────────────────────────────────────────
-    if (["consultations", "rdv_confirmed", "rdv_pending", "rdv_cancelled", "rdv_all"].includes(type)) {
+    if (["consultations", "rdv_confirmed", "rdv_completed", "rdv_pending", "rdv_cancelled", "rdv_all"].includes(type)) {
       const statusMap: Record<string, string | null> = {
         consultations: "completed",
         rdv_confirmed: "confirmed",
+        rdv_completed: "completed",
         rdv_pending:   "pending",
         rdv_cancelled: "cancelled",
         rdv_all:       null,

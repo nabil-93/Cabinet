@@ -26,7 +26,7 @@ const ConsultationTypesChart = dynamic(() => import("@/components/charts/Consult
 
 type StatPeriod = "day" | "week" | "month";
 
-type DrillType = "consultations" | "patients" | "prescriptions" | "invoices" | "invoices_unpaid" | "invoices_partial" | "invoices_paid" | "rdv_confirmed" | "rdv_pending" | "rdv_cancelled" | "rdv_all";
+type DrillType = "consultations" | "patients" | "prescriptions" | "invoices" | "invoices_unpaid" | "invoices_partial" | "invoices_paid" | "rdv_confirmed" | "rdv_completed" | "rdv_pending" | "rdv_cancelled" | "rdv_all";
 
 interface SummaryData {
   period: string;
@@ -192,6 +192,7 @@ function DrillDrawer({ type, period, isDE, onClose }: {
     invoices_partial: { fr: "Factures partiellement payées",     de: "Teilweise bezahlte Rechnungen" },
     invoices_paid:    { fr: "Factures payées (revenus)",         de: "Bezahlte Rechnungen (Einnahmen)" },
     rdv_confirmed:    { fr: "Rendez-vous confirmés",             de: "Bestätigte Termine" },
+    rdv_completed:    { fr: "Rendez-vous terminés",              de: "Abgeschlossene Termine" },
     rdv_pending:      { fr: "Rendez-vous en attente",            de: "Ausstehende Termine" },
     rdv_cancelled:    { fr: "Rendez-vous annulés",               de: "Abgesagte Termine" },
     rdv_all:          { fr: "Tous les rendez-vous",              de: "Alle Termine" },
