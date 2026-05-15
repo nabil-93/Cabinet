@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, Calendar, ClipboardList, CreditCard,
   FileText, BarChart2, Settings, Bot, Clock, ChevronLeft,
-  Stethoscope, LogOut, Shield, UserCog, Activity, X,
+  Stethoscope, LogOut, Shield, UserCog, Activity, X, MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/store";
@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { href: "/prescriptions",labelKey: "sidebar.prescriptions",icon: FileText,        roles: ["admin","doctor"] },
   { href: "/analytics",    labelKey: "sidebar.analytics",    icon: BarChart2,       roles: ["admin","doctor"] },
   { href: "/ai-assistant", labelKey: "sidebar.aiAssistant",  icon: Bot,             roles: ["admin","doctor","assistant"] },
+  { href: "/whatsapp",    labelKey: "sidebar.whatsapp",     icon: MessageCircle,   roles: ["admin","doctor","assistant"] },
   { href: "/team",         labelKey: "sidebar.team",         icon: UserCog,         roles: ["admin"] },
   { href: "/activity",     labelKey: "sidebar.activity",     icon: Activity,        roles: ["admin"] },
 ];

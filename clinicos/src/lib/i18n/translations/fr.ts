@@ -70,6 +70,7 @@ export const fr = {
     prescriptions: "Ordonnances",
     analytics: "Analytique",
     aiAssistant: "Assistant IA",
+    whatsapp: "WhatsApp",
     team: "Équipe",
     activity: "Activité",
     settings: "Paramètres",

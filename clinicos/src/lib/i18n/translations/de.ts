@@ -70,6 +70,7 @@ export const de = {
     prescriptions: "Rezepte",
     analytics: "Analytik",
     aiAssistant: "KI-Assistent",
+    whatsapp: "WhatsApp",
     team: "Team",
     activity: "Aktivität",
     settings: "Einstellungen",
