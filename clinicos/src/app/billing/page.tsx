@@ -724,28 +724,20 @@ export default function BillingPage() {
       <div className="flex-1 overflow-auto custom-scroll p-6 space-y-5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: t("billing.stats.revenue"), value: `${totalRevenue.toLocaleString("fr-MA")} MAD`, icon: TrendingUp, color: "gradient-success",  filter: "paid"   as const, exportKey: "paid"   },
-            { label: t("billing.stats.pending"), value: `${pendingAmount.toLocaleString("fr-MA")} MAD`, icon: Clock,       color: "gradient-warning", filter: "unpaid" as const, exportKey: "unpaid" },
-            { label: t("billing.stats.paid"),    value: paidCount,        icon: CheckCircle, color: "gradient-primary", filter: "paid"   as const, exportKey: "paid"   },
-            { label: t("billing.stats.total"),   value: invoices.length,  icon: FileText,    color: "gradient-purple",  filter: "all"    as const, exportKey: "all"    },
-          ].map(({ label, value, icon: Icon, color, filter, exportKey }) => (
-            <button key={label}
-              onClick={() => {
-                setStatusFilter(filter);
-                const toExport = exportKey === "all" ? invoices : invoices.filter(i => i.status === exportKey);
-                const shortLabel = exportKey === "all" ? "Toutes" : exportKey.charAt(0).toUpperCase() + exportKey.slice(1);
-                exportToExcel(toExport, shortLabel, lang === "de");
-              }}
-              className="bg-card border border-border rounded-xl p-4 flex items-center gap-3 hover:shadow-md hover:border-primary/30 transition-all text-left group cursor-pointer">
+            { label: t("billing.stats.revenue"), value: `${totalRevenue.toLocaleString("fr-MA")} MAD`, icon: TrendingUp, color: "gradient-success",  filter: "paid"   as const },
+            { label: t("billing.stats.pending"), value: `${pendingAmount.toLocaleString("fr-MA")} MAD`, icon: Clock,       color: "gradient-warning", filter: "unpaid" as const },
+            { label: t("billing.stats.paid"),    value: paidCount,        icon: CheckCircle, color: "gradient-primary", filter: "paid"   as const },
+            { label: t("billing.stats.total"),   value: invoices.length,  icon: FileText,    color: "gradient-purple",  filter: "all"    as const },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
               <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", color)}>
                 <Icon className="w-5 h-5 text-white" />
               </div>
-              <div className="flex-1 min-w-0">
+              <div>
                 <p className="text-xs text-muted-foreground">{label}</p>
                 <p className="font-bold text-foreground text-sm">{isLoading ? "—" : value}</p>
-                <p className="text-[10px] text-muted-foreground/60 group-hover:text-emerald-600 transition-colors mt-0.5">↓ Excel</p>
               </div>
-            </button>
+            </div>
           ))}
         </div>
 
