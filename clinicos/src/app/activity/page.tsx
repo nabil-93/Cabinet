@@ -5,7 +5,7 @@ import {
   Activity, LogIn, LogOut, Edit, Trash2, UserPlus, Filter, RefreshCw,
   CalendarPlus, RotateCcw, FileText, CreditCard, ArrowRight, CheckCircle,
   X, ClipboardList, Pill, UserCog, Smartphone, Monitor, Download,
-  Image, MessageCircle, Navigation, ChevronRight, Search, Calendar,
+  Image, MessageCircle, Navigation, ChevronRight, Search, Calendar, ChevronDown,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { formatDistanceToNow, format, startOfDay, startOfWeek, startOfMonth } from "date-fns";
@@ -81,6 +81,7 @@ const ACTION_ICON_MAP: Record<string, { color: string; icon: LucideIcon }> = {
   // ── Navigation ──
   page_view:                 { color: "text-indigo-500",  icon: Navigation },
   navigate:                  { color: "text-indigo-500",  icon: ArrowRight },
+  view_patient:              { color: "text-violet-500",  icon: UserPlus },
   // ── Downloads / Exports ──
   export_excel:              { color: "text-green-500",   icon: Download },
   export_pdf:                { color: "text-green-500",   icon: FileText },
@@ -336,8 +337,42 @@ export default function ActivityPage() {
   const [dateRange,       setDateRange]       = useState("all");
   const [searchQuery,     setSearchQuery]     = useState("");
   const [selectedLog,     setSelectedLog]     = useState<ActivityLog | null>(null);
+  const [showDeleteMenu,  setShowDeleteMenu]  = useState(false);
+  const [deleting,        setDeleting]        = useState(false);
 
   const NAV_ACTIONS = new Set(["page_view", "navigate"]);
+
+  const DELETE_OPTIONS = [
+    { label: lang === "de" ? "Älter als 24 Stunden" : "Plus de 24h",    hours: 24 },
+    { label: lang === "de" ? "Älter als 1 Woche"    : "Plus d'1 semaine", hours: 24 * 7 },
+    { label: lang === "de" ? "Älter als 1 Monat"    : "Plus d'1 mois",   hours: 24 * 30 },
+    { label: lang === "de" ? "Älter als 3 Monate"   : "Plus de 3 mois",  hours: 24 * 90 },
+    { label: lang === "de" ? "Älter als 6 Monate"   : "Plus de 6 mois",  hours: 24 * 180 },
+  ];
+
+  async function handleDelete(hours: number) {
+    setShowDeleteMenu(false);
+    const label = DELETE_OPTIONS.find(o => o.hours === hours)?.label ?? `${hours}h`;
+    const confirm = window.confirm(
+      lang === "de"
+        ? `Aktivitäten löschen die ${label} sind? Diese Aktion kann nicht rückgängig gemacht werden.`
+        : `Supprimer les activités ${label.toLowerCase()} ? Cette action est irréversible.`
+    );
+    if (!confirm) return;
+    setDeleting(true);
+    try {
+      const olderThan = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+      const res = await fetch(`/api/v1/activity?olderThan=${encodeURIComponent(olderThan)}`, { method: "DELETE" });
+      const data = await res.json();
+      const count = data?.data?.deleted ?? data?.deleted ?? 0;
+      await refetch();
+      alert(lang === "de" ? `${count} Einträge gelöscht.` : `${count} entrée(s) supprimée(s).`);
+    } catch {
+      alert(lang === "de" ? "Fehler beim Löschen." : "Erreur lors de la suppression.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   // Build query params for API
   const dateFrom = useMemo(() => getDateFrom(dateRange), [dateRange]);
@@ -389,6 +424,7 @@ export default function ActivityPage() {
     if (label !== key) return label;
     if (action === "page_view")    return "Navigation";
     if (action === "navigate")     return "Navigation";
+    if (action === "view_patient") return lang === "de" ? "Patientenprofil angesehen" : "Profil patient consulté";
     if (action === "export_excel") return "Export Excel";
     if (action === "export_pdf")   return "Export PDF";
     if (action === "export_image") return "Export Image";
@@ -560,8 +596,8 @@ export default function ActivityPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground hidden sm:block">
                 {dataUpdatedAt
                   ? `${t("activity.lastUpdate")} ${formatDistanceToNow(dataUpdatedAt, { addSuffix: true, locale: dateLocale })}`
                   : ""}
@@ -574,6 +610,39 @@ export default function ActivityPage() {
                 <RefreshCw className={cn("w-3.5 h-3.5", isFetching && "animate-spin")} />
                 {t("activity.refresh")}
               </button>
+
+              {/* Delete history */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowDeleteMenu(v => !v)}
+                  disabled={deleting}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-100 dark:hover:bg-red-950/40 transition-all disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {lang === "de" ? "Löschen" : "Supprimer"}
+                  <ChevronDown className={cn("w-3 h-3 transition-transform", showDeleteMenu && "rotate-180")} />
+                </button>
+                {showDeleteMenu && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowDeleteMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-xl shadow-lg overflow-hidden w-52">
+                      <p className="text-[10px] text-muted-foreground px-3 pt-2 pb-1 uppercase tracking-wider font-semibold">
+                        {lang === "de" ? "Einträge löschen älter als:" : "Supprimer les entrées de plus de :"}
+                      </p>
+                      {DELETE_OPTIONS.map(opt => (
+                        <button
+                          key={opt.hours}
+                          onClick={() => handleDelete(opt.hours)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

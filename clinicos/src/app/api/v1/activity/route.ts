@@ -88,3 +88,21 @@ export async function POST(req: NextRequest) {
     return err(e instanceof Error ? e.message : "Erreur serveur", 500);
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const olderThan = req.nextUrl.searchParams.get("olderThan");
+    if (!olderThan) return err("olderThan param required (ISO date)");
+
+    const supabase = await createClient();
+    const { error, count } = await supabase
+      .from("activity_logs")
+      .delete({ count: "exact" })
+      .lt("created_at", olderThan);
+
+    if (error) return err(error.message);
+    return ok({ deleted: count ?? 0 });
+  } catch (e: unknown) {
+    return err(e instanceof Error ? e.message : "Erreur serveur", 500);
+  }
+}

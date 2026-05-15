@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Patient } from "@/types";
 import { useLang } from "@/lib/i18n";
+import { trackPatientView } from "@/lib/client-track";
 import { WhatsAppButton } from "@/components/whatsapp/WhatsAppButton";
 
 type GenderFilter = "all" | "male" | "female";
@@ -242,7 +243,8 @@ export default function PatientsPage() {
                       title={t("common.delete")}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                    <Link href={`/patients/${patient.id}`}>
+                    <Link href={`/patients/${patient.id}`}
+                      onClick={() => trackPatientView(patient.id, patient.fullName, "Liste patients")}>
                       <div className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all">
                         <ChevronRight className="w-3.5 h-3.5" />
                       </div>

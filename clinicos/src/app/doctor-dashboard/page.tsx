@@ -48,6 +48,7 @@ import { usePatient } from "@/hooks/usePatients";
 import { cn } from "@/lib/utils";
 import { getToday } from "@/lib/date-utils";
 import { useLang } from "@/lib/i18n";
+import { trackPatientView } from "@/lib/client-track";
 import { DocTab } from "./DocTab";
 import { BillingTab } from "./BillingTab";
 import { ValuesTab } from "./ValuesTab";
@@ -852,8 +853,12 @@ export default function DoctorDashboardPage() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleSelectPatient = useCallback((id: string) => {
-    setSelectedId(prev => prev === id ? null : id);
+  const handleSelectPatient = useCallback((id: string, name?: string) => {
+    setSelectedId(prev => {
+      if (prev === id) return null;
+      if (name) trackPatientView(id, name, "Dashboard Médecin");
+      return id;
+    });
   }, []);
 
   const role = user?.role === "doctor" ? "Médecin" : user?.role === "admin" ? "Admin Médecin" : user?.role ?? "";
@@ -1037,6 +1042,7 @@ export default function DoctorDashboardPage() {
                         key={p.id}
                         onClick={() => {
                           setSelectedId(p.id);
+                          trackPatientView(p.id, p.fullName, "Dashboard Médecin");
                           setSearchQuery(p.fullName);
                           setSearchOpen(false);
                         }}
@@ -1340,7 +1346,7 @@ export default function DoctorDashboardPage() {
                   return (
                     <button
                       key={apt.id}
-                      onClick={() => handleSelectPatient(apt.patientId)}
+                      onClick={() => handleSelectPatient(apt.patientId, apt.patientName)}
                       className={cn(
                         "w-full flex items-center gap-2 p-2 rounded-xl text-left transition-all",
                         isSelected ? "bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700" : "hover:bg-accent/60 border border-transparent"

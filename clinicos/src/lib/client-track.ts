@@ -96,3 +96,26 @@ export async function trackClick(
 ): Promise<void> {
   await trackActivity("click_" + element, "ui", element, details);
 }
+
+// ─── Patient view tracker ─────────────────────────────────────────────────────
+let _lastPatientId = "";
+let _lastPatientTime = 0;
+const PATIENT_DEDUP_MS = 3000;
+
+export async function trackPatientView(
+  patientId: string,
+  patientName: string,
+  from?: string
+): Promise<void> {
+  const now = Date.now();
+  if (patientId === _lastPatientId && now - _lastPatientTime < PATIENT_DEDUP_MS) return;
+  _lastPatientId = patientId;
+  _lastPatientTime = now;
+
+  await trackActivity(
+    "view_patient",
+    "patient",
+    patientName,
+    { patientId, ...(from ? { from } : {}) }
+  );
+}
