@@ -31,12 +31,16 @@ interface LabReport {
   id: string;
   uploadedAt: string;
   imageName?: string;
-  imageThumb?: string;   // small base64 thumbnail (compressed)
+  imageThumb?: string;   // small base64 (max 400px, 60%) for list
+  imagePreview?: string; // medium base64 (max 1400px, 90%) for lightbox
   labName?: string;
   reportDate?: string;
   summary?: string;
   values: ExtractedValue[];
   medicalReport?: string;
+  // generation options
+  hasGraphs?: boolean;
+  hasReport?: boolean;
 }
 
 interface ValuesTabProps {
@@ -58,23 +62,25 @@ function saveReports(patientId: string, reports: LabReport[]) {
 
 // ─── Image utilities ──────────────────────────────────────────────────────────
 
-/** Compress image to thumbnail (max 500px, 70% quality) */
-async function compressToThumb(dataUrl: string): Promise<string> {
+/** Compress image — maxPx sets the larger dimension, quality 0-1 */
+async function compressImage(dataUrl: string, maxPx: number, quality: number): Promise<string> {
   return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
-      const MAX = 500;
-      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
       const canvas = document.createElement("canvas");
       canvas.width  = Math.round(img.width * scale);
       canvas.height = Math.round(img.height * scale);
       canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/jpeg", 0.7));
+      resolve(canvas.toDataURL("image/jpeg", quality));
     };
     img.onerror = () => resolve("");
     img.src = dataUrl;
   });
 }
+
+const compressToThumb   = (url: string) => compressImage(url, 400,  0.6);
+const compressToPreview = (url: string) => compressImage(url, 1400, 0.9);
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -408,6 +414,106 @@ function ReportCard({ report, isSelected, onClick, onDelete }: {
   );
 }
 
+// ─── Generate Choice Modal ────────────────────────────────────────────────────
+
+function GenerateChoiceModal({ report, onConfirm, onClose }: {
+  report: LabReport;
+  onConfirm: (graphs: boolean, fullReport: boolean) => void;
+  onClose: () => void;
+}) {
+  const [graphs, setGraphs]         = useState(true);
+  const [fullReport, setFullReport] = useState(true);
+  const danger = report.values.filter(v => v.status === "danger").length;
+  const warn   = report.values.filter(v => v.status === "warn").length;
+  const ok     = report.values.filter(v => v.status === "ok").length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-border/60 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Microscope className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Rapport extrait avec succès</h3>
+              <p className="text-[10px] text-muted-foreground">{report.labName ?? report.imageName ?? "Rapport biologique"}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center">
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Extraction summary */}
+        <div className="px-6 py-4 bg-muted/20 border-b border-border/60">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <p className="text-xs font-semibold text-foreground">{report.values.length} valeurs biologiques extraites</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">{ok} normales</span>
+            {warn   > 0 && <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-full">{warn} attention</span>}
+            {danger > 0 && <span className="text-[10px] text-red-600 bg-red-50 dark:bg-red-950/30 px-2 py-0.5 rounded-full">{danger} critiques</span>}
+          </div>
+          {report.summary && <p className="text-[10px] text-muted-foreground mt-2 italic">{report.summary}</p>}
+        </div>
+
+        {/* Options */}
+        <div className="px-6 py-4 space-y-3">
+          <p className="text-xs font-semibold text-foreground mb-2">Que souhaitez-vous générer ?</p>
+
+          <label className={cn(
+            "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
+            graphs ? "bg-primary/5 border-primary/30" : "bg-muted/30 border-border hover:bg-muted/50"
+          )}>
+            <input type="checkbox" checked={graphs} onChange={e => setGraphs(e.target.checked)} className="w-4 h-4 accent-primary" />
+            <div>
+              <p className="text-xs font-semibold text-foreground">Analyse graphique</p>
+              <p className="text-[10px] text-muted-foreground">Donut, histogramme et radar de positionnement</p>
+            </div>
+          </label>
+
+          <label className={cn(
+            "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
+            fullReport ? "bg-primary/5 border-primary/30" : "bg-muted/30 border-border hover:bg-muted/50"
+          )}>
+            <input type="checkbox" checked={fullReport} onChange={e => setFullReport(e.target.checked)} className="w-4 h-4 accent-primary" />
+            <div>
+              <p className="text-xs font-semibold text-foreground">Rapport médical complet</p>
+              <p className="text-[10px] text-muted-foreground">Diagnostic, recommandations, plan de suivi par IA</p>
+            </div>
+          </label>
+
+          {!graphs && !fullReport && (
+            <p className="text-[10px] text-amber-600 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              Sélectionnez au moins une option ou continuez avec les valeurs uniquement.
+            </p>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="px-6 pb-5 flex gap-3">
+          <button
+            onClick={() => onConfirm(graphs, fullReport)}
+            className="flex-1 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
+            <Microscope className="w-4 h-4" />
+            {(!graphs && !fullReport) ? "Enregistrer les valeurs" : "Générer"}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-colors">
+            Annuler
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Upload Zone ──────────────────────────────────────────────────────────────
 
 function UploadZone({ onFile, compact = false }: { onFile: (f: File) => void; compact?: boolean }) {
@@ -443,8 +549,9 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
   const [selectedId, setSelectedId]   = useState<string | null>(() => loadReports(patientId)[0]?.id ?? null);
   const [uploading, setUploading]     = useState(false);
   const [uploadStep, setUploadStep]   = useState<"" | "extracting" | "reporting">("");
-  const [selectedValue, setSelectedValue] = useState<ExtractedValue | null>(null);
-  const [lightboxSrc, setLightboxSrc]     = useState<string | null>(null);
+  const [selectedValue, setSelectedValue]     = useState<ExtractedValue | null>(null);
+  const [lightboxSrc, setLightboxSrc]         = useState<string | null>(null);
+  const [pendingReport, setPendingReport]     = useState<LabReport | null>(null); // waiting for user choice
 
   // Reset when patient changes
   useEffect(() => {
@@ -462,7 +569,7 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
     saveReports(patientId, next);
   }, [patientId]);
 
-  // ── Upload → extract → generate report ────────────────────────────────────
+  // ── Upload → extract → show choice modal ──────────────────────────────────
   const handleFile = useCallback(async (file: File) => {
     setUploading(true);
     setUploadStep("extracting");
@@ -472,12 +579,13 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
       const dataUrl = e.target?.result as string;
       const b64 = dataUrl.split(",")[1];
 
-      // Compress thumbnail for storage
-      const thumb = await compressToThumb(dataUrl).catch(() => "");
+      // Compress both sizes in parallel
+      const [thumb, preview] = await Promise.all([
+        compressToThumb(dataUrl).catch(() => ""),
+        compressToPreview(dataUrl).catch(() => ""),
+      ]);
 
-      let extracted: LabReport | null = null;
       try {
-        // Step 1: Extract values
         const extRes = await fetch("/api/v1/lab-extract", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -486,57 +594,66 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
         const extData = await extRes.json();
         if (!extRes.ok || extData.error) throw new Error(extData.error ?? "Extraction échouée");
 
-        const id = `rep-${Date.now()}`;
-        extracted = {
-          id,
+        const extracted: LabReport = {
+          id: `rep-${Date.now()}`,
           uploadedAt: new Date().toISOString(),
           imageName: file.name,
           imageThumb: thumb,
+          imagePreview: preview,
           labName: extData.labName ?? undefined,
           reportDate: extData.reportDate ?? undefined,
           summary: extData.summary ?? undefined,
           values: extData.values ?? [],
         };
 
-        // Add report immediately (without medicalReport yet)
-        const withExtracted = [extracted, ...loadReports(patientId)];
-        updateAndSave(withExtracted);
-        setSelectedId(id);
-        setUploadStep("reporting");
-
-        // Step 2: Auto-generate medical report
-        const repRes = await fetch("/api/v1/medical-report", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            values: extracted.values,
-            patientName,
-            summary: extracted.summary,
-            reportDate: extracted.reportDate,
-          }),
-        });
-        const repData = await repRes.json();
-        const medicalReport = repData.report ?? undefined;
-
-        // Update with medical report
-        const withReport = withExtracted.map(r =>
-          r.id === id ? { ...r, medicalReport } : r
-        );
-        updateAndSave(withReport);
+        setUploading(false);
+        setUploadStep("");
+        setPendingReport(extracted); // Show choice modal
       } catch (err) {
-        console.error("Upload failed:", err);
-        if (extracted) {
-          const withErr = [extracted, ...loadReports(patientId)];
-          updateAndSave(withErr);
-          setSelectedId(extracted.id);
-        }
-      } finally {
+        console.error("Extraction failed:", err);
         setUploading(false);
         setUploadStep("");
       }
     };
     reader.readAsDataURL(file);
-  }, [patientId, patientName, updateAndSave]);
+  }, []);
+
+  // ── Confirm generation choices ─────────────────────────────────────────────
+  const confirmGenerate = useCallback(async (wantGraphs: boolean, wantReport: boolean) => {
+    if (!pendingReport) return;
+    const report = { ...pendingReport, hasGraphs: wantGraphs, hasReport: wantReport };
+    setPendingReport(null);
+
+    // Save immediately (values are already extracted)
+    const existing = loadReports(patientId);
+    const withNew = [report, ...existing];
+    updateAndSave(withNew);
+    setSelectedId(report.id);
+
+    // Generate medical report if requested
+    if (wantReport) {
+      setUploadStep("reporting");
+      try {
+        const repRes = await fetch("/api/v1/medical-report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            values: report.values,
+            patientName,
+            summary: report.summary,
+            reportDate: report.reportDate,
+          }),
+        });
+        const repData = await repRes.json();
+        const withReport = loadReports(patientId).map(r =>
+          r.id === report.id ? { ...r, medicalReport: repData.report ?? undefined } : r
+        );
+        updateAndSave(withReport);
+      } finally {
+        setUploadStep("");
+      }
+    }
+  }, [pendingReport, patientId, patientName, updateAndSave]);
 
   const deleteReport = useCallback((id: string) => {
     if (!confirm("Supprimer ce rapport ?")) return;
@@ -564,11 +681,14 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
         </div>
 
         {/* Upload zone (compact if has reports) */}
-        {uploading ? (
+        {uploading || uploadStep === "reporting" ? (
           <div className="bg-card border border-border rounded-2xl p-4 text-center space-y-2">
             <Loader2 className="w-6 h-6 text-primary animate-spin mx-auto" />
-            <p className="text-[10px] text-muted-foreground">
-              {uploadStep === "extracting" ? "Extraction des valeurs…" : "Génération du rapport…"}
+            <p className="text-[10px] text-muted-foreground font-medium">
+              {uploadStep === "extracting" ? "Lecture du rapport…" : "Génération du rapport médical…"}
+            </p>
+            <p className="text-[9px] text-muted-foreground">
+              {uploadStep === "extracting" ? "GPT-4o extrait les valeurs biologiques" : "Analyse clinique en cours"}
             </p>
           </div>
         ) : (
@@ -606,7 +726,7 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
               <div className="flex items-start gap-4">
                 {selectedReport.imageThumb && (
                   <button
-                    onClick={() => setLightboxSrc(selectedReport.imageThumb!)}
+                    onClick={() => setLightboxSrc(selectedReport.imagePreview || selectedReport.imageThumb || null)}
                     className="w-16 h-16 rounded-xl overflow-hidden border border-border flex-shrink-0 hover:ring-2 hover:ring-primary transition-all cursor-zoom-in group relative"
                     title="Voir le rapport en grand">
                     <img src={selectedReport.imageThumb} alt="rapport" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -676,8 +796,8 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
               );
             })}
 
-            {/* Charts */}
-            {selectedReport.values.length > 0 && (
+            {/* Charts — only if user chose them (or hasGraphs is undefined = old report) */}
+            {selectedReport.values.length > 0 && selectedReport.hasGraphs !== false && (
               <div className="bg-muted/20 rounded-2xl border border-border/60 p-4 space-y-4">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-primary" />
@@ -697,8 +817,8 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
               </div>
             )}
 
-            {/* Medical report */}
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            {/* Medical report — only if user chose it */}
+            {selectedReport.hasReport !== false && <div className="bg-card border border-border rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary" />
                 <h3 className="text-sm font-semibold text-foreground">Rapport médical complet</h3>
@@ -722,7 +842,7 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
                   Ce rapport est généré par IA à titre indicatif. Il ne remplace pas le jugement clinique du médecin.
                 </p>
               </div>
-            </div>
+            </div>}
           </>
         )}
       </div>
@@ -730,6 +850,15 @@ export function ValuesTab({ patientId, patientName }: ValuesTabProps) {
       {/* Value detail panel */}
       {selectedValue && (
         <DetailPanel v={selectedValue} patientName={patientName} onClose={() => setSelectedValue(null)} />
+      )}
+
+      {/* Generation choice modal */}
+      {pendingReport && (
+        <GenerateChoiceModal
+          report={pendingReport}
+          onConfirm={confirmGenerate}
+          onClose={() => setPendingReport(null)}
+        />
       )}
 
       {/* Image lightbox */}
