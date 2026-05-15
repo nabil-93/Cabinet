@@ -202,7 +202,14 @@ export function WhatsAppModal({ patient, nextApt, onClose, onSent, lang = "fr" }
   const handleOpenWhatsApp = () => {
     if (!isPhoneValid) return;
     const url = buildWhatsAppUrl(phone, countryCode, message);
-    window.open(url, "_blank", "noopener,noreferrer");
+    // Use anchor click to bypass popup blockers
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     setPendingMsg({
       id: `wa-${Date.now()}`,
       patientId: patient.id,
