@@ -302,6 +302,11 @@ const DT = {
     revenue: "Revenus du mois", mad: "MAD", waitingRoomCount: "En salle d'attente",
     patients: "patients", byStatus: "RDV du jour par statut",
     monthlyGoal: "% de l'objectif mensuel",
+    patientStats: "Statistiques du patient", noPatientStats: "Sélectionnez un patient",
+    totalRdv: "Total RDV", paid: "Payé", remaining: "Reste à payer",
+    nextRdv: "Prochain RDV", lastVisit: "Dernière visite", noUpcoming: "Aucun RDV à venir",
+    rdvByStatus: "RDV par statut", filterToday: "Aujourd'hui", filterWeek: "Semaine",
+    filterMonth: "Mois", filterSixMonths: "6 mois",
   },
   de: {
     // Top tabs
@@ -354,6 +359,11 @@ const DT = {
     revenue: "Monatseinnahmen", mad: "MAD", waitingRoomCount: "Im Wartezimmer",
     patients: "Patienten", byStatus: "Termine des Tages nach Status",
     monthlyGoal: "% des Monatsziels",
+    patientStats: "Patientenstatistiken", noPatientStats: "Patient auswählen",
+    totalRdv: "Termine gesamt", paid: "Bezahlt", remaining: "Restbetrag",
+    nextRdv: "Nächster Termin", lastVisit: "Letzter Besuch", noUpcoming: "Kein bevorstehender Termin",
+    rdvByStatus: "Termine nach Status", filterToday: "Heute", filterWeek: "Woche",
+    filterMonth: "Monat", filterSixMonths: "6 Monate",
   },
 };
 type DashLang = typeof DT.fr;
@@ -376,6 +386,246 @@ function LangSwitcher() {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
+
+// ─── Patient Stats Tab ────────────────────────────────────────────────────────
+
+type StatsPeriod = "day" | "week" | "month" | "6months";
+
+function filterByPeriod<T extends { date?: string; createdAt?: string }>(
+  items: T[], period: StatsPeriod
+): T[] {
+  const now = new Date();
+  let cutoff: Date;
+  if (period === "day") {
+    cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (period === "week") {
+    cutoff = new Date(now); cutoff.setDate(now.getDate() - 6);
+  } else if (period === "6months") {
+    cutoff = new Date(now); cutoff.setMonth(now.getMonth() - 6);
+  } else {
+    cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  return items.filter(item => {
+    const d = item.date ?? item.createdAt ?? "";
+    return d >= cutoff.toISOString().slice(0, 10);
+  });
+}
+
+function PatientStatsTab({ effectiveSelectedId, patientApts, consultations, prescriptions, invoices, stats, todayApts, dt, lang }: {
+  effectiveSelectedId: string | null;
+  patientApts: any[];
+  consultations: any[];
+  prescriptions: any[];
+  invoices: any[];
+  stats: any;
+  todayApts: any[];
+  dt: any;
+  lang: string;
+}) {
+  const [period, setPeriod] = useState<StatsPeriod>("month");
+  const isDE = lang === "de";
+
+  const PERIODS: { key: StatsPeriod; label: string }[] = [
+    { key: "day",      label: dt.filterToday },
+    { key: "week",     label: dt.filterWeek },
+    { key: "month",    label: dt.filterMonth },
+    { key: "6months",  label: dt.filterSixMonths },
+  ];
+
+  if (!effectiveSelectedId) {
+    // ── Global stats (no patient selected) ──────────────────────────────────
+    return (
+      <div className="flex-1 overflow-y-auto custom-scroll">
+        <div className="space-y-4">
+          <div className="bg-card border border-border rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">{dt.statsMonth}</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <StatProgressCard label={dt.consultationsCount} value={stats?.completedToday ?? 0} max={30} icon={Stethoscope} color="bg-primary" monthlyGoalLabel={dt.monthlyGoal} />
+              <StatProgressCard label={dt.patientsCount} value={stats?.totalPatients ?? 0} max={100} icon={Users} color="bg-emerald-500" monthlyGoalLabel={dt.monthlyGoal} />
+              <StatProgressCard label={dt.prescriptionsCount} value={prescriptions.length} max={50} icon={Pill} color="bg-amber-500" monthlyGoalLabel={dt.monthlyGoal} />
+              <StatProgressCard label={dt.invoicesCount} value={invoices.length} max={40} icon={CreditCard} color="bg-blue-500" monthlyGoalLabel={dt.monthlyGoal} />
+            </div>
+          </div>
+          <div className="bg-card border border-border rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">{dt.activity}</h3>
+              </div>
+              <Link href="/analytics" className="text-[11px] text-primary hover:underline flex items-center gap-0.5">
+                {dt.analytics} <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: dt.todayApts, value: stats?.todayAppointments ?? 0, unit: dt.appointments, color: "text-primary" },
+                { label: dt.revenue,   value: `${(stats?.monthlyRevenue ?? 0).toLocaleString()}`, unit: dt.mad, color: "text-emerald-600" },
+                { label: dt.waitingRoomCount, value: stats?.waitingRoom ?? 0, unit: dt.patients, color: "text-amber-600" },
+              ].map(({ label, value, unit, color }) => (
+                <div key={label} className="bg-muted/30 rounded-xl p-3 text-center">
+                  <p className={cn("text-2xl font-bold", color)}>{value}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{unit}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium mt-1">{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-card border border-border rounded-2xl p-4">
+            <h3 className="text-xs font-semibold text-foreground mb-3">{dt.byStatus}</h3>
+            <div className="space-y-2">
+              {(["confirmed","completed","pending","cancelled"] as const).map(status => {
+                const count = todayApts.filter((a: any) => a.status === status).length;
+                const pct = todayApts.length > 0 ? Math.round((count / todayApts.length) * 100) : 0;
+                const labels: Record<string, string> = {
+                  confirmed: isDE ? "Bestätigt" : "Confirmé",
+                  completed: isDE ? "Abgeschlossen" : "Terminé",
+                  pending:   isDE ? "Ausstehend" : "En attente",
+                  cancelled: isDE ? "Abgesagt" : "Annulé",
+                };
+                const colors: Record<string, string> = {
+                  confirmed: "bg-emerald-500", completed: "bg-blue-500", pending: "bg-amber-400", cancelled: "bg-red-400"
+                };
+                const bgCls: Record<string, string> = {
+                  confirmed: "bg-emerald-100 text-emerald-700", completed: "bg-blue-100 text-blue-700",
+                  pending: "bg-amber-100 text-amber-700", cancelled: "bg-red-100 text-red-700",
+                };
+                return (
+                  <div key={status} className="flex items-center gap-3">
+                    <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full w-24 text-center flex-shrink-0", bgCls[status])}>{labels[status]}</span>
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      <div className={cn("h-full rounded-full transition-all", colors[status])} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold text-foreground w-6 text-right flex-shrink-0">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Patient-specific stats ─────────────────────────────────────────────────
+  const filteredApts   = filterByPeriod(patientApts, period);
+  const filteredRx     = filterByPeriod(prescriptions.map(p => ({ ...p, date: p.date ?? p.createdAt })), period);
+  const filteredInv    = filterByPeriod(invoices.map(i => ({ ...i, date: i.date })), period);
+
+  const completed  = filteredApts.filter((a: any) => a.status === "completed").length;
+  const confirmed  = filteredApts.filter((a: any) => a.status === "confirmed").length;
+  const pending    = filteredApts.filter((a: any) => a.status === "pending").length;
+  const cancelled  = filteredApts.filter((a: any) => a.status === "cancelled").length;
+  const totalApts  = filteredApts.length;
+
+  const totalPaid  = filteredInv.reduce((s: number, inv: any) => s + (inv.paid ?? 0), 0);
+  const totalRem   = filteredInv.reduce((s: number, inv: any) => s + Math.max(0, (inv.total ?? 0) - (inv.paid ?? 0)), 0);
+
+  const upcoming = patientApts
+    .filter((a: any) => a.status !== "cancelled" && a.date >= new Date().toISOString().slice(0,10))
+    .sort((a: any, b: any) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  const nextApt = upcoming[0];
+
+  const pastApts = patientApts.filter((a: any) => a.status === "completed").sort((a: any, b: any) => b.date.localeCompare(a.date));
+  const lastApt = pastApts[0];
+
+  const aptStatusColors: Record<string, { bg: string; bar: string; label: string }> = {
+    confirmed: { bg: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500", label: isDE ? "Bestätigt" : "Confirmé" },
+    completed: { bg: "bg-blue-100 text-blue-700",       bar: "bg-blue-500",    label: isDE ? "Abgeschlossen" : "Terminé" },
+    pending:   { bg: "bg-amber-100 text-amber-700",     bar: "bg-amber-400",   label: isDE ? "Ausstehend" : "En attente" },
+    cancelled: { bg: "bg-red-100 text-red-700",         bar: "bg-red-400",     label: isDE ? "Abgesagt" : "Annulé" },
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto custom-scroll">
+      <div className="space-y-4">
+
+        {/* Period selector */}
+        <div className="flex gap-1 bg-muted/50 rounded-xl p-1">
+          {PERIODS.map(p => (
+            <button key={p.key} onClick={() => setPeriod(p.key)}
+              className={cn("flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                period === p.key ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 4 stat cards */}
+        <div className="grid grid-cols-2 gap-3">
+          <StatProgressCard label={dt.consultationsCount} value={completed} max={period === "day" ? 10 : period === "week" ? 30 : period === "6months" ? 120 : 50} icon={Stethoscope} color="bg-primary" monthlyGoalLabel={dt.monthlyGoal} />
+          <StatProgressCard label={dt.totalRdv} value={totalApts} max={period === "day" ? 10 : period === "week" ? 30 : period === "6months" ? 120 : 50} icon={Calendar} color="bg-blue-500" monthlyGoalLabel={dt.monthlyGoal} />
+          <StatProgressCard label={dt.prescriptionsCount} value={filteredRx.length} max={period === "day" ? 5 : period === "week" ? 15 : period === "6months" ? 60 : 20} icon={Pill} color="bg-amber-500" monthlyGoalLabel={dt.monthlyGoal} />
+          <StatProgressCard label={dt.invoicesCount} value={filteredInv.length} max={period === "day" ? 5 : period === "week" ? 15 : period === "6months" ? 60 : 20} icon={CreditCard} color="bg-purple-500" monthlyGoalLabel={dt.monthlyGoal} />
+        </div>
+
+        {/* Financial + next RDV */}
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Activity className="w-4 h-4 text-primary" />
+            <h3 className="text-xs font-semibold text-foreground">{dt.activity}</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-3 text-center">
+              <p className="text-xl font-bold text-emerald-600">{totalPaid.toLocaleString("fr-MA")}</p>
+              <p className="text-[10px] text-emerald-600/70 mt-0.5">MAD</p>
+              <p className="text-[10px] text-muted-foreground font-medium mt-1">{dt.paid}</p>
+            </div>
+            <div className={cn("rounded-xl p-3 text-center", totalRem > 0 ? "bg-red-50 dark:bg-red-950/20" : "bg-muted/30")}>
+              <p className={cn("text-xl font-bold", totalRem > 0 ? "text-red-600" : "text-muted-foreground")}>{totalRem.toLocaleString("fr-MA")}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">MAD</p>
+              <p className="text-[10px] text-muted-foreground font-medium mt-1">{dt.remaining}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-muted/30 rounded-xl p-3">
+              <p className="text-[10px] text-muted-foreground font-medium mb-1">{dt.nextRdv}</p>
+              {nextApt ? (
+                <><p className="text-xs font-semibold text-foreground">{nextApt.date} · {nextApt.time}</p>
+                  <p className="text-[10px] text-muted-foreground">{nextApt.type}</p></>
+              ) : (
+                <p className="text-xs text-muted-foreground">{dt.noUpcoming}</p>
+              )}
+            </div>
+            <div className="bg-muted/30 rounded-xl p-3">
+              <p className="text-[10px] text-muted-foreground font-medium mb-1">{dt.lastVisit}</p>
+              {lastApt ? (
+                <><p className="text-xs font-semibold text-foreground">{lastApt.date} · {lastApt.time}</p>
+                  <p className="text-[10px] text-muted-foreground">{lastApt.type}</p></>
+              ) : (
+                <p className="text-xs text-muted-foreground">{dt.noVisits}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* RDV par statut */}
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <h3 className="text-xs font-semibold text-foreground mb-3">{dt.rdvByStatus}</h3>
+          <div className="space-y-2">
+            {(["confirmed","completed","pending","cancelled"] as const).map(status => {
+              const count = { confirmed, completed, pending, cancelled }[status];
+              const pct = totalApts > 0 ? Math.round((count / totalApts) * 100) : 0;
+              const sc = aptStatusColors[status];
+              return (
+                <div key={status} className="flex items-center gap-3">
+                  <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full w-24 text-center flex-shrink-0", sc.bg)}>{sc.label}</span>
+                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                    <div className={cn("h-full rounded-full transition-all", sc.bar)} style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-[10px] font-bold text-foreground w-6 text-right flex-shrink-0">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
 
 // Chat persistence helpers (outside component to avoid re-creation)
 const CHAT_KEY = (id: string) => `clinicos-chat-${id}`;
@@ -1766,76 +2016,17 @@ export default function DoctorDashboardPage() {
 
           {/* ── STATISTIQUES ────────────────────────────────────────────── */}
           {activeTop === "stats" && (
-            <div className="flex-1 overflow-y-auto custom-scroll">
-              <div className="space-y-4">
-                <div className="bg-card border border-border rounded-2xl p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp className="w-4 h-4 text-primary" />
-                    <h3 className="text-sm font-semibold text-foreground">{dt.statsMonth}</h3>
-                  </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <StatProgressCard label={dt.consultationsCount} value={stats?.completedToday ?? 0} max={30} icon={Stethoscope} color="bg-primary" monthlyGoalLabel={dt.monthlyGoal} />
-                    <StatProgressCard label={dt.patientsCount} value={stats?.totalPatients ?? 0} max={100} icon={Users} color="bg-emerald-500" monthlyGoalLabel={dt.monthlyGoal} />
-                    <StatProgressCard label={dt.prescriptionsCount} value={prescriptions.filter(r => r.status === "active").length} max={50} icon={Pill} color="bg-amber-500" monthlyGoalLabel={dt.monthlyGoal} />
-                    <StatProgressCard label={dt.invoicesCount} value={invoices.length} max={40} icon={CreditCard} color="bg-blue-500" monthlyGoalLabel={dt.monthlyGoal} />
-                  </div>
-                </div>
-
-                <div className="bg-card border border-border rounded-2xl p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-primary" />
-                      <h3 className="text-sm font-semibold text-foreground">{dt.activity}</h3>
-                    </div>
-                    <Link href="/analytics" className="text-[11px] text-primary hover:underline flex items-center gap-0.5">
-                      {dt.analytics} <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: dt.todayApts,        value: stats?.todayAppointments ?? 0, unit: dt.appointments, color: "text-primary" },
-                      { label: dt.revenue,          value: `${(stats?.monthlyRevenue ?? 0).toLocaleString()}`, unit: dt.mad, color: "text-emerald-600 dark:text-emerald-400" },
-                      { label: dt.waitingRoomCount, value: stats?.waitingRoom ?? 0, unit: dt.patients, color: "text-amber-600 dark:text-amber-400" },
-                    ].map(({ label, value, unit, color }) => (
-                      <div key={label} className="bg-muted/30 rounded-xl p-3 text-center">
-                        <p className={cn("text-2xl font-bold", color)}>{value}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{unit}</p>
-                        <p className="text-[10px] text-muted-foreground font-medium mt-1">{label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-card border border-border rounded-2xl p-4">
-                  <h3 className="text-xs font-semibold text-foreground mb-3">{dt.byStatus}</h3>
-                  <div className="space-y-2">
-                    {(["confirmed", "completed", "pending", "cancelled"] as const).map(status => {
-                      const count = todayApts.filter(a => a.status === status).length;
-                      const sc = STATUS_CONFIG[status];
-                      const pct = todayApts.length > 0 ? Math.round((count / todayApts.length) * 100) : 0;
-                      return (
-                        <div key={status} className="flex items-center gap-3">
-                          <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full w-20 text-center flex-shrink-0", sc.className)}>
-                            {sc.label}
-                          </span>
-                          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className={cn("h-full rounded-full transition-all",
-                                status === "confirmed" ? "bg-emerald-500" :
-                                status === "completed" ? "bg-blue-500" :
-                                status === "pending"   ? "bg-amber-400" : "bg-red-400"
-                              )}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] font-bold text-foreground w-6 text-right flex-shrink-0">{count}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <PatientStatsTab
+              effectiveSelectedId={effectiveSelectedId}
+              patientApts={patientApts}
+              consultations={consultations}
+              prescriptions={prescriptions}
+              invoices={invoices}
+              stats={stats}
+              todayApts={todayApts}
+              dt={dt}
+              lang={lang}
+            />
           )}
 
         </div>

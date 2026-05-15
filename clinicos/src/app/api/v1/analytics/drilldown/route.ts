@@ -18,7 +18,11 @@ function getDateRange(period: string) {
     monday.setDate(now.getDate() + diff);
     return { from: formatDate(monday), to: today };
   }
-
+  if (period === "6months") {
+    const sixAgo = new Date(now);
+    sixAgo.setMonth(sixAgo.getMonth() - 6);
+    return { from: formatDate(sixAgo), to: today };
+  }
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
   return { from: monthStart, to: today };
 }

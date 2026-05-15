@@ -24,7 +24,7 @@ const ResponsiveContainer = dynamic(() => import("recharts").then(m => ({ defaul
 const GenderPieChart = dynamic(() => import("@/components/charts/GenderPieChart"), { ssr: false });
 const ConsultationTypesChart = dynamic(() => import("@/components/charts/ConsultationTypesChart"), { ssr: false });
 
-type StatPeriod = "day" | "week" | "month";
+type StatPeriod = "day" | "week" | "month" | "6months";
 
 type DrillType = "consultations" | "patients" | "prescriptions" | "invoices" | "invoices_unpaid" | "invoices_partial" | "invoices_paid" | "rdv_confirmed" | "rdv_completed" | "rdv_pending" | "rdv_cancelled" | "rdv_all";
 
@@ -341,9 +341,10 @@ export default function AnalyticsPage() {
   const kpi = analytics?.kpi;
 
   const STAT_PERIODS: { key: StatPeriod; label: string; labelDE: string }[] = [
-    { key: "day",   label: "Aujourd'hui",   labelDE: "Heute" },
-    { key: "week",  label: "Cette semaine", labelDE: "Diese Woche" },
-    { key: "month", label: "Ce mois",       labelDE: "Dieser Monat" },
+    { key: "day",      label: "Aujourd'hui",   labelDE: "Heute" },
+    { key: "week",     label: "Cette semaine", labelDE: "Diese Woche" },
+    { key: "month",    label: "Ce mois",       labelDE: "Dieser Monat" },
+    { key: "6months",  label: "6 mois",        labelDE: "6 Monate" },
   ];
 
   const BY_STATUS_BARS = [
@@ -401,10 +402,15 @@ export default function AnalyticsPage() {
           ) : (
             <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <StatCard label={isDE ? "Konsultationen" : "Consultations"} value={summary?.consultations ?? 0} max={statPeriod === "day" ? 30 : statPeriod === "week" ? 150 : 500} icon={Stethoscope} color="bg-primary" isDE={isDE} onClick={() => setDrillType("consultations")} />
-                <StatCard label={isDE ? "Behandelte Patienten" : "Patients traités"} value={summary?.patients ?? 0} max={statPeriod === "day" ? 30 : statPeriod === "week" ? 150 : 500} icon={Users} color="bg-emerald-500" isDE={isDE} onClick={() => setDrillType("patients")} />
-                <StatCard label={isDE ? "Rezepte" : "Ordonnances"} value={summary?.prescriptions ?? 0} max={statPeriod === "day" ? 20 : statPeriod === "week" ? 100 : 300} icon={FileText} color="bg-amber-500" isDE={isDE} onClick={() => setDrillType("prescriptions")} />
-                <StatCard label={isDE ? "Rechnungen" : "Factures"} value={summary?.invoices ?? 0} max={statPeriod === "day" ? 20 : statPeriod === "week" ? 100 : 300} icon={CreditCard} color="bg-purple-500" isDE={isDE} onClick={() => setDrillType("invoices")} />
+                {(() => {
+                  const m = { day: [30,20], week: [150,100], month: [500,300], "6months": [2000,1000] }[statPeriod] ?? [500,300];
+                  return (<>
+                    <StatCard label={isDE ? "Konsultationen" : "Consultations"} value={summary?.consultations ?? 0} max={m[0]} icon={Stethoscope} color="bg-primary" isDE={isDE} onClick={() => setDrillType("consultations")} />
+                    <StatCard label={isDE ? "Behandelte Patienten" : "Patients traités"} value={summary?.patients ?? 0} max={m[0]} icon={Users} color="bg-emerald-500" isDE={isDE} onClick={() => setDrillType("patients")} />
+                    <StatCard label={isDE ? "Rezepte" : "Ordonnances"} value={summary?.prescriptions ?? 0} max={m[1]} icon={FileText} color="bg-amber-500" isDE={isDE} onClick={() => setDrillType("prescriptions")} />
+                    <StatCard label={isDE ? "Rechnungen" : "Factures"} value={summary?.invoices ?? 0} max={m[1]} icon={CreditCard} color="bg-purple-500" isDE={isDE} onClick={() => setDrillType("invoices")} />
+                  </>);
+                })()}
               </div>
 
               {/* Unpaid / Partial invoice cards */}
