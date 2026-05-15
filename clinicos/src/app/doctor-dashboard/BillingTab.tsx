@@ -13,6 +13,40 @@ import api from "@/services/api";
 import { cn } from "@/lib/utils";
 import { getToday } from "@/lib/date-utils";
 
+// ─── Translations ─────────────────────────────────────────────────────────────
+
+const BTrans = {
+  fr: {
+    title: "Facturation", invoicesOf: "Factures de", invoices: "factures", invoice: "facture",
+    newInvoice: "Nouvelle facture", totalBilled: "Total facturé", paid: "Payé", remaining: "Restant dû",
+    noInvoice: "Aucune facture pour ce patient",
+    pay: "Encaisser", completePay: "Compléter paiement", edit: "Modifier", delete: "Supprimer",
+    items: "Prestations", newItem: "Nouvelle prestation...", add: "Ajouter", save: "Enregistrer",
+    cancel: "Annuler", notes: "Notes", remarks: "Remarques...", total: "Total:",
+    createInvoice: "Créer la facture", editInvoice: "Enregistrer",
+    progressBar: "reste", deleteConfirm: "Supprimer cette facture ?",
+    payTitle: "Enregistrer un paiement", invoice2: "Facture:", totalLabel: "Total:",
+    alreadyPaid: "Déjà payé:", remainingLabel: "Restant:", amountLabel: "Montant à encaisser (MAD)",
+    fullBalance: "Solde total", collect: "Encaisser",
+    status: { paid: "Payée", partial: "Partiel", unpaid: "Non payée", pending: "En attente", overdue: "En retard", refunded: "Remboursée" },
+  },
+  de: {
+    title: "Abrechnung", invoicesOf: "Rechnungen von", invoices: "Rechnungen", invoice: "Rechnung",
+    newInvoice: "Neue Rechnung", totalBilled: "Gesamtrechnung", paid: "Bezahlt", remaining: "Restbetrag",
+    noInvoice: "Keine Rechnung für diesen Patienten",
+    pay: "Kassieren", completePay: "Zahlung vervollständigen", edit: "Bearbeiten", delete: "Löschen",
+    items: "Leistungen", newItem: "Neue Leistung...", add: "Hinzufügen", save: "Speichern",
+    cancel: "Abbrechen", notes: "Notizen", remarks: "Bemerkungen...", total: "Gesamt:",
+    createInvoice: "Rechnung erstellen", editInvoice: "Speichern",
+    progressBar: "verbleibend", deleteConfirm: "Diese Rechnung löschen?",
+    payTitle: "Zahlung erfassen", invoice2: "Rechnung:", totalLabel: "Gesamt:",
+    alreadyPaid: "Bereits bezahlt:", remainingLabel: "Verbleibend:", amountLabel: "Zu kassierender Betrag (MAD)",
+    fullBalance: "Gesamtbetrag", collect: "Kassieren",
+    status: { paid: "Bezahlt", partial: "Teilweise", unpaid: "Unbezahlt", pending: "Ausstehend", overdue: "Überfällig", refunded: "Erstattet" },
+  },
+};
+type BTransLang = (typeof BTrans)[keyof typeof BTrans];
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface InvoiceItem {
@@ -41,27 +75,29 @@ interface BillingTabProps {
   patientName?: string;
   invoices: Invoice[];
   dateLocale: Locale;
+  lang?: "fr" | "de";
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; className: string; icon: React.ElementType }> = {
-  paid:     { label: "Payée",       className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300", icon: CheckCircle2 },
-  partial:  { label: "Partiel",     className: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",           icon: Clock },
-  unpaid:   { label: "Non payée",   className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",       icon: AlertCircle },
-  pending:  { label: "En attente",  className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",       icon: Clock },
-  overdue:  { label: "En retard",   className: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",               icon: AlertCircle },
-  refunded: { label: "Remboursée",  className: "bg-muted text-muted-foreground",                                          icon: ChevronDown },
-};
+const getStatusConfig = (bt: BTransLang): Record<string, { label: string; className: string; icon: React.ElementType }> => ({
+  paid:     { label: bt.status.paid,     className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300", icon: CheckCircle2 },
+  partial:  { label: bt.status.partial,  className: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",           icon: Clock },
+  unpaid:   { label: bt.status.unpaid,   className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",       icon: AlertCircle },
+  pending:  { label: bt.status.pending,  className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",       icon: Clock },
+  overdue:  { label: bt.status.overdue,  className: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",               icon: AlertCircle },
+  refunded: { label: bt.status.refunded, className: "bg-muted text-muted-foreground",                                          icon: ChevronDown },
+});
 
 // ─── Invoice Form ──────────────────────────────────────────────────────────────
 
-function InvoiceForm({ initial, patientName, onSubmit, onCancel, loading }: {
+function InvoiceForm({ initial, patientName, onSubmit, onCancel, loading, bt }: {
   initial?: Partial<Invoice>;
   patientName?: string;
   onSubmit: (data: { total: number; notes: string; date: string; items: InvoiceItem[] }) => void;
   onCancel: () => void;
   loading: boolean;
+  bt: BTransLang;
 }) {
   const [date, setDate]   = useState(initial?.date ?? getToday());
   const [notes, setNotes] = useState(initial?.notes ?? "");
@@ -106,7 +142,7 @@ function InvoiceForm({ initial, patientName, onSubmit, onCancel, loading }: {
 
       {/* Items */}
       <div>
-        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-2">Prestations</label>
+        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-2">{bt.items}</label>
         <div className="space-y-2 mb-3">
           {items.map((item, i) => (
             <div key={i} className="flex items-center gap-2 bg-card border border-border rounded-lg p-2">
@@ -125,7 +161,7 @@ function InvoiceForm({ initial, patientName, onSubmit, onCancel, loading }: {
 
         {/* Add item row */}
         <div className="flex items-center gap-2 bg-card border border-dashed border-border rounded-lg p-2">
-          <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Nouvelle prestation..."
+          <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder={bt.newItem}
             className="flex-1 min-w-0 bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none" />
           <input type="number" value={newQty} onChange={e => setNewQty(Number(e.target.value))} min={1}
             className="w-12 bg-muted/50 rounded px-1.5 py-0.5 text-xs text-foreground text-center focus:outline-none" />
@@ -134,29 +170,29 @@ function InvoiceForm({ initial, patientName, onSubmit, onCancel, loading }: {
             className="w-16 bg-muted/50 rounded px-1.5 py-0.5 text-xs text-foreground text-center focus:outline-none" />
           <button onClick={addItem} disabled={!newDesc.trim()}
             className="flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-lg disabled:opacity-40 transition-colors flex-shrink-0">
-            <Plus className="w-3 h-3" /> Ajouter
+            <Plus className="w-3 h-3" /> {bt.add}
           </button>
         </div>
       </div>
 
       {/* Notes */}
       <div>
-        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Notes</label>
-        <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Remarques..."
+        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{bt.notes}</label>
+        <input value={notes} onChange={e => setNotes(e.target.value)} placeholder={bt.remarks}
           className="w-full px-2.5 py-1.5 rounded-lg bg-card border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
       </div>
 
       {/* Total */}
       <div className="flex items-center justify-between pt-2 border-t border-border/60">
-        <span className="text-sm font-bold text-foreground">Total: {total.toLocaleString()} MAD</span>
+        <span className="text-sm font-bold text-foreground">{bt.total} {total.toLocaleString()} MAD</span>
         <div className="flex gap-2">
           <button onClick={() => onSubmit({ total, notes, date, items })} disabled={loading || items.length === 0}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-40 transition-colors">
             {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-            {initial?.id ? "Enregistrer" : "Créer la facture"}
+            {initial?.id ? bt.editInvoice : bt.createInvoice}
           </button>
           <button onClick={onCancel} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors">
-            Annuler
+            {bt.cancel}
           </button>
         </div>
       </div>
@@ -166,11 +202,12 @@ function InvoiceForm({ initial, patientName, onSubmit, onCancel, loading }: {
 
 // ─── Payment Modal ─────────────────────────────────────────────────────────────
 
-function PayModal({ invoice, onClose, onPay, loading }: {
+function PayModal({ invoice, onClose, onPay, loading, bt }: {
   invoice: Invoice;
   onClose: () => void;
   onPay: (amount: number) => void;
   loading: boolean;
+  bt: BTransLang;
 }) {
   const remaining = (invoice.total ?? 0) - (invoice.paid ?? 0);
   const [amount, setAmount] = useState(remaining);
@@ -180,20 +217,20 @@ function PayModal({ invoice, onClose, onPay, loading }: {
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-foreground">Enregistrer un paiement</h3>
+          <h3 className="text-sm font-bold text-foreground">{bt.payTitle}</h3>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center">
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
         <div className="space-y-1 text-xs text-muted-foreground">
-          <p>Facture: <span className="font-mono text-foreground">#{invoice.invoiceNumber}</span></p>
-          <p>Total: <span className="font-semibold text-foreground">{(invoice.total ?? 0).toLocaleString()} MAD</span></p>
-          <p>Déjà payé: <span className="font-semibold text-emerald-600">{(invoice.paid ?? 0).toLocaleString()} MAD</span></p>
-          <p>Restant: <span className="font-semibold text-amber-600">{remaining.toLocaleString()} MAD</span></p>
+          <p>{bt.invoice2} <span className="font-mono text-foreground">#{invoice.invoiceNumber}</span></p>
+          <p>{bt.totalLabel} <span className="font-semibold text-foreground">{(invoice.total ?? 0).toLocaleString()} MAD</span></p>
+          <p>{bt.alreadyPaid} <span className="font-semibold text-emerald-600">{(invoice.paid ?? 0).toLocaleString()} MAD</span></p>
+          <p>{bt.remainingLabel} <span className="font-semibold text-amber-600">{remaining.toLocaleString()} MAD</span></p>
         </div>
         <div>
           <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
-            Montant à encaisser (MAD)
+            {bt.amountLabel}
           </label>
           <div className="flex gap-2">
             <input
@@ -207,7 +244,7 @@ function PayModal({ invoice, onClose, onPay, loading }: {
             <button
               onClick={() => setAmount(remaining)}
               className="px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-100 transition-colors border border-emerald-200 dark:border-emerald-800">
-              Solde total
+              {bt.fullBalance}
             </button>
           </div>
         </div>
@@ -217,7 +254,7 @@ function PayModal({ invoice, onClose, onPay, loading }: {
             disabled={loading || amount <= 0 || amount > remaining}
             className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl disabled:opacity-40 transition-colors">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-            Encaisser {amount > 0 ? `${amount.toLocaleString()} MAD` : ""}
+            {bt.collect} {amount > 0 ? `${amount.toLocaleString()} MAD` : ""}
           </button>
         </div>
       </div>
@@ -227,7 +264,9 @@ function PayModal({ invoice, onClose, onPay, loading }: {
 
 // ─── Main BillingTab ──────────────────────────────────────────────────────────
 
-export function BillingTab({ patientId, patientName, invoices, dateLocale }: BillingTabProps) {
+export function BillingTab({ patientId, patientName, invoices, dateLocale, lang = "fr" }: BillingTabProps) {
+  const bt: BTransLang = BTrans[lang];
+  const STATUS_CONFIG = getStatusConfig(bt);
   const qc = useQueryClient();
 
   const [showNewInvoice, setShowNewInvoice] = useState(false);
@@ -268,7 +307,7 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
   };
 
   const deleteInvoice = async (id: string) => {
-    if (!confirm("Supprimer cette facture ?")) return;
+    if (!confirm(bt.deleteConfirm)) return;
     setDeletingId(id);
     try {
       await api.delete(`/invoices/${id}`);
@@ -303,10 +342,10 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
       {/* Header */}
       <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Facturation</h3>
+          <h3 className="text-sm font-semibold text-foreground">{bt.title}</h3>
           <p className="text-[10px] text-muted-foreground mt-0.5">
-            {patientName ? `Factures de ${patientName}` : "Factures du patient"}
-            {" · "}{invoices.length} facture{invoices.length !== 1 ? "s" : ""}
+            {patientName ? `${bt.invoicesOf} ${patientName}` : bt.invoicesOf}
+            {" · "}{invoices.length} {invoices.length !== 1 ? bt.invoices : bt.invoice}
           </p>
         </div>
         <button
@@ -316,7 +355,7 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
             showNewInvoice ? "bg-muted text-foreground" : "bg-primary/10 text-primary hover:bg-primary/20"
           )}>
           {showNewInvoice ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-          {showNewInvoice ? "Annuler" : "Nouvelle facture"}
+          {showNewInvoice ? bt.cancel : bt.newInvoice}
         </button>
       </div>
 
@@ -328,6 +367,7 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
             onSubmit={createInvoice}
             onCancel={() => setShowNewInvoice(false)}
             loading={createLoading}
+            bt={bt}
           />
         </div>
       )}
@@ -336,9 +376,9 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
       {invoices.length > 0 && (
         <div className="px-4 py-3 bg-muted/20 border-b border-border/60 grid grid-cols-3 gap-3">
           {[
-            { label: "Total facturé", value: totalBilled,  color: "text-foreground" },
-            { label: "Payé",          value: totalPaid,    color: "text-emerald-600 dark:text-emerald-400" },
-            { label: "Restant dû",    value: totalRemain,  color: totalRemain > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400" },
+            { label: bt.totalBilled, value: totalBilled,  color: "text-foreground" },
+            { label: bt.paid,        value: totalPaid,    color: "text-emerald-600 dark:text-emerald-400" },
+            { label: bt.remaining,   value: totalRemain,  color: totalRemain > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400" },
           ].map(({ label, value, color }) => (
             <div key={label} className="text-center">
               <p className={cn("text-base font-bold", color)}>{value.toLocaleString()} MAD</p>
@@ -352,7 +392,7 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
       {invoices.length === 0 && !showNewInvoice ? (
         <div className="py-12 text-center">
           <CreditCard className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm font-medium text-muted-foreground">Aucune facture pour ce patient</p>
+          <p className="text-sm font-medium text-muted-foreground">{bt.noInvoice}</p>
         </div>
       ) : (
         <div className="divide-y divide-border/40">
@@ -372,6 +412,7 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
                     onSubmit={(data) => updateInvoice(inv.id, data)}
                     onCancel={() => setEditingId(null)}
                     loading={editLoading}
+                    bt={bt}
                   />
                 </div>
               );
@@ -417,7 +458,7 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-bold text-foreground">{(inv.total ?? 0).toLocaleString()} MAD</p>
                     {remaining > 0 && remaining !== (inv.total ?? 0) && (
-                      <p className="text-[10px] text-amber-600 dark:text-amber-400">reste {remaining.toLocaleString()} MAD</p>
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400">{bt.progressBar} {remaining.toLocaleString()} MAD</p>
                     )}
                   </div>
                 </div>
@@ -431,7 +472,7 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
                         onClick={() => setPayingInvoice(inv)}
                         className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-lg transition-colors">
                         <CheckCircle2 className="w-3 h-3" />
-                        {inv.paid && inv.paid > 0 ? "Compléter paiement" : "Encaisser"}
+                        {inv.paid && inv.paid > 0 ? bt.completePay : bt.pay}
                       </button>
                     </>
                   )}
@@ -439,7 +480,7 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
                   <button
                     onClick={() => { setEditingId(inv.id); setShowNewInvoice(false); }}
                     className="flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/5 hover:bg-primary/15 border border-primary/20 px-2.5 py-1 rounded-lg transition-colors">
-                    <Edit2 className="w-3 h-3" /> Modifier
+                    <Edit2 className="w-3 h-3" /> {bt.edit}
                   </button>
                   {/* Delete */}
                   <button
@@ -447,7 +488,7 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
                     disabled={deletingId === inv.id}
                     className="flex items-center gap-1 text-[10px] font-semibold text-red-500 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50">
                     {deletingId === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                    Supprimer
+                    {bt.delete}
                   </button>
                 </div>
               </div>
@@ -463,6 +504,7 @@ export function BillingTab({ patientId, patientName, invoices, dateLocale }: Bil
           onClose={() => setPayingInvoice(null)}
           onPay={(amount) => payInvoice(payingInvoice, amount)}
           loading={payLoading}
+          bt={bt}
         />
       )}
     </div>

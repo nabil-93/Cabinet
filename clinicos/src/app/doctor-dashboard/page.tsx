@@ -139,12 +139,12 @@ interface ChatMessage {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG = {
-  confirmed: { label: "Confirmé",   className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
-  pending:   { label: "En attente", className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
-  cancelled: { label: "Annulé",     className: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300" },
-  completed: { label: "Terminé",    className: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300" },
-};
+const getStatusConfig = (lang: "fr" | "de") => ({
+  confirmed: { label: lang === "de" ? "Bestätigt"      : "Confirmé",   className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
+  pending:   { label: lang === "de" ? "Ausstehend"     : "En attente", className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
+  cancelled: { label: lang === "de" ? "Abgesagt"       : "Annulé",     className: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300" },
+  completed: { label: lang === "de" ? "Abgeschlossen"  : "Terminé",    className: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300" },
+});
 
 const INVOICE_STATUS: Record<string, { label: string; className: string }> = {
   paid:    { label: "Payée",      className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
@@ -389,6 +389,7 @@ export default function DoctorDashboardPage() {
   const { user } = useAuth();
   const { lang } = useLang();
   const dt: DashLang = DT[lang];
+  const STATUS_CONFIG = getStatusConfig(lang);
   const today = getToday();
   const dateLocale = lang === "de" ? de : fr;
   const queryClient = useQueryClient();
@@ -1203,10 +1204,10 @@ export default function DoctorDashboardPage() {
                                       "text-[9px] font-semibold px-1.5 py-0.5 rounded-lg border cursor-pointer focus:outline-none transition-colors flex-shrink-0",
                                       sc.className
                                     )}>
-                                    <option value="pending">En attente</option>
-                                    <option value="confirmed">Confirmé</option>
-                                    <option value="completed">Terminé</option>
-                                    <option value="cancelled">Annulé</option>
+                                    <option value="pending">{lang === "de" ? "Ausstehend" : "En attente"}</option>
+                                    <option value="confirmed">{lang === "de" ? "Bestätigt" : "Confirmé"}</option>
+                                    <option value="completed">{lang === "de" ? "Abgeschlossen" : "Terminé"}</option>
+                                    <option value="cancelled">{lang === "de" ? "Abgesagt" : "Annulé"}</option>
                                   </select>
                                 </div>
                               );
@@ -1312,8 +1313,8 @@ export default function DoctorDashboardPage() {
                                         <div className="flex items-center gap-2 mt-0.5">
                                           <p className="text-[10px] text-muted-foreground">{apt.time} · {apt.type}</p>
                                           <span className="text-[9px] text-primary font-medium">
-                                            {aptConsultations.length > 0 && "• Rapport"}
-                                            {aptPrescriptions.length > 0 && " • Ordonnance"}
+                                            {aptConsultations.length > 0 && (lang === "de" ? "• Bericht" : "• Rapport")}
+                                            {aptPrescriptions.length > 0 && (lang === "de" ? " • Rezept" : " • Ordonnance")}
                                           </span>
                                         </div>
                                       </div>
@@ -1352,14 +1353,14 @@ export default function DoctorDashboardPage() {
                                           </div>
                                           {c.treatment && (
                                             <p className="text-[10px] text-muted-foreground">
-                                              <span className="font-medium">Traitement:</span> {c.treatment}
+                                              <span className="font-medium">{lang === "de" ? "Behandlung:" : "Traitement:"}</span> {c.treatment}
                                             </p>
                                           )}
                                           {c.notes && <p className="text-[10px] text-muted-foreground/70 italic">{c.notes}</p>}
                                           {c.nextVisit && (
                                             <p className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                                               <Calendar className="w-2.5 h-2.5" />
-                                              Prochain RDV: {format(new Date(c.nextVisit), "d MMM yyyy", { locale: dateLocale })}
+                                              {lang === "de" ? "Nächster Termin:" : "Prochain RDV:"} {format(new Date(c.nextVisit), "d MMM yyyy", { locale: dateLocale })}
                                             </p>
                                           )}
                                         </div>
@@ -1411,6 +1412,7 @@ export default function DoctorDashboardPage() {
                     consultations={consultations}
                     prescriptions={prescriptions}
                     dateLocale={dateLocale}
+                    lang={lang}
                   />
                 )}
 
@@ -1459,20 +1461,34 @@ export default function DoctorDashboardPage() {
                             <Bot className="w-6 h-6 text-primary" />
                           </div>
                           <div className="text-center">
-                            <p className="text-sm font-medium text-foreground">Comment puis-je vous aider ?</p>
+                            <p className="text-sm font-medium text-foreground">{lang === "de" ? "Wie kann ich Ihnen helfen?" : "Comment puis-je vous aider ?"}</p>
                             {selectedPatient && (
                               <p className="text-[11px] text-muted-foreground mt-1">
-                                Je connais le dossier de <span className="font-medium text-primary">{selectedPatient.fullName}</span>
+                                {lang === "de" ? `Ich kenne die Akte von` : `Je connais le dossier de`} <span className="font-medium text-primary">{selectedPatient.fullName}</span>
                               </p>
                             )}
                           </div>
                           <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
                             {(selectedPatient
+                              ? lang === "de"
+                                ? [
+                                    `Fasse die Akte von ${selectedPatient.fullName} zusammen`,
+                                    "Wechselwirkungen zwischen Medikamenten prüfen",
+                                    "Weitere Untersuchungen vorschlagen",
+                                    "Gibt es Risiken zu melden?",
+                                  ]
+                                : [
+                                    `Résume le dossier de ${selectedPatient.fullName}`,
+                                    "Vérifier les interactions médicamenteuses",
+                                    "Suggérer des examens complémentaires",
+                                    "Y a-t-il des risques à signaler ?",
+                                  ]
+                              : lang === "de"
                               ? [
-                                  `Résume le dossier de ${selectedPatient.fullName}`,
-                                  "Vérifier les interactions médicamenteuses",
-                                  "Suggérer des examens complémentaires",
-                                  "Y a-t-il des risques à signaler ?",
+                                  "Wie viele Patienten heute?",
+                                  "Stand des Wartezimmers",
+                                  "Monatseinnahmen",
+                                  "Letzte Konsultationen",
                                 ]
                               : [
                                   "Combien de patients aujourd'hui ?",
@@ -1568,6 +1584,7 @@ export default function DoctorDashboardPage() {
                     patientName={selectedPatient?.fullName}
                     invoices={invoices}
                     dateLocale={dateLocale}
+                    lang={lang}
                   />
                 )}
 

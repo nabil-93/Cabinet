@@ -13,6 +13,58 @@ import api from "@/services/api";
 import { cn } from "@/lib/utils";
 import { getToday } from "@/lib/date-utils";
 
+// ─── Translations ─────────────────────────────────────────────────────────────
+
+const DTab = {
+  fr: {
+    criticalData: "Données médicales critiques", allergies: "Allergies", antecedents: "Antécédents médicaux",
+    none: "Aucun", addAllergy: "Ajouter une allergie...", addAntecedent: "Ajouter un antécédent...",
+    bloodType: "Groupe sanguin:", save: "Enregistrer",
+    consultations: "Consultations", reports: "rapport", newReport: "Nouveau rapport",
+    date: "Date", nextApt: "Prochain RDV", diagnosis: "Diagnostic *", treatment: "Traitement",
+    notes: "Notes", observations: "Observations, remarques...", create: "Créer le rapport",
+    editSave: "Enregistrer", cancel: "Annuler", noConsult: "Aucune consultation enregistrée",
+    prescriptions: "Ordonnances", ordonnances: "ordonnance", newPrescription: "Nouvelle ordonnance",
+    addMed: "Ajouter un médicament", medName: "Nom *", dosage: "Posologie (ex: 1g)",
+    duration: "Durée (ex: 7 jours)", instructions: "Instructions (ex: après repas)",
+    addMedBtn: "Ajouter ce médicament", motive: "Motif / Diagnostic",
+    motivePlaceholder: "Ex: Angine, Infection respiratoire...", notesLabel: "Notes",
+    createPrescription: "Créer l'ordonnance", noPrescription: "Aucune ordonnance",
+    active: "Active", expired: "Expirée", motive2: "Motif:", prescribedOn: "Prescrit le",
+    files: "Fichiers", file: "fichier", uploadClick: "Cliquer pour uploader un fichier",
+    uploadDesc: "PDF, images, documents · max 10 Mo", uploading: "Envoi en cours...",
+    noFiles: "Aucun fichier uploadé", download: "Télécharger",
+    deleteConsultConfirm: "Supprimer ce rapport de consultation ?",
+    deletePrescConfirm: "Supprimer cette ordonnance ?",
+    deleteFileConfirm: "Supprimer ce fichier ?",
+    cancelNewConsult: "Annuler", cancelNewRx: "Annuler",
+  },
+  de: {
+    criticalData: "Kritische medizinische Daten", allergies: "Allergien", antecedents: "Krankenvorgeschichte",
+    none: "Keine", addAllergy: "Allergie hinzufügen...", addAntecedent: "Vorerkrankung hinzufügen...",
+    bloodType: "Blutgruppe:", save: "Speichern",
+    consultations: "Konsultationen", reports: "Bericht", newReport: "Neuer Bericht",
+    date: "Datum", nextApt: "Nächster Termin", diagnosis: "Diagnose *", treatment: "Behandlung",
+    notes: "Notizen", observations: "Beobachtungen, Bemerkungen...", create: "Bericht erstellen",
+    editSave: "Speichern", cancel: "Abbrechen", noConsult: "Keine Konsultation eingetragen",
+    prescriptions: "Rezepte", ordonnances: "Rezept", newPrescription: "Neues Rezept",
+    addMed: "Medikament hinzufügen", medName: "Name *", dosage: "Dosierung (z.B. 1g)",
+    duration: "Dauer (z.B. 7 Tage)", instructions: "Anweisungen (z.B. nach den Mahlzeiten)",
+    addMedBtn: "Dieses Medikament hinzufügen", motive: "Motiv / Diagnose",
+    motivePlaceholder: "z.B. Angina, Atemwegsinfektion...", notesLabel: "Notizen",
+    createPrescription: "Rezept erstellen", noPrescription: "Kein Rezept vorhanden",
+    active: "Aktiv", expired: "Abgelaufen", motive2: "Motiv:", prescribedOn: "Verschrieben am",
+    files: "Dateien", file: "Datei", uploadClick: "Klicken Sie zum Hochladen einer Datei",
+    uploadDesc: "PDF, Bilder, Dokumente · max 10 MB", uploading: "Wird hochgeladen...",
+    noFiles: "Keine Datei hochgeladen", download: "Herunterladen",
+    deleteConsultConfirm: "Diesen Konsultationsbericht löschen?",
+    deletePrescConfirm: "Dieses Rezept löschen?",
+    deleteFileConfirm: "Diese Datei löschen?",
+    cancelNewConsult: "Abbrechen", cancelNewRx: "Abbrechen",
+  },
+};
+type DTabLang = (typeof DTab)[keyof typeof DTab];
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Patient {
@@ -71,6 +123,7 @@ interface DocTabProps {
   consultations: Consultation[];
   prescriptions: Prescription[];
   dateLocale: Locale;
+  lang?: "fr" | "de";
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -99,12 +152,13 @@ function FileIconComp({ category, mimeType }: { category: string; mimeType: stri
 
 // ─── Tag Input ─────────────────────────────────────────────────────────────────
 
-function TagInput({ tags, onAdd, onRemove, placeholder, colorClass }: {
+function TagInput({ tags, onAdd, onRemove, placeholder, colorClass, noneLabel = "Aucun" }: {
   tags: string[];
   onAdd: (v: string) => void;
   onRemove: (i: number) => void;
   placeholder: string;
   colorClass: string;
+  noneLabel?: string;
 }) {
   const [input, setInput] = useState("");
   const add = () => {
@@ -123,7 +177,7 @@ function TagInput({ tags, onAdd, onRemove, placeholder, colorClass }: {
             </button>
           </span>
         ))}
-        {tags.length === 0 && <span className="text-xs text-muted-foreground italic">Aucun</span>}
+        {tags.length === 0 && <span className="text-xs text-muted-foreground italic">{noneLabel}</span>}
       </div>
       <div className="flex gap-2">
         <input
@@ -147,11 +201,12 @@ function TagInput({ tags, onAdd, onRemove, placeholder, colorClass }: {
 
 // ─── Consultation Form ────────────────────────────────────────────────────────
 
-function ConsultationForm({ initial, onSubmit, onCancel, loading }: {
+function ConsultationForm({ initial, onSubmit, onCancel, loading, dtab }: {
   initial?: Partial<Consultation>;
   onSubmit: (data: Partial<Consultation>) => void;
   onCancel: () => void;
   loading: boolean;
+  dtab: DTabLang;
 }) {
   const [form, setForm] = useState({
     diagnosis: initial?.diagnosis ?? "",
@@ -166,42 +221,42 @@ function ConsultationForm({ initial, onSubmit, onCancel, loading }: {
     <div className="bg-muted/20 rounded-xl border border-border p-4 space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Date</label>
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{dtab.date}</label>
           <input type="date" value={form.date} onChange={e => set("date")(e.target.value)}
             className="w-full px-2.5 py-1.5 rounded-lg bg-card border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
         </div>
         <div>
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Prochain RDV</label>
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{dtab.nextApt}</label>
           <input type="date" value={form.nextVisit} onChange={e => set("nextVisit")(e.target.value)}
             className="w-full px-2.5 py-1.5 rounded-lg bg-card border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
         </div>
       </div>
       <div>
-        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Diagnostic *</label>
+        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{dtab.diagnosis}</label>
         <input value={form.diagnosis} onChange={e => set("diagnosis")(e.target.value)}
           placeholder="Ex: Angine bactérienne, Hypertension..."
           className="w-full px-2.5 py-1.5 rounded-lg bg-card border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
       </div>
       <div>
-        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Traitement</label>
+        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{dtab.treatment}</label>
         <input value={form.treatment} onChange={e => set("treatment")(e.target.value)}
           placeholder="Ex: Repos, Amoxicilline 1g x3/j..."
           className="w-full px-2.5 py-1.5 rounded-lg bg-card border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
       </div>
       <div>
-        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Notes</label>
+        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{dtab.notes}</label>
         <textarea value={form.notes} onChange={e => set("notes")(e.target.value)}
-          rows={3} placeholder="Observations, remarques..."
+          rows={3} placeholder={dtab.observations}
           className="w-full px-2.5 py-1.5 rounded-lg bg-card border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 resize-none" />
       </div>
       <div className="flex gap-2">
         <button onClick={() => onSubmit(form)} disabled={!form.diagnosis.trim() || loading}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-40 transition-colors">
           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-          {initial?.id ? "Enregistrer" : "Créer le rapport"}
+          {initial?.id ? dtab.editSave : dtab.create}
         </button>
         <button onClick={onCancel} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors">
-          Annuler
+          {dtab.cancel}
         </button>
       </div>
     </div>
@@ -232,10 +287,11 @@ function MedRow({ med, onRemove }: { med: Medication; onRemove: () => void }) {
 
 // ─── Prescription Form ────────────────────────────────────────────────────────
 
-function PrescriptionForm({ onSubmit, onCancel, loading }: {
+function PrescriptionForm({ onSubmit, onCancel, loading, dtab }: {
   onSubmit: (data: { diagnosis: string; medications: Medication[]; notes: string }) => void;
   onCancel: () => void;
   loading: boolean;
+  dtab: DTabLang;
 }) {
   const [diagnosis, setDiagnosis] = useState("");
   const [notes, setNotes] = useState("");
@@ -251,40 +307,40 @@ function PrescriptionForm({ onSubmit, onCancel, loading }: {
   return (
     <div className="bg-muted/20 rounded-xl border border-border p-4 space-y-3">
       <div>
-        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Motif / Diagnostic</label>
+        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{dtab.motive}</label>
         <input value={diagnosis} onChange={e => setDiagnosis(e.target.value)}
-          placeholder="Ex: Angine, Infection respiratoire..."
+          placeholder={dtab.motivePlaceholder}
           className="w-full px-2.5 py-1.5 rounded-lg bg-card border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
       </div>
 
       {/* Medications list */}
       <div>
-        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-2">Médicaments *</label>
+        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-2">{dtab.addMed} *</label>
         <div className="space-y-2 mb-2">
           {meds.map((m, i) => <MedRow key={i} med={m} onRemove={() => setMeds(p => p.filter((_, j) => j !== i))} />)}
         </div>
         {/* New medication input */}
         <div className="bg-card border border-dashed border-border rounded-xl p-3 space-y-2">
-          <p className="text-[10px] font-semibold text-muted-foreground">Ajouter un médicament</p>
+          <p className="text-[10px] font-semibold text-muted-foreground">{dtab.addMed}</p>
           <div className="grid grid-cols-2 gap-2">
             <input value={medInput.name} onChange={e => setMedInput(p => ({ ...p, name: e.target.value }))}
-              placeholder="Nom *" className="px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+              placeholder={dtab.medName} className="px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
             <input value={medInput.dosage} onChange={e => setMedInput(p => ({ ...p, dosage: e.target.value }))}
-              placeholder="Posologie (ex: 1g)" className="px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+              placeholder={dtab.dosage} className="px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
             <input value={medInput.duration} onChange={e => setMedInput(p => ({ ...p, duration: e.target.value }))}
-              placeholder="Durée (ex: 7 jours)" className="px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+              placeholder={dtab.duration} className="px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
             <input value={medInput.instructions} onChange={e => setMedInput(p => ({ ...p, instructions: e.target.value }))}
-              placeholder="Instructions (ex: après repas)" className="px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+              placeholder={dtab.instructions} className="px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
           </div>
           <button onClick={addMed} disabled={!medInput.name.trim()}
             className="flex items-center gap-1.5 px-2.5 py-1.5 bg-primary/10 text-primary text-xs font-semibold rounded-lg hover:bg-primary/20 disabled:opacity-40 transition-colors">
-            <Plus className="w-3 h-3" /> Ajouter ce médicament
+            <Plus className="w-3 h-3" /> {dtab.addMedBtn}
           </button>
         </div>
       </div>
 
       <div>
-        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Notes</label>
+        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{dtab.notesLabel}</label>
         <input value={notes} onChange={e => setNotes(e.target.value)}
           placeholder="Instructions particulières..."
           className="w-full px-2.5 py-1.5 rounded-lg bg-card border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
@@ -295,10 +351,10 @@ function PrescriptionForm({ onSubmit, onCancel, loading }: {
           disabled={meds.length === 0 || loading}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-40 transition-colors">
           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-          Créer l&apos;ordonnance
+          {dtab.createPrescription}
         </button>
         <button onClick={onCancel} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors">
-          Annuler
+          {dtab.cancel}
         </button>
       </div>
     </div>
@@ -307,7 +363,8 @@ function PrescriptionForm({ onSubmit, onCancel, loading }: {
 
 // ─── Main DocTab ──────────────────────────────────────────────────────────────
 
-export function DocTab({ patientId, patient, consultations, prescriptions, dateLocale }: DocTabProps) {
+export function DocTab({ patientId, patient, consultations, prescriptions, dateLocale, lang = "fr" }: DocTabProps) {
+  const dtab: DTabLang = DTab[lang];
   const qc = useQueryClient();
 
   // Patient edit state — reset when patient changes
@@ -453,7 +510,7 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
   };
 
   const deleteConsult = async (id: string) => {
-    if (!confirm("Supprimer ce rapport de consultation ?")) return;
+    if (!confirm(dtab.deleteConsultConfirm)) return;
     setDeletingConsult(id);
     try {
       await api.delete(`/consultations/${id}`);
@@ -477,7 +534,7 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
   };
 
   const deleteRx = async (id: string) => {
-    if (!confirm("Supprimer cette ordonnance ?")) return;
+    if (!confirm(dtab.deletePrescConfirm)) return;
     setDeletingRx(id);
     try {
       await api.delete(`/prescriptions/${id}`);
@@ -507,7 +564,7 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
   };
 
   const deleteFile = async (id: string) => {
-    if (!confirm("Supprimer ce fichier ?")) return;
+    if (!confirm(dtab.deleteFileConfirm)) return;
     setDeletingFile(id);
     try {
       await api.delete(`/patient-files/${id}`);
@@ -527,43 +584,45 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-500" />
-            <h3 className="text-sm font-semibold text-foreground">Données médicales critiques</h3>
+            <h3 className="text-sm font-semibold text-foreground">{dtab.criticalData}</h3>
           </div>
           {patientDirty && (
             <button onClick={savePatient} disabled={patientSaving}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors">
               {patientSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-              Enregistrer
+              {dtab.save}
             </button>
           )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <p className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wide mb-2">Allergies</p>
+            <p className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wide mb-2">{dtab.allergies}</p>
             <TagInput
               tags={allergies}
               onAdd={addAllergie}
               onRemove={removeAllergie}
-              placeholder="Ajouter une allergie..."
+              placeholder={dtab.addAllergy}
               colorClass="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
+              noneLabel={dtab.none}
             />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-2">Antécédents médicaux</p>
+            <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-2">{dtab.antecedents}</p>
             <TagInput
               tags={antecedents}
               onAdd={addAntecedent}
               onRemove={removeAntecedent}
-              placeholder="Ajouter un antécédent..."
+              placeholder={dtab.addAntecedent}
               colorClass="bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+              noneLabel={dtab.none}
             />
           </div>
         </div>
 
         {patient?.bloodType && (
           <div className="flex items-center gap-2 pt-2 border-t border-border/60">
-            <span className="text-[10px] text-muted-foreground">Groupe sanguin:</span>
+            <span className="text-[10px] text-muted-foreground">{dtab.bloodType}</span>
             <span className="text-sm font-bold text-red-600 dark:text-red-400">{patient.bloodType}</span>
           </div>
         )}
@@ -574,8 +633,8 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
         <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Stethoscope className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Consultations</h3>
-            <span className="text-[10px] text-muted-foreground">{consultations.length} rapport{consultations.length !== 1 ? "s" : ""}</span>
+            <h3 className="text-sm font-semibold text-foreground">{dtab.consultations}</h3>
+            <span className="text-[10px] text-muted-foreground">{consultations.length} {dtab.reports}{consultations.length !== 1 ? "s" : ""}</span>
           </div>
           <button
             onClick={() => { setShowNewConsult(v => !v); setEditingConsult(null); }}
@@ -584,7 +643,7 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
               showNewConsult ? "bg-muted text-foreground" : "bg-primary/10 text-primary hover:bg-primary/20"
             )}>
             {showNewConsult ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-            {showNewConsult ? "Annuler" : "Nouveau rapport"}
+            {showNewConsult ? dtab.cancel : dtab.newReport}
           </button>
         </div>
 
@@ -594,13 +653,14 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
               onSubmit={createConsult}
               onCancel={() => setShowNewConsult(false)}
               loading={consultLoading}
+              dtab={dtab}
             />
           )}
 
           {consultations.length === 0 && !showNewConsult ? (
             <div className="py-8 text-center">
               <FileText className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Aucune consultation enregistrée</p>
+              <p className="text-sm text-muted-foreground">{dtab.noConsult}</p>
             </div>
           ) : (
             consultations.map((c, i) => (
@@ -611,6 +671,7 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
                     onSubmit={(data) => updateConsult(c.id, data)}
                     onCancel={() => setEditingConsult(null)}
                     loading={consultLoading}
+                    dtab={dtab}
                   />
                 ) : (
                   <div className="flex gap-3">
@@ -627,14 +688,14 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
                           </p>
                           {c.treatment && (
                             <p className="text-[10px] text-muted-foreground mt-1">
-                              <span className="font-medium">Traitement:</span> {c.treatment}
+                              <span className="font-medium">{dtab.treatment}:</span> {c.treatment}
                             </p>
                           )}
                           {c.notes && <p className="text-[10px] text-muted-foreground/70 italic mt-1 line-clamp-2">{c.notes}</p>}
                           {c.nextVisit && (
                             <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
                               <Calendar className="w-2.5 h-2.5" />
-                              Prochain RDV: {format(new Date(c.nextVisit), "d MMM yyyy", { locale: dateLocale })}
+                              {dtab.nextApt}: {format(new Date(c.nextVisit), "d MMM yyyy", { locale: dateLocale })}
                             </p>
                           )}
                         </div>
@@ -668,8 +729,8 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
         <div className="px-4 py-3 border-b border-border/60 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Pill className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Ordonnances</h3>
-            <span className="text-[10px] text-muted-foreground">{prescriptions.length} ordonnance{prescriptions.length !== 1 ? "s" : ""}</span>
+            <h3 className="text-sm font-semibold text-foreground">{dtab.prescriptions}</h3>
+            <span className="text-[10px] text-muted-foreground">{prescriptions.length} {dtab.ordonnances}{prescriptions.length !== 1 ? "s" : ""}</span>
           </div>
           <button
             onClick={() => setShowNewRx(v => !v)}
@@ -678,7 +739,7 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
               showNewRx ? "bg-muted text-foreground" : "bg-primary/10 text-primary hover:bg-primary/20"
             )}>
             {showNewRx ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-            {showNewRx ? "Annuler" : "Nouvelle ordonnance"}
+            {showNewRx ? dtab.cancel : dtab.newPrescription}
           </button>
         </div>
 
@@ -688,13 +749,14 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
               onSubmit={createRx}
               onCancel={() => setShowNewRx(false)}
               loading={rxLoading}
+              dtab={dtab}
             />
           )}
 
           {prescriptions.length === 0 && !showNewRx ? (
             <div className="py-8 text-center">
               <Pill className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Aucune ordonnance</p>
+              <p className="text-sm text-muted-foreground">{dtab.noPrescription}</p>
             </div>
           ) : (
             prescriptions.map(rx => {
@@ -714,7 +776,7 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
                             : "bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400"
                         )}>
-                          {isActive ? "Active" : "Expirée"}
+                          {isActive ? dtab.active : dtab.expired}
                         </span>
                       </div>
                       {meds.map((m, i) => {
@@ -724,11 +786,11 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
                         ) : null;
                       })}
                       {rx.diagnosis && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5">Motif: {rx.diagnosis}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{dtab.motive2} {rx.diagnosis}</p>
                       )}
                       {rx.notes && <p className="text-[10px] text-muted-foreground/70 italic mt-0.5">{rx.notes}</p>}
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        Prescrit le{" "}
+                        {dtab.prescribedOn}{" "}
                         {(rx.date || rx.createdAt)
                           ? format(new Date(rx.date ?? rx.createdAt!), "d MMM yyyy", { locale: dateLocale })
                           : "—"}
@@ -755,8 +817,8 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
           className="w-full px-4 py-3 border-b border-border/60 flex items-center justify-between hover:bg-accent/30 transition-colors">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Fichiers</h3>
-            <span className="text-[10px] text-muted-foreground">{files.length} fichier{files.length !== 1 ? "s" : ""}</span>
+            <h3 className="text-sm font-semibold text-foreground">{dtab.files}</h3>
+            <span className="text-[10px] text-muted-foreground">{files.length} {dtab.file}{files.length !== 1 ? "s" : ""}</span>
           </div>
           {showFiles ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </button>
@@ -771,15 +833,15 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
               {fileUploading ? (
                 <div className="flex items-center justify-center gap-2 text-primary">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-xs font-medium">Envoi en cours...</span>
+                  <span className="text-xs font-medium">{dtab.uploading}</span>
                 </div>
               ) : (
                 <>
                   <Upload className="w-5 h-5 text-muted-foreground/50 group-hover:text-primary mx-auto mb-1 transition-colors" />
                   <p className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                    Cliquer pour uploader un fichier
+                    {dtab.uploadClick}
                   </p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">PDF, images, documents · max 10 Mo</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">{dtab.uploadDesc}</p>
                 </>
               )}
               <input
@@ -796,7 +858,7 @@ export function DocTab({ patientId, patient, consultations, prescriptions, dateL
 
             {/* Files list */}
             {files.length === 0 ? (
-              <p className="text-center text-xs text-muted-foreground py-4">Aucun fichier uploadé</p>
+              <p className="text-center text-xs text-muted-foreground py-4">{dtab.noFiles}</p>
             ) : (
               <div className="space-y-2">
                 {files.map(f => (

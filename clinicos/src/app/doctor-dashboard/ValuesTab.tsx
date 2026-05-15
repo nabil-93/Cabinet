@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, de as deLocale } from "date-fns/locale";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -449,11 +449,12 @@ function CategoryRadarChart({ values, vt }: { values: ExtractedValue[]; vt: VTLa
 
 // ─── Report Card (in timeline list) ──────────────────────────────────────────
 
-function ReportCard({ report, isSelected, onClick, onDelete }: {
+function ReportCard({ report, isSelected, onClick, onDelete, dateLocale = fr }: {
   report: LabReport;
   isSelected: boolean;
   onClick: () => void;
   onDelete: (e: React.MouseEvent) => void;
+  dateLocale?: typeof fr;
 }) {
   const danger  = report.values.filter(v => v.status === "danger").length;
   const warn    = report.values.filter(v => v.status === "warn").length;
@@ -480,7 +481,7 @@ function ReportCard({ report, isSelected, onClick, onDelete }: {
         </p>
         <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
           <Clock className="w-2.5 h-2.5" />
-          {format(date, "d MMM yyyy · HH:mm", { locale: fr })}
+          {format(date, "d MMM yyyy · HH:mm", { locale: dateLocale })}
         </p>
         <div className="flex items-center gap-1.5 mt-1">
           {danger > 0 && <span className="text-[9px] font-bold text-red-600 bg-red-50 dark:bg-red-950/30 px-1.5 py-0.5 rounded-full">{danger} crit.</span>}
@@ -633,6 +634,7 @@ function UploadZone({ onFile, compact = false, vt }: { onFile: (f: File) => void
 
 export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
   const vt: VTLang = VT[lang ?? "fr"];
+  const dateFnsLocale = lang === "de" ? deLocale : fr;
   const [reports, setReports]         = useState<LabReport[]>(() => loadReports(patientId));
   const [selectedId, setSelectedId]   = useState<string | null>(() => loadReports(patientId)[0]?.id ?? null);
   const [uploading, setUploading]     = useState(false);
@@ -809,6 +811,7 @@ export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
               isSelected={selectedId === report.id}
               onClick={() => setSelectedId(report.id)}
               onDelete={e => { e.stopPropagation(); deleteReport(report.id); }}
+              dateLocale={dateFnsLocale}
             />
           ))}
         </div>
@@ -847,12 +850,12 @@ export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
                     </h3>
                     {selectedReport.reportDate && (
                       <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                        {vt.reportFrom} {format(new Date(selectedReport.reportDate), "d MMM yyyy", { locale: fr })}
+                        {vt.reportFrom} {format(new Date(selectedReport.reportDate), "d MMM yyyy", { locale: dateFnsLocale })}
                       </span>
                     )}
                   </div>
                   <p className="text-[10px] text-muted-foreground mb-2">
-                    {vt.uploadedOn} {format(new Date(selectedReport.uploadedAt), "d MMM yyyy à HH:mm", { locale: fr })}
+                    {vt.uploadedOn} {format(new Date(selectedReport.uploadedAt), "d MMM yyyy à HH:mm", { locale: dateFnsLocale })}
                   </p>
                   {/* Summary banner */}
                   {selectedReport.summary && (
