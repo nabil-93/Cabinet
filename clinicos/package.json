@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.38.0",
+    "html2canvas": "^1.4.1",
     "js-cookie": "^3.0.5",
     "jspdf": "^4.2.1",
     "jwt-decode": "^4.0.0",

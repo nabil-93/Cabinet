@@ -9,7 +9,7 @@ import {
 import {
   Upload, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Microscope, TrendingUp, Info, X, ChevronRight, Plus,
-  FileText, Clock, Trash2, RefreshCw,
+  FileText, Clock, Trash2, RefreshCw, Download, Edit2, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -78,8 +78,13 @@ const VT = {
     positioning: "Positionnement dans les normes", positioningDesc: "50% = centre de la plage normale",
     ref: "Réf:", uploadedOn: "Uploadé le",
     reportFrom: "Rapport du", successExtracted: "valeurs biologiques extraites",
-    view: "Voir", regenBtn: "Régénérer en DE", regenLangBtn: "Regenerate in FR",
-    regenLoading: "Régénération...", translateLabels: "Traduire les labels en DE", translatingLabels: "Traduction...",
+    view: "Voir", regenBtn: "Régénérer", regenLangBtn: "Régénérer en FR",
+    regenLoading: "Régénération...", translateLabels: "Traduire labels", translatingLabels: "Traduction...",
+    downloadPdf: "Télécharger PDF", downloading: "Génération PDF...",
+    editValue: "Modifier la valeur", deleteValue: "Supprimer", deleteValueConfirm: "Supprimer cette valeur du rapport ?",
+    editLabel: "Nom", editVal: "Valeur", editUnit: "Unité", editRefMin: "Réf. min", editRefMax: "Réf. max",
+    editStatus: "Statut", editCategory: "Catégorie", saveEdit: "Enregistrer", cancelEdit: "Annuler",
+    statusOk: "Normal", statusWarn: "Attention", statusDanger: "Critique",
   },
   de: {
     reports: "Biologische Berichte", report: "Bericht", addReport: "Bericht hinzufügen",
@@ -107,8 +112,13 @@ const VT = {
     positioning: "Positionierung im Normalbereich", positioningDesc: "50% = Mitte des Normalbereichs",
     ref: "Ref:", uploadedOn: "Hochgeladen am",
     reportFrom: "Bericht vom", successExtracted: "biologische Werte extrahiert",
-    view: "Ansehen", regenBtn: "Auf Deutsch neu generieren", regenLangBtn: "Auf Deutsch neu generieren",
-    regenLoading: "Wird neu generiert...", translateLabels: "Labels auf Deutsch übersetzen", translatingLabels: "Übersetzen...",
+    view: "Ansehen", regenBtn: "Neu generieren", regenLangBtn: "Auf Deutsch generieren",
+    regenLoading: "Wird neu generiert...", translateLabels: "Labels übersetzen", translatingLabels: "Übersetzen...",
+    downloadPdf: "PDF herunterladen", downloading: "PDF wird erstellt...",
+    editValue: "Wert bearbeiten", deleteValue: "Löschen", deleteValueConfirm: "Diesen Wert aus dem Bericht löschen?",
+    editLabel: "Name", editVal: "Wert", editUnit: "Einheit", editRefMin: "Ref. min", editRefMax: "Ref. max",
+    editStatus: "Status", editCategory: "Kategorie", saveEdit: "Speichern", cancelEdit: "Abbrechen",
+    statusOk: "Normal", statusWarn: "Achtung", statusDanger: "Kritisch",
   },
 };
 type VTLang = typeof VT.fr;
@@ -196,7 +206,7 @@ function MdText({ text }: { text: string }) {
 
 // ─── Value Card ────────────────────────────────────────────────────────────────
 
-function ValueCard({ v, onClick }: { v: ExtractedValue; onClick?: () => void }) {
+function ValueCard({ v, onClick, onEdit, onDelete }: { v: ExtractedValue; onClick?: () => void; onEdit?: () => void; onDelete?: () => void }) {
   const s = STATUS[v.status];
   const num = parseFloat(v.value);
   const hasRange = v.refMin !== null && v.refMax !== null;
@@ -232,6 +242,22 @@ function ValueCard({ v, onClick }: { v: ExtractedValue; onClick?: () => void }) 
           <p className="text-[9px] text-muted-foreground">Réf: {v.refMin} – {v.refMax} {v.unit}</p>
         </>
       )}
+      {(onEdit || onDelete) && (
+        <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onEdit && (
+            <button onClick={e => { e.stopPropagation(); onEdit(); }}
+              className="w-5 h-5 rounded-md bg-card/90 border border-border shadow-sm flex items-center justify-center hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors">
+              <Edit2 className="w-2.5 h-2.5" />
+            </button>
+          )}
+          {onDelete && (
+            <button onClick={e => { e.stopPropagation(); onDelete(); }}
+              className="w-5 h-5 rounded-md bg-card/90 border border-border shadow-sm flex items-center justify-center hover:bg-red-50 hover:border-red-200 text-muted-foreground hover:text-red-500 transition-colors">
+              <Trash2 className="w-2.5 h-2.5" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -251,12 +277,52 @@ function DetailPanel({ v, patientName, onClose, lang }: {
 
   useEffect(() => {
     let cancelled = false;
-    const prompt = `Tu es un médecin expert en biologie médicale. Analyse cette valeur biologique et donne une explication détaillée.
+    const isDE = lang === "de";
+    const statusLabel = v.status === "danger"
+      ? (isDE ? "KRITISCH" : "CRITIQUE")
+      : v.status === "warn"
+      ? (isDE ? "ACHTUNG" : "ATTENTION")
+      : (isDE ? "NORMAL" : "NORMAL");
+    const normalAbnormal = v.status === "ok"
+      ? (isDE ? "normal" : "normale")
+      : (isDE ? "abnormal" : "anormale");
+
+    const prompt = isDE
+      ? `Du bist ein Experte für medizinische Biologie. Analysiere diesen biologischen Wert und gib eine detaillierte Erklärung auf Deutsch.
+
+**Wert:** ${v.label}
+**Ergebnis:** ${v.value} ${v.unit}
+**Normalbereich:** ${v.refMin ?? "?"} – ${v.refMax ?? "?"} ${v.unit}
+**Status:** ${statusLabel}
+${patientName ? `**Patient:** ${patientName}` : ""}
+
+Gib eine strukturierte Antwort auf Deutsch mit:
+
+**Was misst dieser Test?**
+Einfache Erklärung, was dieser Test misst und welche Rolle er im Körper spielt.
+
+**Warum ist dieser Wert ${normalAbnormal}?**
+Genaue klinische Interpretation dieses Ergebnisses.
+
+**Mögliche Ursachen** ${v.status !== "ok" ? "(die häufigsten)" : ""}
+Liste der Hauptursachen für dieses Ergebnis.
+
+**Verbundene Risiken**
+Welche Risiken bestehen, wenn es nicht behandelt wird (falls abnormal).
+
+**Medizinische Empfehlungen**
+Was der Arzt als ergänzende Untersuchungen oder Behandlung in Betracht ziehen sollte.
+
+**Praktische Tipps für den Patienten**
+Konkrete Anweisungen: Ernährung, körperliche Aktivität, Medikamente, Warnsignale, wann sofort zum Arzt.
+
+Antwort präzise, professionell, auf Deutsch.`
+      : `Tu es un médecin expert en biologie médicale. Analyse cette valeur biologique et donne une explication détaillée.
 
 **Valeur:** ${v.label}
 **Résultat:** ${v.value} ${v.unit}
 **Plage normale:** ${v.refMin ?? "?"} – ${v.refMax ?? "?"} ${v.unit}
-**Statut:** ${v.status === "danger" ? "CRITIQUE" : v.status === "warn" ? "ATTENTION" : "NORMAL"}
+**Statut:** ${statusLabel}
 ${patientName ? `**Patient:** ${patientName}` : ""}
 
 Donne une réponse structurée avec:
@@ -264,7 +330,7 @@ Donne une réponse structurée avec:
 **Qu'est-ce que cet examen mesure ?**
 Explication simple de ce que mesure cet examen et son rôle dans l'organisme.
 
-**Pourquoi cette valeur est ${v.status === "ok" ? "normale" : "anormale"} ?**
+**Pourquoi cette valeur est ${normalAbnormal} ?**
 Interprétation clinique précise de ce résultat.
 
 **Causes possibles** ${v.status !== "ok" ? "(les plus fréquentes)" : ""}
@@ -604,6 +670,82 @@ function GenerateChoiceModal({ report, onConfirm, onClose, vt }: {
   );
 }
 
+// ─── Edit Value Modal ──────────────────────────────────────────────────────────
+
+function EditValueModal({ value, vt, onSave, onClose }: {
+  value: ExtractedValue;
+  vt: VTLang;
+  onSave: (updated: ExtractedValue) => void;
+  onClose: () => void;
+}) {
+  const [form, setForm] = useState({ ...value });
+  const set = (k: keyof ExtractedValue, v: any) => setForm(p => ({ ...p, [k]: v }));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="px-5 py-4 border-b border-border/60 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-foreground">{vt.editValue}</h3>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center"><X className="w-4 h-4 text-muted-foreground" /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{vt.editLabel}</label>
+              <input value={form.label} onChange={e => set("label", e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{vt.editVal}</label>
+              <input value={form.value} onChange={e => set("value", e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{vt.editUnit}</label>
+              <input value={form.unit} onChange={e => set("unit", e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{vt.editRefMin}</label>
+              <input type="number" value={form.refMin ?? ""} onChange={e => set("refMin", e.target.value === "" ? null : Number(e.target.value))}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{vt.editRefMax}</label>
+              <input type="number" value={form.refMax ?? ""} onChange={e => set("refMax", e.target.value === "" ? null : Number(e.target.value))}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{vt.editStatus}</label>
+              <select value={form.status} onChange={e => set("status", e.target.value as ExtractedValue["status"])}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40">
+                <option value="ok">{vt.statusOk}</option>
+                <option value="warn">{vt.statusWarn}</option>
+                <option value="danger">{vt.statusDanger}</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">{vt.editCategory}</label>
+              <input value={form.category} onChange={e => set("category", e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button onClick={() => onSave(form)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-xl hover:bg-primary/90 transition-colors">
+              <Check className="w-3.5 h-3.5" /> {vt.saveEdit}
+            </button>
+            <button onClick={onClose} className="px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-colors">
+              {vt.cancelEdit}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Upload Zone ──────────────────────────────────────────────────────────────
 
 function UploadZone({ onFile, compact = false, vt }: { onFile: (f: File) => void; compact?: boolean; vt: VTLang }) {
@@ -646,6 +788,9 @@ export function ValuesTab({ patientId, patientName, lang }: ValuesTabProps) {
   const [pendingReport, setPendingReport]     = useState<LabReport | null>(null); // waiting for user choice
   const [regenReportId, setRegenReportId]     = useState<string | null>(null);    // which report is being regenerated
   const [translatingId, setTranslatingId]     = useState<string | null>(null);    // which report labels are being translated
+  const [editingValue, setEditingValue]       = useState<{ reportId: string; index: number } | null>(null);
+  const [downloadingPdf, setDownloadingPdf]   = useState(false);
+  const reportRef                             = useRef<HTMLDivElement>(null);
 
   // Reset when patient changes
   useEffect(() => {
@@ -817,6 +962,114 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
     }
   }, [patientId, lang, updateAndSave]);
 
+  // Edit a single value
+  const saveValueEdit = useCallback((reportId: string, index: number, updated: ExtractedValue) => {
+    const all = loadReports(patientId);
+    const next = all.map(r => {
+      if (r.id !== reportId) return r;
+      const newValues = r.values.map((v, i) => i === index ? updated : v);
+      return { ...r, values: newValues };
+    });
+    updateAndSave(next);
+    setEditingValue(null);
+  }, [patientId, updateAndSave]);
+
+  // Delete a single value
+  const deleteValue = useCallback((reportId: string, index: number) => {
+    if (!confirm(vt.deleteValueConfirm)) return;
+    const all = loadReports(patientId);
+    const next = all.map(r => {
+      if (r.id !== reportId) return r;
+      return { ...r, values: r.values.filter((_, i) => i !== index) };
+    });
+    updateAndSave(next);
+  }, [patientId, vt.deleteValueConfirm, updateAndSave]);
+
+  // Download full report as PDF using jsPDF
+  const downloadPdf = useCallback(async (report: LabReport) => {
+    setDownloadingPdf(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const margin = 15;
+      const pageW = 210;
+      const contentW = pageW - margin * 2;
+      let y = margin;
+
+      const addText = (text: string, fontSize: number, isBold = false, color: [number, number, number] = [0, 0, 0]) => {
+        doc.setFontSize(fontSize);
+        doc.setFont("helvetica", isBold ? "bold" : "normal");
+        doc.setTextColor(...color);
+        const lines = doc.splitTextToSize(text, contentW);
+        doc.text(lines, margin, y);
+        y += lines.length * (fontSize * 0.4) + 2;
+      };
+
+      const addLine = () => {
+        doc.setDrawColor(220, 220, 220);
+        doc.line(margin, y, pageW - margin, y);
+        y += 4;
+      };
+
+      const checkPage = (needed = 20) => {
+        if (y + needed > 280) { doc.addPage(); y = margin; }
+      };
+
+      // Header
+      addText(report.labName ?? "Rapport Biologique", 16, true, [30, 64, 175]);
+      if (report.reportDate) addText(`Date du rapport: ${report.reportDate}`, 10, false, [100, 100, 100]);
+      addText(`Patient: ${patientName ?? "—"}`, 10, false, [100, 100, 100]);
+      addText(`Généré le: ${new Date().toLocaleDateString("fr-FR")}`, 10, false, [100, 100, 100]);
+      y += 2; addLine();
+
+      // Summary
+      const ok = report.values.filter(v => v.status === "ok").length;
+      const warn = report.values.filter(v => v.status === "warn").length;
+      const danger = report.values.filter(v => v.status === "danger").length;
+      const score = Math.round((ok / Math.max(1, report.values.length)) * 100);
+      addText(`Score global: ${score}% — ${ok} normales · ${warn} attention · ${danger} critiques`, 10, true);
+      if (report.summary) addText(report.summary, 10, false, [80, 80, 80]);
+      y += 2; addLine();
+
+      // Values by category
+      const cats = Array.from(new Set(report.values.map(v => v.category)));
+      for (const cat of cats) {
+        checkPage(30);
+        addText(cat, 12, true, [30, 64, 175]);
+        const catVals = report.values.filter(v => v.category === cat);
+        for (const v of catVals) {
+          checkPage(10);
+          const statusColor: [number, number, number] = v.status === "danger" ? [220, 38, 38] : v.status === "warn" ? [217, 119, 6] : [5, 150, 105];
+          const ref = v.refMin !== null && v.refMax !== null ? ` (réf: ${v.refMin}–${v.refMax} ${v.unit})` : "";
+          addText(`• ${v.label}: ${v.value} ${v.unit}${ref}`, 10, false, statusColor);
+        }
+        y += 2;
+      }
+      addLine();
+
+      // Medical report
+      if (report.medicalReport) {
+        checkPage(20);
+        addText("Rapport Médical Complet", 13, true, [30, 64, 175]);
+        y += 2;
+        const lines = report.medicalReport.split("\n").filter(l => l.trim());
+        for (const line of lines) {
+          checkPage(8);
+          const isBold = line.startsWith("**") || /^[A-Z\s]{4,}$/.test(line.trim());
+          const clean = line.replace(/\*\*/g, "").replace(/^#+\s*/, "");
+          addText(clean, 10, isBold, isBold ? [30, 64, 175] : [40, 40, 40]);
+        }
+      }
+
+      const fname = `rapport-${(patientName ?? "patient").replace(/\s+/g, "-").toLowerCase()}-${report.reportDate ?? report.uploadedAt.slice(0, 10)}.pdf`;
+      doc.save(fname);
+    } catch (err) {
+      console.error("PDF error:", err);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }, [patientName]);
+
   // Regenerate the medical report of a specific lab report in the current language
   const regenerateReport = useCallback(async (report: LabReport) => {
     setRegenReportId(report.id);
@@ -932,18 +1185,31 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
                   <p className="text-[10px] text-muted-foreground mb-2">
                     {vt.uploadedOn} {format(new Date(selectedReport.uploadedAt), "d MMM yyyy à HH:mm", { locale: dateFnsLocale })}
                   </p>
-                  {/* Translate labels button — only in DE, for existing French reports */}
-                  {lang === "de" && selectedReport.values.length > 0 && (
+                  {/* Action buttons row */}
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {/* Translate labels — FR↔DE */}
+                    {selectedReport.values.length > 0 && (
+                      <button
+                        onClick={() => translateReportLabels(selectedReport)}
+                        disabled={translatingId === selectedReport.id}
+                        className="flex items-center gap-1.5 text-[10px] font-semibold text-primary bg-primary/5 hover:bg-primary/15 border border-primary/20 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50">
+                        {translatingId === selectedReport.id
+                          ? <><Loader2 className="w-3 h-3 animate-spin" /> {vt.translatingLabels}</>
+                          : <><RefreshCw className="w-3 h-3" /> {vt.translateLabels} ({lang === "de" ? "FR" : "DE"})</>
+                        }
+                      </button>
+                    )}
+                    {/* Download PDF */}
                     <button
-                      onClick={() => translateReportLabels(selectedReport)}
-                      disabled={translatingId === selectedReport.id}
-                      className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold text-primary bg-primary/5 hover:bg-primary/15 border border-primary/20 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50 w-fit">
-                      {translatingId === selectedReport.id
-                        ? <><Loader2 className="w-3 h-3 animate-spin" /> {vt.translatingLabels}</>
-                        : <><RefreshCw className="w-3 h-3" /> {vt.translateLabels}</>
+                      onClick={() => downloadPdf(selectedReport)}
+                      disabled={downloadingPdf}
+                      className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50">
+                      {downloadingPdf
+                        ? <><Loader2 className="w-3 h-3 animate-spin" /> {vt.downloading}</>
+                        : <><Download className="w-3 h-3" /> {vt.downloadPdf}</>
                       }
                     </button>
-                  )}
+                  </div>
 
                   {/* Summary banner */}
                   {selectedReport.summary && (
@@ -984,9 +1250,18 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
                     </div>
                   </div>
                   <div className="p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-                    {catVals.map((v, i) => (
-                      <ValueCard key={i} v={v} onClick={() => setSelectedValue(v)} />
-                    ))}
+                    {catVals.map((v, i) => {
+                      const globalIdx = selectedReport.values.indexOf(v);
+                      return (
+                        <ValueCard
+                          key={i}
+                          v={v}
+                          onClick={() => setSelectedValue(v)}
+                          onEdit={() => setEditingValue({ reportId: selectedReport.id, index: globalIdx })}
+                          onDelete={() => deleteValue(selectedReport.id, globalIdx)}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -1058,6 +1333,21 @@ Retourne un tableau JSON, même ordre, même nombre d'éléments.`;
       {selectedValue && (
         <DetailPanel v={selectedValue} patientName={patientName} onClose={() => setSelectedValue(null)} lang={lang} />
       )}
+
+      {/* Edit value modal */}
+      {editingValue && (() => {
+        const rep = reports.find(r => r.id === editingValue.reportId);
+        const val = rep?.values[editingValue.index];
+        if (!val) return null;
+        return (
+          <EditValueModal
+            value={val}
+            vt={vt}
+            onSave={updated => saveValueEdit(editingValue.reportId, editingValue.index, updated)}
+            onClose={() => setEditingValue(null)}
+          />
+        );
+      })()}
 
       {/* Generation choice modal */}
       {pendingReport && (
