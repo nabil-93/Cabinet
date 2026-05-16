@@ -354,20 +354,25 @@ export default function ActivityPage() {
   async function handleDelete(hours: number) {
     setShowDeleteMenu(false);
     const label = DELETE_OPTIONS.find(o => o.hours === hours)?.label ?? `${hours}h`;
-    const confirm = window.confirm(
-      lang === "de"
-        ? `Aktivitäten löschen die ${label} sind? Diese Aktion kann nicht rückgängig gemacht werden.`
-        : `Supprimer les activités ${label.toLowerCase()} ? Cette action est irréversible.`
-    );
-    if (!confirm) return;
+
+    const tabLabel = activeTab === "navigation"
+      ? (lang === "de" ? "Navigation" : "Navigation")
+      : (lang === "de" ? "Aktivitäten" : "Activités");
+
+    const confirmMsg = lang === "de"
+      ? `[${tabLabel}] Einträge löschen die älter als ${label} sind?\nNur der aktuelle Tab wird gelöscht. Diese Aktion ist irreversibel.`
+      : `[${tabLabel}] Supprimer les entrées de plus de ${label.toLowerCase()} ?\nSeul l'onglet actif sera supprimé. Cette action est irréversible.`;
+
+    if (!window.confirm(confirmMsg)) return;
     setDeleting(true);
     try {
       const olderThan = new Date(Date.now() - hours * 3600 * 1000).toISOString();
-      const res = await fetch(`/api/v1/activity?olderThan=${encodeURIComponent(olderThan)}`, { method: "DELETE" });
+      const params = new URLSearchParams({ olderThan, category: activeTab });
+      const res = await fetch(`/api/v1/activity?${params}`, { method: "DELETE" });
       const data = await res.json();
       const count = data?.data?.deleted ?? data?.deleted ?? 0;
       await refetch();
-      alert(lang === "de" ? `${count} Einträge gelöscht.` : `${count} entrée(s) supprimée(s).`);
+      alert(lang === "de" ? `${count} Einträge aus "${tabLabel}" gelöscht.` : `${count} entrée(s) supprimée(s) dans "${tabLabel}".`);
     } catch {
       alert(lang === "de" ? "Fehler beim Löschen." : "Erreur lors de la suppression.");
     } finally {
@@ -621,15 +626,25 @@ export default function ActivityPage() {
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   {lang === "de" ? "Löschen" : "Supprimer"}
+                  <span className="text-[10px] opacity-60">
+                    ({activeTab === "navigation" ? "Nav." : "Act."})
+                  </span>
                   <ChevronDown className={cn("w-3 h-3 transition-transform", showDeleteMenu && "rotate-180")} />
                 </button>
                 {showDeleteMenu && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowDeleteMenu(false)} />
                     <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-xl shadow-lg overflow-hidden w-56">
-                      <p className="text-[10px] text-muted-foreground px-3 pt-2.5 pb-1 uppercase tracking-wider font-semibold">
-                        {lang === "de" ? "Einträge löschen älter als:" : "Supprimer les entrées de plus de :"}
-                      </p>
+                      <div className="px-3 pt-2.5 pb-1">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                          {lang === "de" ? "Einträge löschen älter als:" : "Supprimer les entrées de plus de :"}
+                        </p>
+                        <p className="text-[10px] text-red-500 font-semibold mt-0.5">
+                          {activeTab === "navigation"
+                            ? (lang === "de" ? "⚠ Nur Navigation-Einträge" : "⚠ Onglet Navigation uniquement")
+                            : (lang === "de" ? "⚠ Nur Aktivitäts-Einträge" : "⚠ Onglet Activités uniquement")}
+                        </p>
+                      </div>
                       {DELETE_OPTIONS.map(opt => (
                         <button
                           key={opt.hours}

@@ -89,18 +89,30 @@ export async function POST(req: NextRequest) {
   }
 }
 
+const NAV_ACTIONS = ["page_view", "navigate", "view_patient"];
+
 export async function DELETE(req: NextRequest) {
   try {
     const olderThan = req.nextUrl.searchParams.get("olderThan");
+    const category  = req.nextUrl.searchParams.get("category"); // "navigation" | "actions" | null (all)
     if (!olderThan) return err("olderThan param required (ISO date)");
 
-    // Use admin client to bypass RLS
     const supabase = createAdminClient();
-    const { error, count } = await supabase
+    let query = supabase
       .from("activity_logs")
       .delete({ count: "exact" })
       .lt("created_at", olderThan);
 
+    if (category === "navigation") {
+      // Delete only navigation/view_patient actions
+      query = query.in("action", NAV_ACTIONS);
+    } else if (category === "actions") {
+      // Delete everything EXCEPT navigation actions
+      query = query.not("action", "in", `(${NAV_ACTIONS.join(",")})`);
+    }
+    // no category → delete all
+
+    const { error, count } = await query;
     if (error) return err(error.message);
     return ok({ deleted: count ?? 0 });
   } catch (e: unknown) {
