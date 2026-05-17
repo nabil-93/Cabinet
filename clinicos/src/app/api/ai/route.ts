@@ -771,16 +771,17 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
 
         console.log("[DALL-E] generating image, prompt:", safePrompt.slice(0, 120));
 
+        // DALL-E 2 sizes: 256x256, 512x512, 1024x1024
+        const size = ["256x256","512x512","1024x1024"].includes(args.size) ? args.size : "1024x1024";
+
         const res = await fetch("https://api.openai.com/v1/images/generations", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
           body: JSON.stringify({
-            model: "dall-e-3",
+            model: "dall-e-2",
             prompt: safePrompt,
             n: 1,
-            size: args.size ?? "1024x1024",
-            quality: "standard",
-            style: "natural",
+            size,
           }),
         });
 

@@ -11,7 +11,7 @@ export async function GET() {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "dall-e-3",
+        model: "dall-e-2",
         prompt: "A simple red apple on a white plate, professional food photography",
         n: 1,
         size: "1024x1024",
