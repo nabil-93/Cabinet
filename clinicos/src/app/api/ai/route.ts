@@ -282,19 +282,24 @@ const FUNCTIONS = [
   },
   {
     name: "generate_image",
-    description: "Générer une image avec DALL-E 3. Utilise pour: recettes de repas sains, plats recommandés pour un patient, illustrations médicales. Génère TOUJOURS une image quand le médecin demande de visualiser un repas ou un plat. Le prompt doit être en anglais, détaillé et professionnel.",
+    description: "Générer une image avec gpt-image-1. Utilise pour: recettes de repas sains, plats recommandés, illustrations médicales. Génère TOUJOURS une image quand le médecin demande de visualiser un repas ou un plat. Pour un repas: génère une recipe card infographic détaillée.",
     parameters: {
       type: "object",
       required: ["prompt"],
       properties: {
         prompt: {
           type: "string",
-          description: "Prompt en anglais pour DALL-E 3. Pour les repas: 'Professional food photography of [dish], beautiful plating, restaurant quality, warm lighting, shallow depth of field, photorealistic, high quality'. Inclure les détails visuels importants.",
+          description: `Prompt en anglais pour gpt-image-1.
+
+Pour une RECIPE CARD (utilise ce format):
+"Beautiful professional recipe card infographic for [DISH NAME IN FRENCH AS TITLE]. Layout: large stunning food photo at top left, ingredients list with small ingredient photos on the right, 6 step-by-step preparation photos with numbered captions below, chef tips section at the bottom. Dark green elegant headers, cream/beige background, gold accent colors. Professional food magazine style. Include: title '[DISH NAME]' in large decorative font, subtitle in italic, all text in French, photorealistic food photos, clean organized layout."
+
+Pour une PHOTO simple: "Professional food photography of [dish], beautiful plating, warm lighting, photorealistic, restaurant quality."`,
         },
         size: {
           type: "string",
-          enum: ["1024x1024", "1792x1024", "1024x1792"],
-          description: "1024x1024 pour carré (défaut), 1792x1024 pour paysage (repas côte à côte), 1024x1792 pour portrait",
+          enum: ["1024x1024", "1024x1792"],
+          description: "1024x1792 pour recipe card portrait (recommandé), 1024x1024 pour photo simple",
         },
       },
     },
@@ -771,8 +776,8 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
 
         console.log("[DALL-E] generating image, prompt:", safePrompt.slice(0, 120));
 
-        // gpt-image-1 sizes
-        const size = ["1024x1024","1536x1024","1024x1536"].includes(args.size) ? args.size : "1024x1024";
+        // gpt-image-1 valid sizes
+        const size = ["1024x1024","1536x1024","1024x1536","1024x1792","1792x1024"].includes(args.size) ? args.size : "1024x1024";
 
         const res = await fetch("https://api.openai.com/v1/images/generations", {
           method: "POST",
@@ -888,7 +893,7 @@ RÈGLES FONDAMENTALES :
 7. Si une fonction échoue → explique l'erreur et propose une alternative.
 8. Pour les statistiques temporelles → TOUJOURS utiliser get_appointments_stats ou get_invoices_stats.
 9. Pour WhatsApp : si demande "envoie WhatsApp à X" ou "ouvre WhatsApp pour X" → search_patients puis open_whatsapp. Le lien s'ouvrira automatiquement.
-10. Pour images : si le médecin demande une image de repas, plat, recette → TOUJOURS appeler generate_image avec un prompt professionnel en anglais. Après que generate_image retourne succès, l'image est DÉJÀ affichée automatiquement dans l'interface — NE PAS écrire de lien markdown image dans ta réponse. Fournis uniquement la recette complète en texte. Si generate_image retourne une erreur, affiche le message d'erreur exact.
+10. Pour images de repas/recettes : TOUJOURS appeler generate_image avec size="1024x1792" et un prompt de RECIPE CARD infographic (format portrait avec titre, grande photo, liste ingrédients, 6 étapes de préparation avec photos, astuces du chef). L'image s'affiche automatiquement — NE PAS écrire de lien markdown image. Fournis ensuite la recette complète en texte. Si erreur → affiche le message exact.
 
 Date d'aujourd'hui : ${dDate} (${today})`;
 }
