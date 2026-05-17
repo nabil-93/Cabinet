@@ -981,7 +981,20 @@ export async function POST(req: NextRequest) {
 
       console.log(`[AI] → ${fnName}(${JSON.stringify(fnArgs)})`);
       const fnResult = await executeTool(fnName, fnArgs);
-      console.log(`[AI] ← ${fnName} result length: ${fnResult.length}`);
+      console.log(`[AI] ← ${fnName} result:`, fnResult.slice(0, 200));
+
+      // For generate_image errors, return immediately with exact error (don't let AI paraphrase)
+      if (fnName === "generate_image") {
+        try {
+          const parsed = JSON.parse(fnResult);
+          if (parsed.error) {
+            return NextResponse.json({
+              message: `❌ **Erreur DALL-E 3** : ${parsed.error}`,
+              mode: "error",
+            });
+          }
+        } catch {}
+      }
 
       openaiMessages.push({ role: "assistant", content: msg.content ?? null, function_call: msg.function_call });
       openaiMessages.push({ role: "function", name: fnName, content: fnResult });
