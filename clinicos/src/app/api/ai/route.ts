@@ -995,7 +995,7 @@ export async function POST(req: NextRequest) {
           const parsed = JSON.parse(fnResult);
           if (parsed.error) {
             return NextResponse.json({
-              message: `❌ **Erreur DALL-E 3** : ${parsed.error}`,
+              message: `❌ **Erreur génération image** : ${parsed.error}`,
               mode: "error",
             });
           }
