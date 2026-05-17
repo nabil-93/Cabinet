@@ -20,7 +20,8 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-  imageUrl?: string;    // base64 data URL for display
+  imageUrl?: string;    // base64 data URL for display (user upload)
+  generatedImages?: string[]; // DALL-E 3 generated image URLs
   audioFile?: string;   // filename for display
   timestamp: Date;
   mode?: "openai" | "demo" | "error";
@@ -344,6 +345,7 @@ export default function AIAssistantPage() {
           content: data.message || "Je ne peux pas répondre pour le moment.",
           timestamp: new Date(),
           mode: data.mode,
+          generatedImages: data.imageUrls?.length > 0 ? data.imageUrls : undefined,
         };
         updateConv(activeId, (c) => ({ ...c, messages: [...c.messages, aiMsg] }));
       } catch {
@@ -531,6 +533,30 @@ export default function AIAssistantPage() {
                       </div>
                     )}
                     <div className="space-y-0.5">{renderContent(msg.content)}</div>
+
+                    {/* DALL-E 3 generated images */}
+                    {msg.generatedImages && msg.generatedImages.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {msg.generatedImages.map((url, i) => (
+                          <div key={i} className="relative group/img">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={url}
+                              alt={`Image générée ${i + 1}`}
+                              className="rounded-xl w-full max-w-sm object-cover shadow-md border border-border"
+                            />
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="absolute bottom-2 right-2 opacity-0 group-hover/img:opacity-100 transition-opacity bg-black/60 text-white text-[10px] px-2 py-1 rounded-lg"
+                            >
+                              ↗ Ouvrir
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className={cn("flex items-center gap-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity", msg.role === "user" && "flex-row-reverse")}>
                     <span className="text-[10px] text-muted-foreground">

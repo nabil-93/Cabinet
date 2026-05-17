@@ -281,6 +281,25 @@ const FUNCTIONS = [
     },
   },
   {
+    name: "generate_image",
+    description: "Générer une image avec DALL-E 3. Utilise pour: recettes de repas sains, plats recommandés pour un patient, illustrations médicales. Génère TOUJOURS une image quand le médecin demande de visualiser un repas ou un plat. Le prompt doit être en anglais, détaillé et professionnel.",
+    parameters: {
+      type: "object",
+      required: ["prompt"],
+      properties: {
+        prompt: {
+          type: "string",
+          description: "Prompt en anglais pour DALL-E 3. Pour les repas: 'Professional food photography of [dish], beautiful plating, restaurant quality, warm lighting, shallow depth of field, photorealistic, high quality'. Inclure les détails visuels importants.",
+        },
+        size: {
+          type: "string",
+          enum: ["1024x1024", "1792x1024", "1024x1792"],
+          description: "1024x1024 pour carré (défaut), 1792x1024 pour paysage (repas côte à côte), 1024x1792 pour portrait",
+        },
+      },
+    },
+  },
+  {
     name: "pay_invoice",
     description: "Enregistrer un paiement (total ou partiel) pour une facture",
     parameters: {
@@ -743,6 +762,32 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
         });
       }
 
+      case "generate_image": {
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) return JSON.stringify({ error: "Clé API non configurée" });
+
+        const res = await fetch("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: "dall-e-3",
+            prompt: args.prompt,
+            n: 1,
+            size: args.size ?? "1024x1024",
+            quality: "standard",
+            style: "natural",
+          }),
+        });
+        if (!res.ok) {
+          const e = await res.text();
+          return JSON.stringify({ error: `DALL-E error: ${res.status} ${e}` });
+        }
+        const data = await res.json();
+        const imageUrl = data.data?.[0]?.url;
+        if (!imageUrl) return JSON.stringify({ error: "Aucune image générée" });
+        return JSON.stringify({ success: true, imageUrl, revisedPrompt: data.data?.[0]?.revised_prompt });
+      }
+
       default:
         return JSON.stringify({ error: `Outil inconnu: ${name}` });
     }
@@ -813,6 +858,7 @@ FONCTIONS DISPONIBLES :
 📊 LECTURE : get_stats, get_appointments, get_appointments_stats, get_patients, search_patients, get_waiting_room, get_invoices, get_invoices_stats, get_team, get_activity, get_consultations, get_prescriptions
 ✏️ ÉCRITURE : create_patient, update_patient, create_appointment, update_appointment_status, delete_appointment, add_to_waiting_room, create_consultation, create_prescription, pay_invoice
 📱 WHATSAPP : get_whatsapp_history (historique envoyés), get_whatsapp_pending (à envoyer), open_whatsapp (ouvrir WhatsApp Web pour un patient)
+🎨 IMAGE : generate_image (DALL-E 3) — utilise quand le médecin demande une image, un repas, un plat, une illustration
 
 ${periodGuide}
 
@@ -826,6 +872,7 @@ RÈGLES FONDAMENTALES :
 7. Si une fonction échoue → explique l'erreur et propose une alternative.
 8. Pour les statistiques temporelles → TOUJOURS utiliser get_appointments_stats ou get_invoices_stats.
 9. Pour WhatsApp : si demande "envoie WhatsApp à X" ou "ouvre WhatsApp pour X" → search_patients puis open_whatsapp. Le lien s'ouvrira automatiquement.
+10. Pour images : si le médecin demande une image de repas, plat, recette → TOUJOURS appeler generate_image avec un prompt professionnel en anglais. Après la génération, fournis aussi la recette complète avec ingrédients et étapes de préparation.
 
 Date d'aujourd'hui : ${dDate} (${today})`;
 }
@@ -932,19 +979,20 @@ export async function POST(req: NextRequest) {
         : "Désolé, je n'ai pas pu traiter cette demande. Veuillez reformuler ou réessayer.";
     }
 
-    // Extract WhatsApp URL if present in the last function result
+    // Extract special URLs from function results
     let whatsappUrl: string | null = null;
-    for (let i = openaiMessages.length - 1; i >= 0; i--) {
-      const m = openaiMessages[i];
-      if (m.role === "function" && m.name === "open_whatsapp") {
-        try {
-          const parsed = JSON.parse(m.content);
-          if (parsed.whatsappUrl) { whatsappUrl = parsed.whatsappUrl; break; }
-        } catch {}
-      }
+    const imageUrls: string[] = [];
+
+    for (const m of openaiMessages) {
+      if (m.role !== "function") continue;
+      try {
+        const parsed = JSON.parse(m.content);
+        if (m.name === "open_whatsapp" && parsed.whatsappUrl) whatsappUrl = parsed.whatsappUrl;
+        if (m.name === "generate_image" && parsed.imageUrl) imageUrls.push(parsed.imageUrl);
+      } catch {}
     }
 
-    return NextResponse.json({ message: finalText, mode: "openai", whatsappUrl });
+    return NextResponse.json({ message: finalText, mode: "openai", whatsappUrl, imageUrls: imageUrls.length > 0 ? imageUrls : undefined });
   } catch (error: any) {
     console.error("AI route error:", error);
     return NextResponse.json({ message: "⚠️ Une erreur est survenue. Veuillez réessayer." }, { status: 500 });
