@@ -136,6 +136,7 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   loading?: boolean;
+  generatedImages?: string[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -242,7 +243,13 @@ function ChatBubble({ msg }: { msg: ChatMessage }) {
               <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: "150ms" }} />
               <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: "300ms" }} />
             </div>
-          : <p className="whitespace-pre-wrap">{msg.content}</p>
+          : <>
+              <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.generatedImages?.map((src, i) => (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img key={i} src={src} alt="Image générée" className="mt-2 rounded-xl w-full max-w-xs object-cover border border-border shadow" />
+              ))}
+            </>
         }
       </div>
     </div>
@@ -923,7 +930,12 @@ export default function DoctorDashboardPage() {
 
       setChatMessages(prev => [
         ...prev.filter(m => m.id !== "loading"),
-        { id: `ai-${Date.now()}`, role: "assistant", content: data.message ?? "Erreur." },
+        {
+          id: `ai-${Date.now()}`,
+          role: "assistant",
+          content: data.message ?? "Erreur.",
+          generatedImages: data.imageUrls?.length > 0 ? data.imageUrls : undefined,
+        },
       ]);
     } catch {
       setChatMessages(prev => [
