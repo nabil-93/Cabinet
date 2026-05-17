@@ -771,14 +771,14 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
 
         console.log("[DALL-E] generating image, prompt:", safePrompt.slice(0, 120));
 
-        // DALL-E 2 sizes: 256x256, 512x512, 1024x1024
-        const size = ["256x256","512x512","1024x1024"].includes(args.size) ? args.size : "1024x1024";
+        // gpt-image-1 sizes
+        const size = ["1024x1024","1536x1024","1024x1536"].includes(args.size) ? args.size : "1024x1024";
 
         const res = await fetch("https://api.openai.com/v1/images/generations", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
           body: JSON.stringify({
-            model: "dall-e-2",
+            model: "gpt-image-1",
             prompt: safePrompt,
             n: 1,
             size,
@@ -787,8 +787,8 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
 
         if (!res.ok) {
           const errBody = await res.text();
-          console.error("[DALL-E] error:", res.status, errBody);
-          let userMsg = `Erreur DALL-E ${res.status}`;
+          console.error("[GPT-Image] error:", res.status, errBody);
+          let userMsg = `Erreur image ${res.status}`;
           try {
             const parsed = JSON.parse(errBody);
             userMsg = parsed?.error?.message ?? userMsg;
@@ -797,10 +797,15 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
         }
 
         const data = await res.json();
-        const imageUrl = data.data?.[0]?.url;
-        if (!imageUrl) return JSON.stringify({ error: "Aucune image retournée par DALL-E" });
-        console.log("[DALL-E] success, url:", imageUrl.slice(0, 60));
-        return JSON.stringify({ success: true, imageUrl, revisedPrompt: data.data?.[0]?.revised_prompt });
+
+        // gpt-image-1 returns b64_json
+        const b64 = data.data?.[0]?.b64_json;
+        const urlDirect = data.data?.[0]?.url;
+        const imageUrl = urlDirect ?? (b64 ? `data:image/png;base64,${b64}` : null);
+
+        if (!imageUrl) return JSON.stringify({ error: "Aucune image retournée" });
+        console.log("[GPT-Image] success");
+        return JSON.stringify({ success: true, imageUrl });
       }
 
       default:
