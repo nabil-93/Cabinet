@@ -782,6 +782,8 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
             prompt: safePrompt,
             n: 1,
             size,
+            output_format: "jpeg",  // smaller than PNG
+            output_compression: 70, // compress to reduce payload size
           }),
         });
 
@@ -789,22 +791,16 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
           const errBody = await res.text();
           console.error("[GPT-Image] error:", res.status, errBody);
           let userMsg = `Erreur image ${res.status}`;
-          try {
-            const parsed = JSON.parse(errBody);
-            userMsg = parsed?.error?.message ?? userMsg;
-          } catch {}
+          try { const p = JSON.parse(errBody); userMsg = p?.error?.message ?? userMsg; } catch {}
           return JSON.stringify({ error: userMsg });
         }
 
         const data = await res.json();
-
-        // gpt-image-1 returns b64_json
         const b64 = data.data?.[0]?.b64_json;
-        const urlDirect = data.data?.[0]?.url;
-        const imageUrl = urlDirect ?? (b64 ? `data:image/png;base64,${b64}` : null);
+        if (!b64) return JSON.stringify({ error: "Aucune image retournée par gpt-image-1" });
 
-        if (!imageUrl) return JSON.stringify({ error: "Aucune image retournée" });
-        console.log("[GPT-Image] success");
+        const imageUrl = `data:image/jpeg;base64,${b64}`;
+        console.log("[GPT-Image] success, b64 length:", b64.length);
         return JSON.stringify({ success: true, imageUrl });
       }
 
@@ -892,7 +888,7 @@ RÈGLES FONDAMENTALES :
 7. Si une fonction échoue → explique l'erreur et propose une alternative.
 8. Pour les statistiques temporelles → TOUJOURS utiliser get_appointments_stats ou get_invoices_stats.
 9. Pour WhatsApp : si demande "envoie WhatsApp à X" ou "ouvre WhatsApp pour X" → search_patients puis open_whatsapp. Le lien s'ouvrira automatiquement.
-10. Pour images : si le médecin demande une image de repas, plat, recette → TOUJOURS appeler generate_image avec un prompt professionnel en anglais. Après la génération, fournis aussi la recette complète. Si generate_image retourne une erreur, affiche le message d'erreur exact pour aider au diagnostic.
+10. Pour images : si le médecin demande une image de repas, plat, recette → TOUJOURS appeler generate_image avec un prompt professionnel en anglais. Après que generate_image retourne succès, l'image est DÉJÀ affichée automatiquement dans l'interface — NE PAS écrire de markdown image `![...]()` dans ta réponse. Fournis uniquement la recette complète en texte. Si generate_image retourne une erreur, affiche le message d'erreur exact.
 
 Date d'aujourd'hui : ${dDate} (${today})`;
 }
@@ -1005,7 +1001,7 @@ export async function POST(req: NextRequest) {
             imageUrls.push(parsed.imageUrl);
             // Tell GPT a short confirmation without the image data
             openaiMessages.push({ role: "assistant", content: msg.content ?? null, function_call: msg.function_call });
-            openaiMessages.push({ role: "function", name: fnName, content: JSON.stringify({ success: true, message: "Image générée avec succès et affichée à l'utilisateur." }) });
+            openaiMessages.push({ role: "function", name: fnName, content: JSON.stringify({ success: true, message: "Image générée et affichée automatiquement dans l'interface. Ne pas inclure de markdown image dans ta réponse. Fournis uniquement la recette en texte." }) });
             continue;
           }
         } catch {}
