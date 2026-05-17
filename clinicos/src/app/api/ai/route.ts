@@ -812,7 +812,7 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
             prompt: safePrompt,
             n: 1,
             size,
-            quality: "low",  // reduces image size significantly
+            quality: "high",  // best quality output
           }),
         });
 
