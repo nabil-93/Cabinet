@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getToday, formatDate } from "@/lib/date-utils";
+import { imageCache } from "./image/route";
 
 // ─── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -798,9 +799,12 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
         const b64 = data.data?.[0]?.b64_json;
         if (!b64) return JSON.stringify({ error: "Aucune image retournée par gpt-image-1" });
 
-        const imageUrl = `data:image/png;base64,${b64}`;
-        console.log("[GPT-Image] success, b64 length:", b64.length);
-        return JSON.stringify({ success: true, imageUrl, b64Length: b64.length });
+        // Store in cache and return a short URL instead of the huge base64
+        const imageId = `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        imageCache.set(imageId, { b64, ts: Date.now() });
+        const imageUrl = `/api/ai/image?id=${imageId}`;
+        console.log("[GPT-Image] success, stored as:", imageId, "b64 length:", b64.length);
+        return JSON.stringify({ success: true, imageUrl });
       }
 
       default:
