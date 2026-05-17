@@ -812,7 +812,7 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
             prompt: safePrompt,
             n: 1,
             size,
-            quality: "high",  // best quality output
+            quality: "medium",  // good quality, ~$0.06 per image
           }),
         });
 
