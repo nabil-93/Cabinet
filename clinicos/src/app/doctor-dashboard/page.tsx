@@ -38,6 +38,7 @@ import {
   StopCircle,
   Timer,
   Paperclip,
+  Download,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/services/api";
@@ -246,8 +247,15 @@ function ChatBubble({ msg }: { msg: ChatMessage }) {
           : <>
               <p className="whitespace-pre-wrap">{msg.content}</p>
               {msg.generatedImages?.map((src, i) => (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img key={i} src={src} alt="Image générée" className="mt-2 rounded-xl w-full max-w-xs object-cover border border-border shadow" />
+                <div key={i} className="relative mt-2 group/img">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="Image générée" className="rounded-xl w-full max-w-xs object-cover border border-border shadow cursor-zoom-in"
+                    onClick={() => window.open(src, "_blank")} />
+                  <a href={src} download={`clinicos-recette-${i + 1}.png`}
+                    className="absolute top-1.5 right-1.5 opacity-0 group-hover/img:opacity-100 transition-opacity bg-black/60 text-white p-1 rounded-lg">
+                    <Download className="w-3 h-3" />
+                  </a>
+                </div>
               ))}
             </>
         }

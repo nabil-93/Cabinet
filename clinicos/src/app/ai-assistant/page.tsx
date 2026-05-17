@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bot, Send, Mic, MicOff, User, Sparkles, Copy, RefreshCw,
   Trash2, AlertCircle, Plus, MessageSquare, ChevronLeft, Menu,
-  Paperclip, ImageIcon, FileAudio, X, Loader2,
+  Paperclip, ImageIcon, FileAudio, X, Loader2, Download, ZoomIn,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/lib/auth-context";
@@ -46,7 +46,15 @@ function loadConversations(): Conversation[] {
     return parsed.map((c: any) => ({
       ...c,
       createdAt: new Date(c.createdAt),
-      messages: c.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })),
+      messages: c.messages.map((m: any) => {
+        // Restore generated images from sessionStorage
+        let generatedImages: string[] | undefined;
+        try {
+          const stored = sessionStorage.getItem(`clinicos-img-${m.id}`);
+          if (stored) generatedImages = JSON.parse(stored);
+        } catch {}
+        return { ...m, timestamp: new Date(m.timestamp), generatedImages };
+      }),
     }));
   } catch {
     return [];
@@ -158,6 +166,7 @@ export default function AIAssistantPage() {
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [apiMode, setApiMode] = useState<"openai" | "demo" | "unknown">("unknown");
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   // Attachment state
   const [attachedImage, setAttachedImage] = useState<{ base64: string; preview: string; name: string } | null>(null);
@@ -339,13 +348,21 @@ export default function AIAssistantPage() {
           document.body.removeChild(a);
         }
 
+        const msgId = `a-${Date.now()}`;
+        const genImages = data.imageUrls?.length > 0 ? data.imageUrls : undefined;
+
+        // Persist generated images in sessionStorage so they survive page navigation
+        if (genImages) {
+          try { sessionStorage.setItem(`clinicos-img-${msgId}`, JSON.stringify(genImages)); } catch {}
+        }
+
         const aiMsg: Message = {
-          id: `a-${Date.now()}`,
+          id: msgId,
           role: "assistant",
           content: data.message || "Je ne peux pas répondre pour le moment.",
           timestamp: new Date(),
           mode: data.mode,
-          generatedImages: data.imageUrls?.length > 0 ? data.imageUrls : undefined,
+          generatedImages: genImages,
         };
         updateConv(activeId, (c) => ({ ...c, messages: [...c.messages, aiMsg] }));
       } catch {
@@ -534,7 +551,7 @@ export default function AIAssistantPage() {
                     )}
                     <div className="space-y-0.5">{renderContent(msg.content)}</div>
 
-                    {/* DALL-E 3 generated images */}
+                    {/* Generated images */}
                     {msg.generatedImages && msg.generatedImages.length > 0 && (
                       <div className="mt-3 space-y-2">
                         {msg.generatedImages.map((url, i) => (
@@ -543,16 +560,19 @@ export default function AIAssistantPage() {
                             <img
                               src={url}
                               alt={`Image générée ${i + 1}`}
-                              className="rounded-xl w-full max-w-sm object-cover shadow-md border border-border"
+                              onClick={() => setLightboxSrc(url)}
+                              className="rounded-xl w-full max-w-sm object-cover shadow-md border border-border cursor-zoom-in"
                             />
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="absolute bottom-2 right-2 opacity-0 group-hover/img:opacity-100 transition-opacity bg-black/60 text-white text-[10px] px-2 py-1 rounded-lg"
-                            >
-                              ↗ Ouvrir
-                            </a>
+                            <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover/img:opacity-100 transition-opacity">
+                              <button onClick={() => setLightboxSrc(url)}
+                                className="bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-lg" title="Agrandir">
+                                <ZoomIn className="w-3.5 h-3.5" />
+                              </button>
+                              <a href={url} download={`clinicos-image-${i + 1}.png`}
+                                className="bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-lg" title="Télécharger">
+                                <Download className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -754,6 +774,29 @@ export default function AIAssistantPage() {
           </div>
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxSrc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+          onClick={() => setLightboxSrc(null)}>
+          <button onClick={() => setLightboxSrc(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+          <a href={lightboxSrc} download="clinicos-recipe.png"
+            onClick={e => e.stopPropagation()}
+            className="absolute top-4 right-16 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors" title="Télécharger">
+            <Download className="w-5 h-5" />
+          </a>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxSrc}
+            alt="Image agrandie"
+            onClick={e => e.stopPropagation()}
+            className="max-h-[90vh] max-w-[90vw] object-contain rounded-xl shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   );
 }
