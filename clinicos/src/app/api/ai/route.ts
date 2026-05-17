@@ -298,8 +298,8 @@ Pour une PHOTO simple: "Professional food photography of [dish], beautiful plati
         },
         size: {
           type: "string",
-          enum: ["1024x1024", "1024x1792"],
-          description: "1024x1792 pour recipe card portrait (recommandé), 1024x1024 pour photo simple",
+          enum: ["1024x1024", "1024x1536", "1536x1024"],
+          description: "1024x1536 pour recipe card portrait (recommandé), 1024x1024 pour photo simple carré",
         },
       },
     },
@@ -893,7 +893,7 @@ RÈGLES FONDAMENTALES :
 7. Si une fonction échoue → explique l'erreur et propose une alternative.
 8. Pour les statistiques temporelles → TOUJOURS utiliser get_appointments_stats ou get_invoices_stats.
 9. Pour WhatsApp : si demande "envoie WhatsApp à X" ou "ouvre WhatsApp pour X" → search_patients puis open_whatsapp. Le lien s'ouvrira automatiquement.
-10. Pour images de repas/recettes : TOUJOURS appeler generate_image avec size="1024x1792" et un prompt de RECIPE CARD infographic (format portrait avec titre, grande photo, liste ingrédients, 6 étapes de préparation avec photos, astuces du chef). L'image s'affiche automatiquement — NE PAS écrire de lien markdown image. Fournis ensuite la recette complète en texte. Si erreur → affiche le message exact.
+10. Pour images de repas/recettes : TOUJOURS appeler generate_image avec size="1024x1536" et un prompt de RECIPE CARD infographic (format portrait avec titre, grande photo, liste ingrédients, 6 étapes de préparation avec photos, astuces du chef). L'image s'affiche automatiquement — NE PAS écrire de lien markdown image. Fournis ensuite la recette complète en texte. Si erreur → affiche le message exact.
 
 Date d'aujourd'hui : ${dDate} (${today})`;
 }
