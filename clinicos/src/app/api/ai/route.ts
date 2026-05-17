@@ -289,12 +289,37 @@ const FUNCTIONS = [
       properties: {
         prompt: {
           type: "string",
-          description: `Prompt en anglais pour gpt-image-1.
+          description: `Prompt pour gpt-image-1. Pour une RECIPE CARD, utilise EXACTEMENT ce template en remplaçant [DISH_NAME] et [SUBTITLE]:
 
-Pour une RECIPE CARD (utilise ce format):
-"Beautiful professional recipe card infographic for [DISH NAME IN FRENCH AS TITLE]. Layout: large stunning food photo at top left, ingredients list with small ingredient photos on the right, 6 step-by-step preparation photos with numbered captions below, chef tips section at the bottom. Dark green elegant headers, cream/beige background, gold accent colors. Professional food magazine style. Include: title '[DISH NAME]' in large decorative font, subtitle in italic, all text in French, photorealistic food photos, clean organized layout."
+"Create a premium French recipe infographic poster in a clean luxury editorial food-magazine style.
 
-Pour une PHOTO simple: "Professional food photography of [dish], beautiful plating, warm lighting, photorealistic, restaurant quality."`,
+Design style:
+- Elegant beige/cream background
+- Dark green and gold accents
+- High-end cookbook aesthetic
+- Symmetrical layout
+- Ultra realistic food photography
+- Sharp typography with classic serif titles
+- Premium restaurant menu look
+- Warm natural lighting
+- Clean spacing and organized sections
+- Modern French culinary infographic
+- Vertical poster composition (4:5 ratio)
+
+Structure of the poster:
+1. Large title at the top in French: [DISH_NAME]
+2. Small elegant subtitle under the title: [SUBTITLE]
+3. Large hero food image on the upper left
+4. Ingredients panel on the upper right with ingredient list, small ingredient photos/icons, decorative borders
+5. Big PRÉPARATION section in the middle
+6. 6 numbered cooking steps with realistic step-by-step images, short French instructions, gold numbered circles
+7. Bottom section ASTUCES DU CHEF with 4 chef tips, small illustrated icons, elegant framed container
+8. Decorative herbs/lemon illustrations in corners
+
+Typography: Main title large dark green serif, secondary title elegant gold serif, body text clean French typography
+Color palette: Cream/beige background, dark forest green, warm gold accents, natural food colors, soft earthy tones
+Visual quality: Hyper realistic food photography, crispy textures, vibrant fresh ingredients, soft shadows, high detail, commercial food styling, Ultra HD
+Important: Everything written in French, very detailed infographic, realistic food photos only, no cartoon style, clean borders and aligned grids"`,
         },
         size: {
           type: "string",
