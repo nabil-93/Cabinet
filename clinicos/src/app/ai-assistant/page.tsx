@@ -58,7 +58,7 @@ function saveConversations(convs: Conversation[]) {
     // Strip base64 imageUrl before persisting to avoid storage quota errors
     const stripped = convs.map((c) => ({
       ...c,
-      messages: c.messages.map((m) => ({ ...m, imageUrl: undefined })),
+      messages: c.messages.map((m) => ({ ...m, imageUrl: undefined, generatedImages: undefined })),
     }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
   } catch {}

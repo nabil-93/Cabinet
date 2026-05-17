@@ -782,8 +782,7 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
             prompt: safePrompt,
             n: 1,
             size,
-            output_format: "jpeg",  // smaller than PNG
-            output_compression: 70, // compress to reduce payload size
+            quality: "low",  // reduces image size significantly
           }),
         });
 
@@ -799,9 +798,9 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
         const b64 = data.data?.[0]?.b64_json;
         if (!b64) return JSON.stringify({ error: "Aucune image retournée par gpt-image-1" });
 
-        const imageUrl = `data:image/jpeg;base64,${b64}`;
+        const imageUrl = `data:image/png;base64,${b64}`;
         console.log("[GPT-Image] success, b64 length:", b64.length);
-        return JSON.stringify({ success: true, imageUrl });
+        return JSON.stringify({ success: true, imageUrl, b64Length: b64.length });
       }
 
       default:
