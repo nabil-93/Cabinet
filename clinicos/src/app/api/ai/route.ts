@@ -945,6 +945,7 @@ export async function POST(req: NextRequest) {
     let finalText = "";
     let iteration = 0;
     const MAX_ITERATIONS = 10;
+    const imageUrls: string[] = [];
 
     while (iteration < MAX_ITERATIONS) {
       iteration++;
@@ -987,9 +988,9 @@ export async function POST(req: NextRequest) {
 
       console.log(`[AI] → ${fnName}(${JSON.stringify(fnArgs)})`);
       const fnResult = await executeTool(fnName, fnArgs);
-      console.log(`[AI] ← ${fnName} result:`, fnResult.slice(0, 200));
+      console.log(`[AI] ← ${fnName} result length:`, fnResult.length);
 
-      // For generate_image errors, return immediately with exact error (don't let AI paraphrase)
+      // Handle generate_image specially — extract image before passing to GPT
       if (fnName === "generate_image") {
         try {
           const parsed = JSON.parse(fnResult);
@@ -998,6 +999,14 @@ export async function POST(req: NextRequest) {
               message: `❌ **Erreur génération image** : ${parsed.error}`,
               mode: "error",
             });
+          }
+          if (parsed.success && parsed.imageUrl) {
+            // Save the image URL separately — don't pass the huge base64 to GPT
+            imageUrls.push(parsed.imageUrl);
+            // Tell GPT a short confirmation without the image data
+            openaiMessages.push({ role: "assistant", content: msg.content ?? null, function_call: msg.function_call });
+            openaiMessages.push({ role: "function", name: fnName, content: JSON.stringify({ success: true, message: "Image générée avec succès et affichée à l'utilisateur." }) });
+            continue;
           }
         } catch {}
       }
@@ -1012,16 +1021,14 @@ export async function POST(req: NextRequest) {
         : "Désolé, je n'ai pas pu traiter cette demande. Veuillez reformuler ou réessayer.";
     }
 
-    // Extract special URLs from function results
+    // Extract whatsapp URL from function results
     let whatsappUrl: string | null = null;
-    const imageUrls: string[] = [];
 
     for (const m of openaiMessages) {
       if (m.role !== "function") continue;
       try {
         const parsed = JSON.parse(m.content);
         if (m.name === "open_whatsapp" && parsed.whatsappUrl) whatsappUrl = parsed.whatsappUrl;
-        if (m.name === "generate_image" && parsed.imageUrl) imageUrls.push(parsed.imageUrl);
       } catch {}
     }
 
