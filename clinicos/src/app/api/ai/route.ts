@@ -888,7 +888,7 @@ RÈGLES FONDAMENTALES :
 7. Si une fonction échoue → explique l'erreur et propose une alternative.
 8. Pour les statistiques temporelles → TOUJOURS utiliser get_appointments_stats ou get_invoices_stats.
 9. Pour WhatsApp : si demande "envoie WhatsApp à X" ou "ouvre WhatsApp pour X" → search_patients puis open_whatsapp. Le lien s'ouvrira automatiquement.
-10. Pour images : si le médecin demande une image de repas, plat, recette → TOUJOURS appeler generate_image avec un prompt professionnel en anglais. Après que generate_image retourne succès, l'image est DÉJÀ affichée automatiquement dans l'interface — NE PAS écrire de markdown image `![...]()` dans ta réponse. Fournis uniquement la recette complète en texte. Si generate_image retourne une erreur, affiche le message d'erreur exact.
+10. Pour images : si le médecin demande une image de repas, plat, recette → TOUJOURS appeler generate_image avec un prompt professionnel en anglais. Après que generate_image retourne succès, l'image est DÉJÀ affichée automatiquement dans l'interface — NE PAS écrire de lien markdown image dans ta réponse. Fournis uniquement la recette complète en texte. Si generate_image retourne une erreur, affiche le message d'erreur exact.
 
 Date d'aujourd'hui : ${dDate} (${today})`;
 }
