@@ -26,7 +26,7 @@ export default function StatCard({ title, value, change, icon: Icon, gradient, d
         <div>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
           <div className="flex items-baseline gap-1 mt-2">
-            <span className="text-2xl font-bold text-foreground">{typeof value === "number" ? value.toLocaleString("fr-MA") : value}</span>
+            <span className="text-2xl font-bold text-foreground">{typeof value === "number" ? value.toLocaleString("fr-FR") : value}</span>
             {suffix && <span className="text-sm text-muted-foreground font-medium">{suffix}</span>}
           </div>
           {change !== undefined && (

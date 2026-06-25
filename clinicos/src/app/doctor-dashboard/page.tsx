@@ -585,12 +585,12 @@ function PatientStatsTab({ effectiveSelectedId, patientApts, consultations, pres
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-3 text-center">
-              <p className="text-xl font-bold text-emerald-600">{totalPaid.toLocaleString("fr-MA")}</p>
+              <p className="text-xl font-bold text-emerald-600">{totalPaid.toLocaleString("fr-FR")}</p>
               <p className="text-[10px] text-emerald-600/70 mt-0.5">EUR</p>
               <p className="text-[10px] text-muted-foreground font-medium mt-1">{dt.paid}</p>
             </div>
             <div className={cn("rounded-xl p-3 text-center", totalRem > 0 ? "bg-red-50 dark:bg-red-950/20" : "bg-muted/30")}>
-              <p className={cn("text-xl font-bold", totalRem > 0 ? "text-red-600" : "text-muted-foreground")}>{totalRem.toLocaleString("fr-MA")}</p>
+              <p className={cn("text-xl font-bold", totalRem > 0 ? "text-red-600" : "text-muted-foreground")}>{totalRem.toLocaleString("fr-FR")}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">EUR</p>
               <p className="text-[10px] text-muted-foreground font-medium mt-1">{dt.remaining}</p>
             </div>

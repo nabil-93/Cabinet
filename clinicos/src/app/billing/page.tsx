@@ -144,8 +144,8 @@ async function downloadPDF(inv: Invoice) {
     doc.setTextColor(40, 40, 60); doc.setFontSize(9); doc.setFont("helvetica", "normal");
     doc.text(item.description || "—", margin + 3, y + 5.5);
     doc.text(String(item.quantity), 128, y + 5.5, { align: "center" });
-    doc.text(`${item.unitPrice.toLocaleString("fr-MA")} EUR`, 158, y + 5.5, { align: "right" });
-    doc.text(`${item.total.toLocaleString("fr-MA")} EUR`, W - margin - 2, y + 5.5, { align: "right" });
+    doc.text(`${item.unitPrice.toLocaleString("fr-FR")} EUR`, 158, y + 5.5, { align: "right" });
+    doc.text(`${item.total.toLocaleString("fr-FR")} EUR`, W - margin - 2, y + 5.5, { align: "right" });
     y += 8;
   });
 
@@ -156,15 +156,15 @@ async function downloadPDF(inv: Invoice) {
   doc.text("Sous-total :", boxX + 4, y + 8);
   doc.text("Montant payé :", boxX + 4, y + 16);
   doc.setFont("helvetica", "bold"); doc.setTextColor(40, 40, 60);
-  doc.text(`${inv.total?.toLocaleString("fr-MA")} EUR`, boxX + 71, y + 8, { align: "right" });
+  doc.text(`${inv.total?.toLocaleString("fr-FR")} EUR`, boxX + 71, y + 8, { align: "right" });
   doc.setTextColor(22, 163, 74);
-  doc.text(`${inv.paid?.toLocaleString("fr-MA")} EUR`, boxX + 71, y + 16, { align: "right" });
+  doc.text(`${inv.paid?.toLocaleString("fr-FR")} EUR`, boxX + 71, y + 16, { align: "right" });
   doc.setDrawColor(98, 114, 245); doc.setLineWidth(0.5);
   doc.line(boxX + 4, y + 20, boxX + 71, y + 20);
   doc.setFontSize(11); doc.setFont("helvetica", "bold");
   doc.setTextColor(98, 114, 245);
   doc.text("Solde :", boxX + 4, y + 30);
-  doc.text(`${balance.toLocaleString("fr-MA")} EUR`, boxX + 71, y + 30, { align: "right" });
+  doc.text(`${balance.toLocaleString("fr-FR")} EUR`, boxX + 71, y + 30, { align: "right" });
 
   y += 46;
   const badgeColors: Record<string, [number, number, number]> = {
@@ -191,7 +191,7 @@ async function downloadPDF(inv: Invoice) {
   doc.setFillColor(98, 114, 245); doc.rect(0, 287, W, 10, "F");
   doc.setTextColor(255, 255, 255); doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
   doc.text(
-    `Document généré par ClinicOS · ${new Date().toLocaleDateString("fr-MA")} · Merci de votre confiance.`,
+    `Document généré par ClinicOS · ${new Date().toLocaleDateString("fr-FR")} · Merci de votre confiance.`,
     W / 2, 293, { align: "center" }
   );
 
@@ -271,7 +271,7 @@ function ItemsTable({
             className="px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs text-center focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
           <input type="number" min="0" value={item.unitPrice} onChange={e => update(idx, "unitPrice", e.target.value)}
             className="px-2 py-1.5 rounded-lg border border-border bg-background/50 text-xs text-right focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-          <span className="text-xs font-semibold text-foreground text-right pr-1">{item.total.toLocaleString("fr-MA")}</span>
+          <span className="text-xs font-semibold text-foreground text-right pr-1">{item.total.toLocaleString("fr-FR")}</span>
           <button type="button" onClick={() => removeRow(idx)}
             className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-100 text-muted-foreground hover:text-red-500 transition-all">
             <X className="w-3 h-3" />
@@ -371,7 +371,7 @@ function CreateInvoiceModal({ onClose, t }: { onClose: () => void; t: (key: stri
             <ItemsTable items={items} onChange={setItems} addLineLabel={t("billing.editModal.addLine")} />
             <div className="mt-3 text-right">
               <span className="text-xs text-muted-foreground">{t("billing.createModal.totalLabel")} </span>
-              <span className="text-sm font-bold text-primary">{total.toLocaleString("fr-MA")} EUR</span>
+              <span className="text-sm font-bold text-primary">{total.toLocaleString("fr-FR")} EUR</span>
             </div>
           </div>
 
@@ -467,7 +467,7 @@ function EditInvoiceModal({ invoice, onClose, t }: {
             <ItemsTable items={items} onChange={setItems} addLineLabel={t("billing.editModal.addLine")} />
             <div className="mt-3 text-right">
               <span className="text-xs text-muted-foreground">{t("billing.editModal.totalLabel")} </span>
-              <span className="text-sm font-bold text-primary">{total.toLocaleString("fr-MA")} EUR</span>
+              <span className="text-sm font-bold text-primary">{total.toLocaleString("fr-FR")} EUR</span>
             </div>
           </div>
 
@@ -514,15 +514,15 @@ function EditInvoiceModal({ invoice, onClose, t }: {
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="bg-background/60 rounded-lg py-2 px-1">
                   <p className="text-[10px] text-muted-foreground">{t("common.total")}</p>
-                  <p className="text-sm font-bold text-foreground">{total.toLocaleString("fr-MA")}</p>
+                  <p className="text-sm font-bold text-foreground">{total.toLocaleString("fr-FR")}</p>
                 </div>
                 <div className="bg-emerald-50 dark:bg-emerald-950/50 rounded-lg py-2 px-1">
                   <p className="text-[10px] text-emerald-600">{t("common.paid")}</p>
-                  <p className="text-sm font-bold text-emerald-600">{paidNum.toLocaleString("fr-MA")}</p>
+                  <p className="text-sm font-bold text-emerald-600">{paidNum.toLocaleString("fr-FR")}</p>
                 </div>
                 <div className="bg-red-50 dark:bg-red-950/50 rounded-lg py-2 px-1">
                   <p className="text-[10px] text-red-500">{t("common.remaining")}</p>
-                  <p className="text-sm font-bold text-red-500">{restNum.toLocaleString("fr-MA")}</p>
+                  <p className="text-sm font-bold text-red-500">{restNum.toLocaleString("fr-FR")}</p>
                 </div>
               </div>
             </div>
@@ -601,17 +601,17 @@ function PayModal({ invoice, onClose, t }: {
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-muted/30 rounded-xl py-3 px-2">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{t("common.total")}</p>
-              <p className="text-sm font-bold text-foreground">{total.toLocaleString("fr-MA")}</p>
+              <p className="text-sm font-bold text-foreground">{total.toLocaleString("fr-FR")}</p>
               <p className="text-[10px] text-muted-foreground">EUR</p>
             </div>
             <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl py-3 px-2">
               <p className="text-[10px] text-emerald-600 uppercase tracking-wide mb-1">{t("billing.payModal.alreadyPaid")}</p>
-              <p className="text-sm font-bold text-emerald-600">{alreadyPaid.toLocaleString("fr-MA")}</p>
+              <p className="text-sm font-bold text-emerald-600">{alreadyPaid.toLocaleString("fr-FR")}</p>
               <p className="text-[10px] text-emerald-600">EUR</p>
             </div>
             <div className="bg-red-50 dark:bg-red-950/30 rounded-xl py-3 px-2">
               <p className="text-[10px] text-red-500 uppercase tracking-wide mb-1">{t("billing.payModal.remainingDue")}</p>
-              <p className="text-sm font-bold text-red-500">{remaining.toLocaleString("fr-MA")}</p>
+              <p className="text-sm font-bold text-red-500">{remaining.toLocaleString("fr-FR")}</p>
               <p className="text-[10px] text-red-500">EUR</p>
             </div>
           </div>
@@ -638,12 +638,12 @@ function PayModal({ invoice, onClose, t }: {
             )}>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{t("billing.payModal.totalAfter")}</span>
-                <span className="font-bold text-foreground">{newTotalPaid.toLocaleString("fr-MA")} EUR</span>
+                <span className="font-bold text-foreground">{newTotalPaid.toLocaleString("fr-FR")} EUR</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{t("billing.payModal.remaining")}</span>
                 <span className={cn("font-bold", willBePaid ? "text-emerald-600" : "text-amber-600")}>
-                  {newRemaining.toLocaleString("fr-MA")} EUR
+                  {newRemaining.toLocaleString("fr-FR")} EUR
                 </span>
               </div>
               <div className="flex justify-between text-sm border-t border-current/20 pt-2">
@@ -726,7 +726,7 @@ export default function BillingPage() {
   const STAT_CARDS = [
     {
       label: isDE ? "Einnahmen" : "Revenus perçus",
-      value: `${totalRevenue.toLocaleString("fr-MA")} EUR`,
+      value: `${totalRevenue.toLocaleString("fr-FR")} EUR`,
       icon: TrendingUp,
       color: "gradient-success",
       drawerTitle: isDE ? "Bezahlte Rechnungen" : "Factures payées",
@@ -734,7 +734,7 @@ export default function BillingPage() {
     },
     {
       label: isDE ? "Unbezahlt" : "Factures impayées",
-      value: `${unpaidAmount.toLocaleString("fr-MA")} EUR`,
+      value: `${unpaidAmount.toLocaleString("fr-FR")} EUR`,
       icon: Clock,
       color: "gradient-warning",
       drawerTitle: isDE ? "Unbezahlte Rechnungen" : "Factures impayées",
@@ -885,11 +885,11 @@ export default function BillingPage() {
                             {(inv as any).paidAt ? format(new Date((inv as any).paidAt), "d MMM yyyy", { locale: dateLocale }) : "—"}
                           </span>
                         </td>
-                        <td className="text-right"><span className="text-xs font-semibold text-foreground">{inv.total?.toLocaleString("fr-MA")} EUR</span></td>
-                        <td className="text-right hidden sm:table-cell"><span className="text-xs font-medium text-emerald-600">{inv.paid?.toLocaleString("fr-MA")} EUR</span></td>
+                        <td className="text-right"><span className="text-xs font-semibold text-foreground">{inv.total?.toLocaleString("fr-FR")} EUR</span></td>
+                        <td className="text-right hidden sm:table-cell"><span className="text-xs font-medium text-emerald-600">{inv.paid?.toLocaleString("fr-FR")} EUR</span></td>
                         <td className="text-right hidden sm:table-cell">
                           <span className={cn("text-xs font-medium", balance > 0 ? "text-red-500" : "text-emerald-600")}>
-                            {balance.toLocaleString("fr-MA")} EUR
+                            {balance.toLocaleString("fr-FR")} EUR
                           </span>
                         </td>
                         <td className="text-center">
@@ -995,9 +995,9 @@ export default function BillingPage() {
               const totalR = drawerList.items.reduce((s, i) => s + Math.max(0, (i.total || 0) - (i.paid || 0)), 0);
               return (
                 <div className="flex items-center gap-4 px-5 py-3 bg-muted/30 border-b border-border text-xs flex-shrink-0">
-                  <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong className="text-foreground">{totalT.toLocaleString("fr-MA")} EUR</strong></span>
-                  {totalP > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: <strong>{totalP.toLocaleString("fr-MA")} EUR</strong></span>}
-                  {totalR > 0 && <span className="text-red-500">{isDE ? "Offen" : "Reste"}: <strong>{totalR.toLocaleString("fr-MA")} EUR</strong></span>}
+                  <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong className="text-foreground">{totalT.toLocaleString("fr-FR")} EUR</strong></span>
+                  {totalP > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: <strong>{totalP.toLocaleString("fr-FR")} EUR</strong></span>}
+                  {totalR > 0 && <span className="text-red-500">{isDE ? "Offen" : "Reste"}: <strong>{totalR.toLocaleString("fr-FR")} EUR</strong></span>}
                 </div>
               );
             })()}
@@ -1027,9 +1027,9 @@ export default function BillingPage() {
                         {inv.date && <span>📅 {inv.date}</span>}
                       </div>
                       <div className="flex flex-wrap gap-3 text-[11px] pt-0.5">
-                        <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong className="text-foreground">{(inv.total || 0).toLocaleString("fr-MA")} EUR</strong></span>
-                        {(inv.paid || 0) > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: <strong>{(inv.paid || 0).toLocaleString("fr-MA")} EUR</strong></span>}
-                        {remaining > 0 && <span className="text-red-500 font-semibold">{isDE ? "Offen" : "Reste"}: {remaining.toLocaleString("fr-MA")} EUR</span>}
+                        <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong className="text-foreground">{(inv.total || 0).toLocaleString("fr-FR")} EUR</strong></span>
+                        {(inv.paid || 0) > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: <strong>{(inv.paid || 0).toLocaleString("fr-FR")} EUR</strong></span>}
+                        {remaining > 0 && <span className="text-red-500 font-semibold">{isDE ? "Offen" : "Reste"}: {remaining.toLocaleString("fr-FR")} EUR</span>}
                       </div>
                     </div>
                   );
