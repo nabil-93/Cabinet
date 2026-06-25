@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   } else if (date) {
     query = query.eq("date", date);
   } else if (month) {
-    query = query.gte("date", `${month}-01`).lte("date", `${month}-31`);
+    query = query.like("date", `${month}-%`);
   } else {
     query = query.limit(100);
   }

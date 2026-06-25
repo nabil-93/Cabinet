@@ -35,7 +35,10 @@ export default function CalendarPage() {
   const paddedDays = Array(startDay).fill(null).concat(days);
 
   const selectedDateApts = selectedDate
-    ? appointments.filter((a) => isSameDay(new Date(a.date), selectedDate))
+    ? appointments.filter((a) => {
+        const [y, m, d] = a.date.split("-").map(Number);
+        return selectedDate.getFullYear() === y && selectedDate.getMonth() + 1 === m && selectedDate.getDate() === d;
+      })
     : [];
 
   return (
@@ -91,7 +94,10 @@ export default function CalendarPage() {
             <div className="grid grid-cols-7 gap-1">
               {paddedDays.map((day, i) => {
                 if (!day) return <div key={`empty-${i}`} />;
-                const dayApts = appointments.filter((a) => isSameDay(new Date(a.date), day));
+                const dayApts = appointments.filter((a) => {
+                  const [y, m, d] = a.date.split("-").map(Number);
+                  return day.getFullYear() === y && day.getMonth() + 1 === m && day.getDate() === d;
+                });
                 const isSelected = selectedDate && isSameDay(day, selectedDate);
                 const today = isToday(day);
 
