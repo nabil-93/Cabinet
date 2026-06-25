@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   } else if (month) {
     query = query.like("date", `${month}-%`);
   } else {
-    query = query.limit(100);
+    query = query.limit(500);
   }
 
   const { data, error } = await query;

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Calendar, Clock } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, getDay, addMonths, subMonths } from "date-fns";
 import { fr, de } from "date-fns/locale";
 import Header from "@/components/layout/Header";
-import { useAppointmentsByMonth } from "@/hooks/useAppointments";
+import { useAppointments } from "@/hooks/useAppointments";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 
@@ -20,8 +20,9 @@ export default function CalendarPage() {
   const { lang, t } = useLang();
   const dateLocale = lang === "de" ? de : fr;
   const [currentDate, setCurrentDate] = useState(new Date());
+  const { data: allAppointments = [] } = useAppointments();
   const monthStr = format(currentDate, "yyyy-MM");
-  const { data: appointments = [] } = useAppointmentsByMonth(monthStr);
+  const appointments = allAppointments.filter((a) => a.date?.startsWith(monthStr));
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [view, setView] = useState<"month" | "week">("month");
