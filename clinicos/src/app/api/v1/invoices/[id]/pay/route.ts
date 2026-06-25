@@ -34,6 +34,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (error) return err(error.message);
   const invoiceNumber = (data as any).invoice_number || "";
-  await logActivity({ supabase, action: "pay_invoice", entityType: "invoice", entityId: id, entityLabel: `${invoiceNumber} – ${paid} MAD`, req });
+  await logActivity({ supabase, action: "pay_invoice", entityType: "invoice", entityId: id, entityLabel: `${invoiceNumber} – ${paid} EUR`, req });
   return ok(normalize(data));
 }

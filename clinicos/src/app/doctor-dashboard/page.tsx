@@ -315,7 +315,7 @@ const DT = {
     patientsCount: "Patients traités", prescriptionsCount: "Ordonnances",
     invoicesCount: "Factures", activity: "Aperçu de l'activité",
     analytics: "Analytiques", todayApts: "RDV aujourd'hui", appointments: "rendez-vous",
-    revenue: "Revenus du mois", mad: "MAD", waitingRoomCount: "En salle d'attente",
+    revenue: "Revenus du mois", mad: "EUR", waitingRoomCount: "En salle d'attente",
     patients: "patients", byStatus: "RDV du jour par statut",
     monthlyGoal: "% de l'objectif mensuel",
     patientStats: "Statistiques du patient", noPatientStats: "Sélectionnez un patient",
@@ -372,7 +372,7 @@ const DT = {
     patientsCount: "Behandelte Patienten", prescriptionsCount: "Rezepte",
     invoicesCount: "Rechnungen", activity: "Aktivitätsübersicht",
     analytics: "Analysen", todayApts: "Termine heute", appointments: "Termine",
-    revenue: "Monatseinnahmen", mad: "MAD", waitingRoomCount: "Im Wartezimmer",
+    revenue: "Monatseinnahmen", mad: "EUR", waitingRoomCount: "Im Wartezimmer",
     patients: "Patienten", byStatus: "Termine des Tages nach Status",
     monthlyGoal: "% des Monatsziels",
     patientStats: "Patientenstatistiken", noPatientStats: "Patient auswählen",
@@ -586,12 +586,12 @@ function PatientStatsTab({ effectiveSelectedId, patientApts, consultations, pres
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-3 text-center">
               <p className="text-xl font-bold text-emerald-600">{totalPaid.toLocaleString("fr-MA")}</p>
-              <p className="text-[10px] text-emerald-600/70 mt-0.5">MAD</p>
+              <p className="text-[10px] text-emerald-600/70 mt-0.5">EUR</p>
               <p className="text-[10px] text-muted-foreground font-medium mt-1">{dt.paid}</p>
             </div>
             <div className={cn("rounded-xl p-3 text-center", totalRem > 0 ? "bg-red-50 dark:bg-red-950/20" : "bg-muted/30")}>
               <p className={cn("text-xl font-bold", totalRem > 0 ? "text-red-600" : "text-muted-foreground")}>{totalRem.toLocaleString("fr-MA")}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">MAD</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">EUR</p>
               <p className="text-[10px] text-muted-foreground font-medium mt-1">{dt.remaining}</p>
             </div>
           </div>

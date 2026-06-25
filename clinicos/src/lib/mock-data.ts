@@ -55,10 +55,10 @@ export const mockPrescriptions: Prescription[] = [
 
 export const mockNotifications: Notification[] = [
   { id: "notif-1", title: "Rendez-vous dans 30 minutes", message: "Amina Benali - Consultation à 09:00", type: "appointment", read: false, createdAt: "2025-05-06T08:30:00" },
-  { id: "notif-2", title: "Paiement reçu", message: "INV-2025-001 - 550 MAD reçu de Amina Benali", type: "payment", read: false, createdAt: "2025-05-06T08:15:00" },
+  { id: "notif-2", title: "Paiement reçu", message: "INV-2025-001 - 550 EUR reçu de Amina Benali", type: "payment", read: false, createdAt: "2025-05-06T08:15:00" },
   { id: "notif-3", title: "Nouveau patient", message: "Sara Mansouri a été enregistrée", type: "system", read: true, createdAt: "2025-05-05T16:00:00" },
   { id: "notif-4", title: "RDV annulé", message: "Fatima El Idrissi a annulé son rendez-vous du 30 avril", type: "appointment", read: true, createdAt: "2025-04-29T10:00:00" },
-  { id: "notif-5", title: "Facture impayée", message: "INV-2025-005 - Nadia Cherkaoui - 600 MAD en attente", type: "payment", read: false, createdAt: "2025-05-05T09:00:00" },
+  { id: "notif-5", title: "Facture impayée", message: "INV-2025-005 - Nadia Cherkaoui - 600 EUR en attente", type: "payment", read: false, createdAt: "2025-05-05T09:00:00" },
 ];
 
 export const mockWaitingRoom: WaitingRoomEntry[] = [

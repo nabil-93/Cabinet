@@ -280,16 +280,16 @@ function DrillDrawer({ type, period, isDE, onClose }: {
                 {item.total !== undefined && (
                   <div className="flex flex-wrap items-center gap-3 text-[11px] pt-0.5">
                     <span className="text-muted-foreground">
-                      {isDE ? "Gesamt" : "Total"}: <strong>{item.total?.toLocaleString("fr-MA")} MAD</strong>
+                      {isDE ? "Gesamt" : "Total"}: <strong>{item.total?.toLocaleString("fr-MA")} EUR</strong>
                     </span>
                     {(item.paid ?? 0) > 0 && (
                       <span className="text-emerald-600">
-                        {isDE ? "Bezahlt" : "Payé"}: {item.paid?.toLocaleString("fr-MA")} MAD
+                        {isDE ? "Bezahlt" : "Payé"}: {item.paid?.toLocaleString("fr-MA")} EUR
                       </span>
                     )}
                     {(item.remaining ?? 0) > 0 && (
                       <span className="text-red-500 font-semibold">
-                        {isDE ? "Offen" : "Reste"}: {item.remaining?.toLocaleString("fr-MA")} MAD
+                        {isDE ? "Offen" : "Reste"}: {item.remaining?.toLocaleString("fr-MA")} EUR
                       </span>
                     )}
                   </div>
@@ -364,7 +364,7 @@ export default function AnalyticsPage() {
     },
     { label: t("analytics.kpi.completion"), value: kpi ? `${kpi.completionRate}%` : "—", sub: t("analytics.kpi.completed"), icon: CheckCircle, color: "gradient-success" },
     { label: t("analytics.kpi.newPatients"), value: kpi ? `${kpi.newPatientsMonth}` : "—", sub: t("analytics.kpi.thisMonth"), icon: Users, color: "gradient-warning" },
-    { label: t("analytics.kpi.revenue"), value: kpi ? (kpi.monthlyRevenue > 0 ? `${kpi.monthlyRevenue.toLocaleString("fr-MA")} MAD` : "0 MAD") : "—", sub: t("analytics.kpi.collected"), icon: CreditCard, color: "gradient-purple" },
+    { label: t("analytics.kpi.revenue"), value: kpi ? (kpi.monthlyRevenue > 0 ? `${kpi.monthlyRevenue.toLocaleString("fr-MA")} EUR` : "0 EUR") : "—", sub: t("analytics.kpi.collected"), icon: CreditCard, color: "gradient-purple" },
   ];
 
   return (
@@ -426,7 +426,7 @@ export default function AnalyticsPage() {
                   </div>
                   <div className="flex items-baseline gap-2 mt-2">
                     <span className="text-xl font-bold text-red-600">{(summary?.unpaidAmount ?? 0).toLocaleString("fr-MA")}</span>
-                    <span className="text-xs text-red-500">MAD</span>
+                    <span className="text-xs text-red-500">EUR</span>
                     <span className="text-[10px] text-red-400 ml-auto">{summary?.unpaidCount ?? 0} {isDE ? "Rechnungen" : "factures"}</span>
                   </div>
                 </button>
@@ -442,7 +442,7 @@ export default function AnalyticsPage() {
                   </div>
                   <div className="flex items-baseline gap-2 mt-2">
                     <span className="text-xl font-bold text-orange-600">{(summary?.partialAmount ?? 0).toLocaleString("fr-MA")}</span>
-                    <span className="text-xs text-orange-500">MAD</span>
+                    <span className="text-xs text-orange-500">EUR</span>
                     <span className="text-[10px] text-orange-400 ml-auto">{summary?.partialCount ?? 0} {isDE ? "Rechnungen" : "factures"}</span>
                   </div>
                 </button>
@@ -454,7 +454,7 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-3 gap-3">
             {[
               { label: isDE ? "RDV gesamt" : "RDV total", value: summary?.totalAppointments ?? 0, unit: isDE ? "Termine" : "rendez-vous", color: "text-primary", drill: "rdv_all" as DrillType },
-              { label: isDE ? "Einnahmen" : "Revenus", value: `${(summary?.revenue ?? 0).toLocaleString("fr-MA")}`, unit: "MAD", color: "text-emerald-600", drill: "invoices_paid" as DrillType },
+              { label: isDE ? "Einnahmen" : "Revenus", value: `${(summary?.revenue ?? 0).toLocaleString("fr-MA")}`, unit: "EUR", color: "text-emerald-600", drill: "invoices_paid" as DrillType },
               { label: isDE ? "Im Wartezimmer" : "Salle d'attente", value: summary?.waitingRoom ?? 0, unit: isDE ? "Patienten" : "patients", color: "text-amber-600", drill: null },
             ].map(item => (
               <button key={item.label}

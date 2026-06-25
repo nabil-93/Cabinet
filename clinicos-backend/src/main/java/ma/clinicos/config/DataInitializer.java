@@ -219,12 +219,12 @@ public class DataInitializer {
 
             notifRepo.save(Notification.builder().user(doctor)
                     .title("Paiement reçu")
-                    .message("INV-2025-001 — 550 MAD reçu de Amina Benali")
+                    .message("INV-2025-001 — 550 EURreçu de Amina Benali")
                     .type(Notification.NotificationType.PAYMENT).read(false).build());
 
             notifRepo.save(Notification.builder().user(doctor)
                     .title("Facture impayée")
-                    .message("INV-2025-004 — Nadia Cherkaoui — 600 MAD en attente")
+                    .message("INV-2025-004 — Nadia Cherkaoui — 600 EURen attente")
                     .type(Notification.NotificationType.PAYMENT).read(false).build());
 
             log.info("=== {} patients, appointments, invoices créés ===", patientRepo.count());

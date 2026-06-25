@@ -125,7 +125,7 @@ export default function DashboardPage() {
             <>
               <StatCard title={t("dashboard.stats.totalPatients")} value={stats?.totalPatients ?? 0} icon={Users} gradient="gradient-primary" delay={0.05} />
               <StatCard title={t("dashboard.stats.todayAppointments")} value={stats?.todayAppointments ?? 0} icon={Calendar} gradient="gradient-success" delay={0.1} />
-              <StatCard title={t("dashboard.stats.monthlyRevenue")} value={stats?.monthlyRevenue ?? 0} icon={CreditCard} gradient="gradient-warning" suffix=" MAD" delay={0.15} />
+              <StatCard title={t("dashboard.stats.monthlyRevenue")} value={stats?.monthlyRevenue ?? 0} icon={CreditCard} gradient="gradient-warning" suffix=" EUR" delay={0.15} />
               <StatCard title={t("dashboard.stats.waitingRoom")} value={stats?.waitingRoom ?? 0} icon={Clock} gradient="gradient-danger" delay={0.2} />
             </>
           )}

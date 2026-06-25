@@ -32,9 +32,9 @@ async function exportToExcel(invoices: Invoice[], statusLabel: string, isDE: boo
     [isDE ? "Telefon"         : "Téléphone"]:    inv.patientPhone ?? "—",
     [isDE ? "Datum"           : "Date"]:          inv.date         ?? "—",
     [isDE ? "Fälligkeitsdatum": "Échéance"]:     inv.dueDate      ?? "—",
-    [isDE ? "Gesamt (MAD)"    : "Total (MAD)"]:   inv.total        ?? 0,
-    [isDE ? "Bezahlt (MAD)"   : "Payé (MAD)"]:    inv.paid         ?? 0,
-    [isDE ? "Restbetrag (MAD)": "Reste (MAD)"]:  Math.max(0, (inv.total ?? 0) - (inv.paid ?? 0)),
+    [isDE ? "Gesamt (EUR)"    : "Total (EUR)"]:   inv.total        ?? 0,
+    [isDE ? "Bezahlt (EUR)"   : "Payé (EUR)"]:    inv.paid         ?? 0,
+    [isDE ? "Restbetrag (EUR)": "Reste (EUR)"]:  Math.max(0, (inv.total ?? 0) - (inv.paid ?? 0)),
     [isDE ? "Status"          : "Statut"]:        statusMap[inv.status] ?? inv.status,
   }));
 
@@ -48,9 +48,9 @@ async function exportToExcel(invoices: Invoice[], statusLabel: string, isDE: boo
     [isDE ? "Telefon"         : "Téléphone"]:    "",
     [isDE ? "Datum"           : "Date"]:          "",
     [isDE ? "Fälligkeitsdatum": "Échéance"]:     "",
-    [isDE ? "Gesamt (MAD)"    : "Total (MAD)"]:   totalTotal,
-    [isDE ? "Bezahlt (MAD)"   : "Payé (MAD)"]:    totalPaid,
-    [isDE ? "Restbetrag (MAD)": "Reste (MAD)"]:  totalRem,
+    [isDE ? "Gesamt (EUR)"    : "Total (EUR)"]:   totalTotal,
+    [isDE ? "Bezahlt (EUR)"   : "Payé (EUR)"]:    totalPaid,
+    [isDE ? "Restbetrag (EUR)": "Reste (EUR)"]:  totalRem,
     [isDE ? "Status"          : "Statut"]:        `${invoices.length} ${isDE ? "Einträge" : "factures"}`,
   });
 
@@ -144,8 +144,8 @@ async function downloadPDF(inv: Invoice) {
     doc.setTextColor(40, 40, 60); doc.setFontSize(9); doc.setFont("helvetica", "normal");
     doc.text(item.description || "—", margin + 3, y + 5.5);
     doc.text(String(item.quantity), 128, y + 5.5, { align: "center" });
-    doc.text(`${item.unitPrice.toLocaleString("fr-MA")} MAD`, 158, y + 5.5, { align: "right" });
-    doc.text(`${item.total.toLocaleString("fr-MA")} MAD`, W - margin - 2, y + 5.5, { align: "right" });
+    doc.text(`${item.unitPrice.toLocaleString("fr-MA")} EUR`, 158, y + 5.5, { align: "right" });
+    doc.text(`${item.total.toLocaleString("fr-MA")} EUR`, W - margin - 2, y + 5.5, { align: "right" });
     y += 8;
   });
 
@@ -156,15 +156,15 @@ async function downloadPDF(inv: Invoice) {
   doc.text("Sous-total :", boxX + 4, y + 8);
   doc.text("Montant payé :", boxX + 4, y + 16);
   doc.setFont("helvetica", "bold"); doc.setTextColor(40, 40, 60);
-  doc.text(`${inv.total?.toLocaleString("fr-MA")} MAD`, boxX + 71, y + 8, { align: "right" });
+  doc.text(`${inv.total?.toLocaleString("fr-MA")} EUR`, boxX + 71, y + 8, { align: "right" });
   doc.setTextColor(22, 163, 74);
-  doc.text(`${inv.paid?.toLocaleString("fr-MA")} MAD`, boxX + 71, y + 16, { align: "right" });
+  doc.text(`${inv.paid?.toLocaleString("fr-MA")} EUR`, boxX + 71, y + 16, { align: "right" });
   doc.setDrawColor(98, 114, 245); doc.setLineWidth(0.5);
   doc.line(boxX + 4, y + 20, boxX + 71, y + 20);
   doc.setFontSize(11); doc.setFont("helvetica", "bold");
   doc.setTextColor(98, 114, 245);
   doc.text("Solde :", boxX + 4, y + 30);
-  doc.text(`${balance.toLocaleString("fr-MA")} MAD`, boxX + 71, y + 30, { align: "right" });
+  doc.text(`${balance.toLocaleString("fr-MA")} EUR`, boxX + 71, y + 30, { align: "right" });
 
   y += 46;
   const badgeColors: Record<string, [number, number, number]> = {
@@ -371,7 +371,7 @@ function CreateInvoiceModal({ onClose, t }: { onClose: () => void; t: (key: stri
             <ItemsTable items={items} onChange={setItems} addLineLabel={t("billing.editModal.addLine")} />
             <div className="mt-3 text-right">
               <span className="text-xs text-muted-foreground">{t("billing.createModal.totalLabel")} </span>
-              <span className="text-sm font-bold text-primary">{total.toLocaleString("fr-MA")} MAD</span>
+              <span className="text-sm font-bold text-primary">{total.toLocaleString("fr-MA")} EUR</span>
             </div>
           </div>
 
@@ -467,7 +467,7 @@ function EditInvoiceModal({ invoice, onClose, t }: {
             <ItemsTable items={items} onChange={setItems} addLineLabel={t("billing.editModal.addLine")} />
             <div className="mt-3 text-right">
               <span className="text-xs text-muted-foreground">{t("billing.editModal.totalLabel")} </span>
-              <span className="text-sm font-bold text-primary">{total.toLocaleString("fr-MA")} MAD</span>
+              <span className="text-sm font-bold text-primary">{total.toLocaleString("fr-MA")} EUR</span>
             </div>
           </div>
 
@@ -602,17 +602,17 @@ function PayModal({ invoice, onClose, t }: {
             <div className="bg-muted/30 rounded-xl py-3 px-2">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{t("common.total")}</p>
               <p className="text-sm font-bold text-foreground">{total.toLocaleString("fr-MA")}</p>
-              <p className="text-[10px] text-muted-foreground">MAD</p>
+              <p className="text-[10px] text-muted-foreground">EUR</p>
             </div>
             <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl py-3 px-2">
               <p className="text-[10px] text-emerald-600 uppercase tracking-wide mb-1">{t("billing.payModal.alreadyPaid")}</p>
               <p className="text-sm font-bold text-emerald-600">{alreadyPaid.toLocaleString("fr-MA")}</p>
-              <p className="text-[10px] text-emerald-600">MAD</p>
+              <p className="text-[10px] text-emerald-600">EUR</p>
             </div>
             <div className="bg-red-50 dark:bg-red-950/30 rounded-xl py-3 px-2">
               <p className="text-[10px] text-red-500 uppercase tracking-wide mb-1">{t("billing.payModal.remainingDue")}</p>
               <p className="text-sm font-bold text-red-500">{remaining.toLocaleString("fr-MA")}</p>
-              <p className="text-[10px] text-red-500">MAD</p>
+              <p className="text-[10px] text-red-500">EUR</p>
             </div>
           </div>
 
@@ -638,12 +638,12 @@ function PayModal({ invoice, onClose, t }: {
             )}>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{t("billing.payModal.totalAfter")}</span>
-                <span className="font-bold text-foreground">{newTotalPaid.toLocaleString("fr-MA")} MAD</span>
+                <span className="font-bold text-foreground">{newTotalPaid.toLocaleString("fr-MA")} EUR</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{t("billing.payModal.remaining")}</span>
                 <span className={cn("font-bold", willBePaid ? "text-emerald-600" : "text-amber-600")}>
-                  {newRemaining.toLocaleString("fr-MA")} MAD
+                  {newRemaining.toLocaleString("fr-MA")} EUR
                 </span>
               </div>
               <div className="flex justify-between text-sm border-t border-current/20 pt-2">
@@ -726,7 +726,7 @@ export default function BillingPage() {
   const STAT_CARDS = [
     {
       label: isDE ? "Einnahmen" : "Revenus perçus",
-      value: `${totalRevenue.toLocaleString("fr-MA")} MAD`,
+      value: `${totalRevenue.toLocaleString("fr-MA")} EUR`,
       icon: TrendingUp,
       color: "gradient-success",
       drawerTitle: isDE ? "Bezahlte Rechnungen" : "Factures payées",
@@ -734,7 +734,7 @@ export default function BillingPage() {
     },
     {
       label: isDE ? "Unbezahlt" : "Factures impayées",
-      value: `${unpaidAmount.toLocaleString("fr-MA")} MAD`,
+      value: `${unpaidAmount.toLocaleString("fr-MA")} EUR`,
       icon: Clock,
       color: "gradient-warning",
       drawerTitle: isDE ? "Unbezahlte Rechnungen" : "Factures impayées",
@@ -885,11 +885,11 @@ export default function BillingPage() {
                             {(inv as any).paidAt ? format(new Date((inv as any).paidAt), "d MMM yyyy", { locale: dateLocale }) : "—"}
                           </span>
                         </td>
-                        <td className="text-right"><span className="text-xs font-semibold text-foreground">{inv.total?.toLocaleString("fr-MA")} MAD</span></td>
-                        <td className="text-right hidden sm:table-cell"><span className="text-xs font-medium text-emerald-600">{inv.paid?.toLocaleString("fr-MA")} MAD</span></td>
+                        <td className="text-right"><span className="text-xs font-semibold text-foreground">{inv.total?.toLocaleString("fr-MA")} EUR</span></td>
+                        <td className="text-right hidden sm:table-cell"><span className="text-xs font-medium text-emerald-600">{inv.paid?.toLocaleString("fr-MA")} EUR</span></td>
                         <td className="text-right hidden sm:table-cell">
                           <span className={cn("text-xs font-medium", balance > 0 ? "text-red-500" : "text-emerald-600")}>
-                            {balance.toLocaleString("fr-MA")} MAD
+                            {balance.toLocaleString("fr-MA")} EUR
                           </span>
                         </td>
                         <td className="text-center">
@@ -995,9 +995,9 @@ export default function BillingPage() {
               const totalR = drawerList.items.reduce((s, i) => s + Math.max(0, (i.total || 0) - (i.paid || 0)), 0);
               return (
                 <div className="flex items-center gap-4 px-5 py-3 bg-muted/30 border-b border-border text-xs flex-shrink-0">
-                  <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong className="text-foreground">{totalT.toLocaleString("fr-MA")} MAD</strong></span>
-                  {totalP > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: <strong>{totalP.toLocaleString("fr-MA")} MAD</strong></span>}
-                  {totalR > 0 && <span className="text-red-500">{isDE ? "Offen" : "Reste"}: <strong>{totalR.toLocaleString("fr-MA")} MAD</strong></span>}
+                  <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong className="text-foreground">{totalT.toLocaleString("fr-MA")} EUR</strong></span>
+                  {totalP > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: <strong>{totalP.toLocaleString("fr-MA")} EUR</strong></span>}
+                  {totalR > 0 && <span className="text-red-500">{isDE ? "Offen" : "Reste"}: <strong>{totalR.toLocaleString("fr-MA")} EUR</strong></span>}
                 </div>
               );
             })()}
@@ -1027,9 +1027,9 @@ export default function BillingPage() {
                         {inv.date && <span>📅 {inv.date}</span>}
                       </div>
                       <div className="flex flex-wrap gap-3 text-[11px] pt-0.5">
-                        <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong className="text-foreground">{(inv.total || 0).toLocaleString("fr-MA")} MAD</strong></span>
-                        {(inv.paid || 0) > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: <strong>{(inv.paid || 0).toLocaleString("fr-MA")} MAD</strong></span>}
-                        {remaining > 0 && <span className="text-red-500 font-semibold">{isDE ? "Offen" : "Reste"}: {remaining.toLocaleString("fr-MA")} MAD</span>}
+                        <span className="text-muted-foreground">{isDE ? "Gesamt" : "Total"}: <strong className="text-foreground">{(inv.total || 0).toLocaleString("fr-MA")} EUR</strong></span>
+                        {(inv.paid || 0) > 0 && <span className="text-emerald-600">{isDE ? "Bezahlt" : "Payé"}: <strong>{(inv.paid || 0).toLocaleString("fr-MA")} EUR</strong></span>}
+                        {remaining > 0 && <span className="text-red-500 font-semibold">{isDE ? "Offen" : "Reste"}: {remaining.toLocaleString("fr-MA")} EUR</span>}
                       </div>
                     </div>
                   );
