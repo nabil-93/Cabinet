@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { MessageCircle, Clock, Send, Search, RefreshCw, User, Calendar, Phone, Check, Trash2 } from "lucide-react";
-import { format, addDays, isWithinInterval, parseISO, startOfDay } from "date-fns";
+import { format, addDays, parseISO, startOfDay } from "date-fns";
 import { fr, de, type Locale } from "date-fns/locale";
 import Header from "@/components/layout/Header";
 import { cn } from "@/lib/utils";
@@ -99,21 +99,17 @@ export default function WhatsAppPage() {
     try {
       const today = new Date();
       const end = addDays(today, 3);
-      const dateFrom = format(today, "yyyy-MM-dd");
-      const dateTo = format(end, "yyyy-MM-dd");
 
-      // Fetch appointments range by month (then filter client-side by date range)
-      const month = format(today, "yyyy-MM");
-      const res = await fetch(`/api/v1/appointments?month=${month}`);
+      // Fetch all appointments (client-side filter) — avoids month API bug
+      const res = await fetch(`/api/v1/appointments`);
       if (!res.ok) throw new Error("Fetch failed");
       const data = await res.json();
+
+      const todayStr = format(today, "yyyy-MM-dd");
+      const endStr   = format(end,   "yyyy-MM-dd");
+
       const list: Appointment[] = (data.data || data || []).filter((a: Appointment) => {
-        try {
-          const d = parseISO(a.date);
-          return isWithinInterval(d, { start: startOfDay(today), end: startOfDay(end) });
-        } catch {
-          return false;
-        }
+        return a.date >= todayStr && a.date <= endStr;
       });
 
       setAppointments(list);
@@ -161,9 +157,9 @@ export default function WhatsAppPage() {
     .filter(a => !sentAptIds.has(a.id) && a.status !== "cancelled")
     .map(a => {
       const phone = a.phone || patients[a.patientId]?.phone;
-      const daysUntil = Math.round(
-        (startOfDay(parseISO(a.date)).getTime() - startOfDay(today).getTime()) / 86400000
-      );
+      const todayMidnight = new Date(format(today, "yyyy-MM-dd"));
+      const aptMidnight   = new Date(a.date);
+      const daysUntil = Math.round((aptMidnight.getTime() - todayMidnight.getTime()) / 86400000);
       return {
         appointment: { ...a, phone },
         patient: {
@@ -487,7 +483,7 @@ function appointmentBadge(rawDate: string | undefined, isDE: boolean) {
   if (!rawDate) return null;
   try {
     const days = Math.round(
-      (startOfDay(parseISO(rawDate)).getTime() - startOfDay(new Date()).getTime()) / 86400000
+      (new Date(rawDate).getTime() - new Date(format(new Date(), "yyyy-MM-dd")).getTime()) / 86400000
     );
     let label: string;
     let color: string;
