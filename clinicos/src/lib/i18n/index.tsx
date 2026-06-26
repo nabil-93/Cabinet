@@ -13,10 +13,10 @@ interface LangCtx {
   t: (key: string, vars?: Record<string, string | number>) => string;
 }
 
-const Ctx = createContext<LangCtx>({ lang: "fr", setLang: () => {}, t: (k) => k });
+const Ctx = createContext<LangCtx>({ lang: "de", setLang: () => {}, t: (k) => k });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>("fr");
+  const [lang, setLangState] = useState<Lang>("de");
 
   useEffect(() => {
     const saved = localStorage.getItem("clinicos_lang") as Lang | null;
